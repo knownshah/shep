@@ -36,6 +36,8 @@
 use core::fmt;
 use std::io::Write as _;
 
+mod stop;
+
 use serde::de::DeserializeOwned;
 use shep_core::config::DogTable;
 use shep_core::dogs::{SCHEMA_FLAG, SHEP_PROTOCOL_KEY, VERSION_FLAG};
@@ -46,6 +48,7 @@ pub use shep_core::dogs::{SECRET_KEY, SHEEP_SCHEMA_KEY};
 /// Its own documentation carries the rules: which shapes accept
 /// `#[shep(secret)]`, which refuse it, and what the expansion looks like.
 pub use shep_macros::dog_config;
+pub use stop::{Interrupted, Stop, StopRequest};
 
 /// That a type's config schema has been through [`dog_config`], so every
 /// field marked `#[shep(secret)]` carries [`SECRET_KEY`] wherever `schemars`
