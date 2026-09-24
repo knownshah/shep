@@ -7,6 +7,7 @@ mod outcomes;
 mod process;
 mod redacted;
 mod response;
+mod response_name;
 mod selector_spec;
 mod smit;
 mod verbs;
