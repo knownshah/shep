@@ -37,9 +37,11 @@ use core::fmt;
 use std::io::Write as _;
 
 mod identity;
+mod section;
 mod stop;
 
 pub use identity::DogIdentity;
+pub use section::{SectionError, parse_section};
 use serde::de::DeserializeOwned;
 use shep_core::config::DogTable;
 use shep_core::dogs::{SCHEMA_FLAG, SHEP_PROTOCOL_KEY, VERSION_FLAG};
