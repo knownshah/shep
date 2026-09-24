@@ -38,11 +38,13 @@ use std::io::Write as _;
 
 mod error;
 mod identity;
+mod runtime;
 mod section;
 mod stop;
 
 pub use error::ShepherdError;
 pub use identity::DogIdentity;
+pub use runtime::DogRuntime;
 pub use section::{SectionError, parse_section};
 use serde::de::DeserializeOwned;
 use shep_core::config::DogTable;
