@@ -4,7 +4,7 @@ Status: draft for the maintainer's review · 2026-08-07
 Inputs: [map.md](../systematic-refactor/refactor-workspace/map.md) (module map),
 [goals.md](../systematic-refactor/refactor-workspace/goals.md),
 [decision-briefs.md](../systematic-refactor/refactor-workspace/decision-briefs.md),
-[terminology.md](../terminology.md), [idiomatic-rust.md](../idiomatic-rust.md).
+[terminology.md](../terminology.md), [the Rust house style](https://github.com/shep-pm/rust-house-style).
 This spec is the behavior contract; map.md stays the module-level design. Where
 they disagree, this spec wins (and map.md gets fixed).
 
@@ -536,7 +536,7 @@ daemon memory (explicit non-goal).
 
 ## 12. Testing & CI
 
-Per idiomatic-rust.md IR-33..IR-45: paused-clock deterministic lifecycle
+Per the Rust house style IR-33..IR-45: paused-clock deterministic lifecycle
 tests (backoff/kill timings asserted as pinned arrays), scripted fake
 `ProcessRunner`, proptest on the supervisor state machine, wire byte-fixtures
 + insta snapshots, assert_cmd e2e with fresh `$SHEP_HOME` per test, runtime
