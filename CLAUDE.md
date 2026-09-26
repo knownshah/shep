@@ -118,10 +118,14 @@ until `web/` says so.
 
 ## Code style: hard trigger
 
-Invoke the `shep-idiomatic-rust` skill before writing or reviewing any Rust
-here. It fronts [docs/idiomatic-rust.md](docs/idiomatic-rust.md): rules
-IR-1..IR-47, cited as `IR-<n>`, with evidence in
-[docs/idiomatic-rust/lenses/](docs/idiomatic-rust/lenses/).
+Invoke the `rust-house-style` skill before writing or reviewing any Rust
+here. It comes from the plugin in
+[shep-pm/rust-house-style](https://github.com/shep-pm/rust-house-style),
+enabled in `.claude/settings.json`: rules IR-1..IR-48, cited as `IR-<n>`.
+shep's own specifics and exceptions are in
+[docs/rust-house-style-addendum.md](docs/rust-house-style-addendum.md), which
+wins where it disagrees with the rules. Without the plugin (an untrusted
+folder, a headless run), read the rules from that repo instead.
 
 Most common drift: panicking constructors, `std::error::Error` instead of
 `core::error::Error`, missing `# Errors` sections, `# Panics` without

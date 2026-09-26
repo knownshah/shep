@@ -140,7 +140,7 @@ somebody do that by accident later.
 Its two halves land differently and neither fits.
 
 - **`#[error("...")]` collides with a rule already written.** IR-19 in
-  `docs/idiomatic-rust.md` specifies "manual `Display` via
+  the Rust house style (`shep-pm/rust-house-style`) specifies "manual `Display` via
   `f.write_str(match ...)`". Adopting the derive means changing IR-19, which
   is a separate decision about house style and not one this cleanup should
   make on the way past.

@@ -137,9 +137,10 @@ reviews:
   path_instructions:
     - path: "crates/**/*.rs"
       instructions: >-
-        This workspace has a written Rust style, docs/idiomatic-rust.md, with
-        47 numbered rules IR-1 through IR-47. Cite the rule number when a
-        finding matches one.
+        This workspace follows a written Rust style, the shep-pm/rust-house-style
+        repository, with 48 numbered rules IR-1 through IR-48. shep's own
+        specifics are in docs/rust-house-style-addendum.md. Cite the rule
+        number when a finding matches one.
 
         Load-bearing rules, in rough order of how often they drift: no
         panicking constructor outside the `shep` CLI crate; `core::error::Error`,
@@ -303,5 +304,5 @@ knowledge_base:
     filePatterns:
       - "**/CLAUDE.md"
       - "**/AGENTS.md"
-      - "docs/idiomatic-rust.md"
+      - "docs/rust-house-style-addendum.md"
       - "docs/terminology.md"
