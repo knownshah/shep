@@ -27,9 +27,17 @@
 //! Answering is optional: with the `schema` feature off, [`probe`] still
 //! answers the version flag, and the schema flag exits without printing,
 //! which shep reads as a dog with no schema and refuses nothing for.
+//!
+//! [`parse_sheep_settings`] answers a different question: a dog that acts
+//! per sheep reads its `[app.dogs.<dog>]` table off
+//! `Request::DogSheepSettings` and parses one sheep's table at a time, so a
+//! table that does not fit its type never hides the rest.
 
+use core::fmt;
 use std::io::Write as _;
 
+use serde::de::DeserializeOwned;
+use shep_core::config::DogTable;
 pub use shep_core::dogs::SECRET_KEY;
 use shep_core::dogs::{SCHEMA_FLAG, SHEP_PROTOCOL_KEY, VERSION_FLAG};
 /// The attribute that implements [`DogConfig`], re-exported so a dog takes
@@ -140,6 +148,87 @@ fn schema_answer<T: DogConfig + schemars::JsonSchema>() -> String {
     format!("{json}\n")
 }
 
+/// One sheep's `[app.dogs.<dog>]` table did not fit `dog`'s own settings
+/// type.
+///
+/// Carries no parser message and no table value: a field of the wrong
+/// type, or an unknown key under `deny_unknown_fields`, can hold a
+/// credential, and quoting either would print exactly what [`DogTable`]'s
+/// own `Debug` refuses to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SheepSettingsError {
+    dog: String,
+    sheep: String,
+}
+
+impl fmt::Display for SheepSettingsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "the [app.dogs.{}] table on {} does not fit this dog's settings",
+            self.dog, self.sheep
+        )
+    }
+}
+
+impl core::error::Error for SheepSettingsError {}
+
+/// Parses one sheep's `[app.dogs.<dog>]` table into `dog`'s own settings
+/// type.
+///
+/// Call this once per sheep in a `Request::DogSheepSettings` answer's map,
+/// so a table that does not fit `S` never hides the rest of the sheep.
+/// `dog` and `sheep` name the table in the refusal; neither is read from
+/// `table` itself.
+///
+/// # Errors
+///
+/// [`SheepSettingsError`] when `table` does not fit `S`. It never carries
+/// the parser's own message, which can quote a value the table held.
+///
+/// # Examples
+///
+/// ```no_run
+/// use shep_client::Client;
+/// use shep_client::dogs::parse_sheep_settings;
+/// use shep_client::shep_core::protocol::{Request, Response};
+///
+/// #[derive(serde::Deserialize, Default)]
+/// struct JobsSettings {
+///     #[serde(default)]
+///     concurrency: u32,
+/// }
+///
+/// # async fn read(client: &Client) -> Result<(), Box<dyn core::error::Error>> {
+/// let Response::DogSheepSettings { tables } = client
+///     .request(Request::DogSheepSettings {
+///         dog: "jobs".to_string(),
+///     })
+///     .await?
+/// else {
+///     unreachable!("the shepherd answers its own request with its own response");
+/// };
+/// for (sheep, table) in &tables {
+///     let settings: JobsSettings = parse_sheep_settings("jobs", sheep, table)?;
+///     println!("{sheep}: concurrency {}", settings.concurrency);
+/// }
+/// # Ok(())
+/// # }
+/// # let _ = read;
+/// ```
+pub fn parse_sheep_settings<S: DeserializeOwned>(
+    dog: &str,
+    sheep: &str,
+    table: &DogTable,
+) -> Result<S, SheepSettingsError> {
+    serde_json::from_value(serde_json::Value::Object(table.as_map().clone())).map_err(|_| {
+        SheepSettingsError {
+            dog: dog.to_string(),
+            sheep: sheep.to_string(),
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,6 +244,61 @@ mod tests {
 
         assert_eq!(parsed.version, "0.1.3");
         assert_eq!(parsed.protocol, Some(crate::PROTOCOL_VERSION));
+    }
+
+    #[derive(Debug, Default, PartialEq, serde::Deserialize)]
+    #[serde(deny_unknown_fields, default)]
+    struct JobsSettings {
+        concurrency: u32,
+    }
+
+    fn table(pairs: impl IntoIterator<Item = (&'static str, serde_json::Value)>) -> DogTable {
+        DogTable::from(
+            pairs
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect::<serde_json::Map<String, serde_json::Value>>(),
+        )
+    }
+
+    #[test]
+    fn a_table_that_fits_parses() {
+        let table = table([("concurrency", serde_json::json!(2))]);
+        let settings: JobsSettings = parse_sheep_settings("jobs", "web", &table).unwrap();
+        assert_eq!(settings, JobsSettings { concurrency: 2 });
+    }
+
+    /// A credential written into a field whose type refuses it: the
+    /// refusal names the dog and the sheep and quotes neither.
+    #[test]
+    fn a_wrongly_typed_field_is_refused_and_never_quotes_the_value() {
+        let table = table([("concurrency", serde_json::json!("hunter2"))]);
+        let err = parse_sheep_settings::<JobsSettings>("jobs", "web", &table).unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "the [app.dogs.jobs] table on web does not fit this dog's settings"
+        );
+        assert!(!err.to_string().contains("hunter2"));
+        assert!(!format!("{err:?}").contains("hunter2"));
+    }
+
+    /// A credential under a key `JobsSettings` never declared: refused by
+    /// `deny_unknown_fields`, quoting nothing.
+    #[test]
+    fn an_unknown_key_is_refused_and_never_quotes_the_value() {
+        let table = table([
+            ("concurrency", serde_json::json!(2)),
+            ("token", serde_json::json!("hunter2")),
+        ]);
+        let err = parse_sheep_settings::<JobsSettings>("jobs", "web", &table).unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "the [app.dogs.jobs] table on web does not fit this dog's settings"
+        );
+        assert!(!err.to_string().contains("hunter2"));
+        assert!(!format!("{err:?}").contains("hunter2"));
     }
 
     /// Everything the `schema` feature gates, gated the same way: with the
