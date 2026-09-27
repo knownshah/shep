@@ -1,4 +1,4 @@
-//! The client<->daemon wire protocol (version 9).
+//! The client<->daemon wire protocol (version 10).
 //!
 //! Typed request/response enums plus bus events. Framing lives in
 //! [`wire`]; a serialized shape change bumps [`PROTOCOL_VERSION`].
@@ -95,7 +95,7 @@ mod tests {
     /// `dogs` 10. The `Response::Reloading` and `Response::Restarted`
     /// retypes forced 6 and 7, an object not being an array.
     #[test]
-    fn a_removed_app_config_field_forced_the_protocol_version_up() {
+    fn an_added_app_config_field_forced_the_protocol_version_up() {
         assert_eq!(PROTOCOL_VERSION, 10);
     }
 
