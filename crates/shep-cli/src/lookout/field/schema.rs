@@ -118,11 +118,22 @@ pub(super) fn kind_of(schema: &Value, defs: &Map<String, Value>) -> FieldKind {
             Some("integer") => FieldKind::List(ListItem::Integer),
             _ => FieldKind::Opaque,
         },
+        // A map of scalars, like `env`, is `Map`; a map of tables, like
+        // `dogs`, is `additionalProperties` naming a schema with its own
+        // `object` type, direct or through a `$ref`, and stays read-only:
+        // `kind_of` has no editor for a value that is itself a table.
         Some("object")
             if schema.get("additionalProperties").is_some()
                 && schema.get("properties").is_none() =>
         {
-            FieldKind::Map
+            match schema
+                .get("additionalProperties")
+                .map(|additional| resolve(additional, defs))
+                .and_then(type_of)
+            {
+                Some("object") => FieldKind::Opaque,
+                _ => FieldKind::Map,
+            }
         }
         _ => FieldKind::Opaque,
     }
@@ -254,6 +265,26 @@ mod tests {
             FieldKind::Opaque
         );
         assert!(!set.by_key("liveness_probe").unwrap().editable);
+    }
+
+    /// A map whose values are themselves objects, like `dogs`, is not
+    /// `env`'s string-map editor: `additionalProperties` names a schema
+    /// with its own `type`, direct or through a `$ref`, rather than
+    /// `{type: string}` or `env`'s `anyOf` of scalars.
+    #[test]
+    fn a_map_of_tables_is_opaque_not_a_string_map() {
+        let p = props(json!({
+            "dogs": {
+                "type": "object",
+                "additionalProperties": { "$ref": "#/$defs/DogTable" },
+            },
+        }));
+        let d = props(json!({
+            "DogTable": { "type": "object", "additionalProperties": true },
+        }));
+        let set = FieldSet::from_properties(&p, &d, &[]);
+        assert_eq!(set.by_key("dogs").unwrap().kind, FieldKind::Opaque);
+        assert!(!set.by_key("dogs").unwrap().editable);
     }
 
     #[test]
