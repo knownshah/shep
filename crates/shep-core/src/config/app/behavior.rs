@@ -54,6 +54,7 @@ impl Default for AppConfig {
             err_file: None,
             merge_logs: false,
             level_rules: Vec::new(),
+            dogs: BTreeMap::new(),
             channel: false,
             stdin: false,
             wait_ready: false,

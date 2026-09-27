@@ -247,6 +247,22 @@ pub(super) fn refusal_claims() -> Vec<RefusalClaim> {
             |e| matches!(e, NormalizeError::SharedLogPath { .. }),
         ),
         elsewhere(
+            "dogs",
+            "a value that is not a table",
+            "DogTable's Deserialize, before normalize sees the table",
+        ),
+        refused(
+            "dogs",
+            "an empty dog name",
+            sheep(|a| {
+                a.dogs.insert(
+                    String::new(),
+                    crate::config::DogTable::from(serde_json::Map::new()),
+                );
+            }),
+            |e| matches!(e, NormalizeError::EmptyDogName { .. }),
+        ),
+        elsewhere(
             "group",
             "a name with no group entry",
             "shep-daemon's privilege::resolve, at spawn",

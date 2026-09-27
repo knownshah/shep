@@ -60,6 +60,9 @@ const FIELDS: &[(&str, ApplyGroup)] = &[
     // client is classifying this sheep's log lines, so the next listing
     // carries it.
     ("level_rules", ApplyGroup::Live),
+    // Never read by the daemon at all: it rides to the dog it names,
+    // through `Request::DogSheepSettings`, and nothing else asks for it.
+    ("dogs", ApplyGroup::Live),
     // Read fresh from the stored spec each time an action is dispatched, at
     // `supervisor.rs`'s `begin_action` (`config.action_timeout.as_duration()`),
     // not baked into the long-lived per-sheep task.
@@ -256,6 +259,12 @@ mod tests {
     }
 
     #[test]
+    fn dogs_is_live_since_the_daemon_never_reads_it() {
+        assert_eq!(apply_group("dogs"), ApplyGroup::Live);
+        assert!(reaches_running("dogs"));
+    }
+
+    #[test]
     fn shutdown_with_message_is_baked_into_the_child() {
         assert_eq!(
             apply_group("shutdown_with_message"),
@@ -277,7 +286,7 @@ mod tests {
     fn the_split_is_20_5_15_2() {
         let fields = appconfig_fields();
         let count = |want: ApplyGroup| fields.keys().filter(|k| apply_group(k) == want).count();
-        assert_eq!(count(ApplyGroup::Live), 20, "Live");
+        assert_eq!(count(ApplyGroup::Live), 21, "Live");
         assert_eq!(count(ApplyGroup::NextSpawn), 5, "NextSpawn");
         assert_eq!(count(ApplyGroup::NeedsRespawn), 15, "NeedsRespawn");
         assert_eq!(count(ApplyGroup::Structural), 2, "Structural");

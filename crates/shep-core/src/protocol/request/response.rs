@@ -804,7 +804,7 @@ mod tests {
                 result: Ok(Response::HostUsage(None)),
             },
         ];
-        insta::assert_json_snapshot!("reply_wire_v9", replies);
+        insta::assert_json_snapshot!("reply_wire_v10", replies);
     }
 
     /// The additive claim on `SheepFieldSet::warning` has three halves and

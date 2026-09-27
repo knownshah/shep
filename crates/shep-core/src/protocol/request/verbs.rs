@@ -29,7 +29,7 @@ pub enum SelectorSpec {
     Regex(String),
     /// By fold name
     Fold(String),
-    // Both field names are wire contract, pinned by `request_wire_v9`.
+    // Both field names are wire contract, pinned by `request_wire_v10`.
     /// By app name and instance slot
     ///
     /// On the wire: `{"kind":"instance","value":{"name":"web","slot":2}}`.
@@ -930,7 +930,7 @@ mod tests {
             ),
             envelope(34, Request::HostUsage),
         ];
-        insta::assert_json_snapshot!("request_wire_v9", requests);
+        insta::assert_json_snapshot!("request_wire_v10", requests);
     }
 
     #[test]

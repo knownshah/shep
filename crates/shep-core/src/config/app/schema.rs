@@ -1,3 +1,4 @@
+use super::dog_table::DogTable;
 use super::env_value::deserialize_env;
 use super::probe::ProbeConfig;
 use std::collections::BTreeMap;
@@ -411,6 +412,22 @@ pub struct AppConfig {
         "neighbours": [{"field": "out_file", "note": "the lines these rules read"}]
     })))]
     pub level_rules: Vec<LevelRule>,
+    /// One table per dog, keyed by dog name, for this sheep alone.
+    ///
+    /// shep stores this and hands it to the dog it names; it is never read
+    /// or validated here. A dog name need not be one shep already knows:
+    /// configuring a dog before installing it is the order an operator
+    /// wants. Never read by the daemon at a spawn or a decision, so a write
+    /// takes effect the moment it lands.
+    #[cfg_attr(feature = "schema", schemars(extend("init" = {
+        "example": { "jobs": { "concurrency": 2 } },
+        "group": "inputs",
+        "blurb": "Settings for one dog on this sheep alone, opaque to shep",
+        "accepts": ["a table of dog name to a table of settings",
+                    "a dog name shep does not know about yet"],
+        "refuses": ["a value that is not a table", "an empty dog name"]
+    })))]
+    pub dogs: BTreeMap<String, DogTable>,
     /// Open the shepherd channel on fd 3 for this app on its own, without
     /// needing `wait_ready` or `shutdown_with_message` to imply it.
     ///
@@ -794,6 +811,22 @@ mod tests {
             format!("{app:?}"),
             "AppConfig { name: \"web\", script: \"./srv\", env: <2 vars>, .. }"
         );
+    }
+
+    /// A dog's table can hold a credential the way env can; `AppConfig`'s
+    /// manual `Debug` omits `dogs` entirely via `finish_non_exhaustive`, so
+    /// a value inside one must never appear.
+    #[test]
+    fn debug_never_prints_a_dogs_table_value() {
+        let mut app = AppConfig::minimal("web", "./srv");
+        let mut table = serde_json::Map::new();
+        table.insert(
+            "token".to_string(),
+            serde_json::Value::String("super-secret-token".to_string()),
+        );
+        app.dogs
+            .insert("jobs".to_string(), crate::config::DogTable::from(table));
+        assert!(!format!("{app:?}").contains("super-secret-token"));
     }
 
     /// The path fields are the ones an operator gets wrong, and the ones the

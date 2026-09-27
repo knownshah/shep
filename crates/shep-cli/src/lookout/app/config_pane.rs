@@ -532,7 +532,7 @@ mod tests {
         });
         let pane = app.config_pane().expect("the reply opens the pane");
         assert_eq!(pane.target().name(), "web");
-        assert_eq!(pane.fields().len(), 42);
+        assert_eq!(pane.fields().len(), 43);
     }
 
     /// `h` before the reply arrives raises the overlay over the dashboard;

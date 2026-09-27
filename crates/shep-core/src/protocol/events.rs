@@ -363,7 +363,7 @@ mod tests {
             dog: "bark".to_string(),
         });
 
-        insta::assert_json_snapshot!("bus_event_wire_v9", events);
+        insta::assert_json_snapshot!("bus_event_wire_v10", events);
     }
 
     #[test]
