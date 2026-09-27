@@ -301,7 +301,7 @@ impl SupervisorHandle {
     /// operator override of the whole `dogs` field. `Ok(None)` when no sheep
     /// has that name.
     ///
-    /// `rpc.rs` hands the answer's `app` to the registry for
+    /// The dispatch arm records [`FieldSet::app`] to the muster roll, for
     /// [`Self::set_sheep_env`]'s reason. See
     /// [`Actor::handle_set_sheep_dog_settings`].
     ///
