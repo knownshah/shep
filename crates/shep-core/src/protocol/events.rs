@@ -138,6 +138,28 @@ pub enum BusEvent {
         /// The dog whose section changed.
         dog: String,
     },
+    /// A dog's `[app.dogs.<name>]` table changed on one sheep. Published
+    /// under `config.sheep.<dog>`, so a dog subscribes to its own name and
+    /// hears nobody else's, the way [`Self::DogConfigChanged`] does for
+    /// `dogs.toml`.
+    ///
+    /// Fires once per dog and sheep for a change that adds, removes or
+    /// edits that sheep's table for `dog`: a name gaining its first table,
+    /// the last instance of such a name being deleted, or a load,
+    /// `Request::SetSheepDogSettings` or `--reset` changing one. Never for
+    /// a handover, since that changes no answer.
+    ///
+    /// Carries only the sheep's name and the dog's: a table can hold a
+    /// credential, the same reason [`Self::DogConfigChanged`] carries only
+    /// the dog's own name. A dog that wants the values re-asks with
+    /// [`Request::DogSheepSettings`](crate::protocol::Request::DogSheepSettings),
+    /// which answers only that dog's own tables.
+    DogSheepSettingsChanged {
+        /// The dog whose table changed.
+        dog: String,
+        /// The sheep whose table changed.
+        sheep: String,
+    },
 }
 
 impl BusEvent {
@@ -185,6 +207,12 @@ impl BusEvent {
             // segment, so `config.dog.bark` reaches one dog and `config.*`
             // reaches all of them.
             Self::DogConfigChanged { dog } => return Cow::Owned(format!("config.dog.{dog}")),
+            // Named by the dog, like `DogConfigChanged` above: the sheep is
+            // the payload, not the topic, so a dog subscribes once for
+            // every sheep carrying its table.
+            Self::DogSheepSettingsChanged { dog, .. } => {
+                return Cow::Owned(format!("config.sheep.{dog}"));
+            }
         };
         Cow::Borrowed(fixed)
     }
@@ -362,6 +390,12 @@ mod tests {
         events.push(BusEvent::DogConfigChanged {
             dog: "bark".to_string(),
         });
+        // The second event whose topic is built rather than named, and the
+        // one that carries a sheep's name beside the dog's.
+        events.push(BusEvent::DogSheepSettingsChanged {
+            dog: "jobs".to_string(),
+            sheep: "web".to_string(),
+        });
 
         insta::assert_json_snapshot!("bus_event_wire_v10", events);
     }
@@ -513,6 +547,47 @@ mod tests {
         assert_eq!(
             json,
             r#"{"event":"dog_config_changed","data":{"dog":"bark"}}"#
+        );
+        assert_eq!(serde_json::from_str::<BusEvent>(&json).unwrap(), event);
+    }
+
+    /// The topic names the dog, not the sheep, so one dog's subscription
+    /// reaches every sheep carrying its table.
+    #[test]
+    fn a_dog_sheep_settings_event_names_the_dog_in_its_topic() {
+        for dog in ["jobs", "metrics"] {
+            let event = BusEvent::DogSheepSettingsChanged {
+                dog: dog.to_string(),
+                sheep: "web".to_string(),
+            };
+            assert_eq!(event.topic(), format!("config.sheep.{dog}"));
+        }
+    }
+
+    /// `config.*` still reaches this event, beside `config.dog.*`: a
+    /// dashboard watching every dog's config must not lose this topic to a
+    /// glob that only matched the older shape.
+    #[test]
+    fn a_dog_sheep_settings_topic_is_still_under_the_config_glob() {
+        let event = BusEvent::DogSheepSettingsChanged {
+            dog: "jobs".to_string(),
+            sheep: "web".to_string(),
+        };
+        assert!(event.topic().starts_with("config."));
+    }
+
+    /// The sheep rides in the payload, not the topic: a dog subscribes once
+    /// on its own name and hears about every sheep carrying its table.
+    #[test]
+    fn a_dog_sheep_settings_event_carries_the_sheep_and_the_dog() {
+        let event = BusEvent::DogSheepSettingsChanged {
+            dog: "jobs".to_string(),
+            sheep: "web".to_string(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert_eq!(
+            json,
+            r#"{"event":"dog_sheep_settings_changed","data":{"dog":"jobs","sheep":"web"}}"#
         );
         assert_eq!(serde_json::from_str::<BusEvent>(&json).unwrap(), event);
     }

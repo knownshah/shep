@@ -1,5 +1,6 @@
 ---
 source: crates/shep-core/src/protocol/request/response.rs
+assertion_line: 872
 expression: replies
 ---
 [
@@ -908,6 +909,39 @@ expression: replies
       "Ok": {
         "kind": "host_usage",
         "data": null
+      }
+    }
+  },
+  {
+    "id": 43,
+    "result": {
+      "Ok": {
+        "kind": "dog_sheep_settings",
+        "data": {
+          "tables": {
+            "web": {
+              "concurrency": 2,
+              "hours": {
+                "start": "09:00:00"
+              }
+            },
+            "worker": {
+              "concurrency": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": 44,
+    "result": {
+      "Ok": {
+        "kind": "sheep_dog_settings_set",
+        "data": {
+          "name": "web",
+          "dog": "jobs"
+        }
       }
     }
   }

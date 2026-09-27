@@ -4,42 +4,14 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::{AppConfig, DeclaredApp, ResetDepth};
+use crate::config::{AppConfig, DeclaredApp, DogTable, ResetDepth};
 
-use super::{DogSectionToml, DogSource, EnvValue, Smit};
+use super::{DogSectionToml, DogSource, EnvValue, SelectorSpec, Smit};
 
 // Named by intra-doc links and by nothing rustc compiles, so the
 // import is behind `cfg(doc)` rather than flagged unused.
 #[cfg(doc)]
 use super::{Response, RpcErrorCode, SheepApplied, SheepDrift};
-
-/// Serializable selector (mirror of [`crate::selector::ProcessSelector`];
-/// regex travels as its source string)
-// wire format: changing this is a breaking change
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
-pub enum SelectorSpec {
-    /// Every sheep
-    All,
-    /// By id
-    Id(u32),
-    /// By exact name
-    Name(String),
-    /// By regex source
-    Regex(String),
-    /// By fold name
-    Fold(String),
-    // Both field names are wire contract, pinned by `request_wire_v10`.
-    /// By app name and instance slot
-    ///
-    /// On the wire: `{"kind":"instance","value":{"name":"web","slot":2}}`.
-    Instance {
-        /// The app name
-        name: String,
-        /// The instance slot, counting from 0
-        slot: u32,
-    },
-}
 
 /// One RPC request
 // wire format: changing existing variants is a breaking change
@@ -265,6 +237,45 @@ pub enum Request {
         /// make. Widening that protection is a change to [`AppConfig`]'s
         /// `Debug`, not to this field.
         value: serde_json::Value,
+    },
+    /// One dog's `[app.dogs.<name>]` table, for every sheep carrying one.
+    ///
+    /// It reads the stored spec, which is what is in force: `dogs` is
+    /// [`ApplyGroup::Live`](crate::config::ApplyGroup::Live), so it is
+    /// parked only when a whole config fails to normalize and parks with
+    /// it. A dog never sees another dog's tables, and a sheep carrying no
+    /// table for `dog` is absent from the answer.
+    ///
+    /// Answers [`Response::DogSheepSettings`] with an empty map when no
+    /// sheep names `dog`, never [`RpcErrorCode::NotFound`]: unlike
+    /// [`Self::SheepConfig`], this does not name one sheep that could be
+    /// missing.
+    DogSheepSettings {
+        /// The dog's own name, the config key.
+        dog: String,
+    },
+    /// Sets, replaces, or with `None` removes one dog's table on one sheep,
+    /// recorded as an operator override of the whole `dogs` field so the
+    /// `*` marker shows, and publishes `config.sheep.<dog>` so a running
+    /// dog re-reads its tables.
+    ///
+    /// A single dog's table, not the whole `dogs` map:
+    /// [`Self::SetSheepField`] refuses the key `dogs` and names this
+    /// request, the way it refuses `env`, since a whole-map write from a
+    /// pane editing one dog would overwrite a concurrent edit to another
+    /// dog's table on the same sheep.
+    ///
+    /// Answers [`Response::SheepDogSettingsSet`], [`RpcErrorCode::NotFound`]
+    /// when no sheep has `name`, and refuses a dog's own name the way
+    /// [`Self::SetSheepField`] does.
+    SetSheepDogSettings {
+        /// The sheep's name, not a selector, for [`Self::SheepConfig`]'s
+        /// reason.
+        name: String,
+        /// Which dog's table to write.
+        dog: String,
+        /// The new table, or `None` to remove it.
+        table: Option<DogTable>,
     },
     /// Replaces one dog's `[<name>]` section in `dogs.toml` and publishes
     /// `config.dog.<name>` so a running dog re-reads it.
@@ -929,6 +940,28 @@ mod tests {
                 },
             ),
             envelope(34, Request::HostUsage),
+            envelope(
+                35,
+                Request::DogSheepSettings {
+                    dog: "jobs".to_string(),
+                },
+            ),
+            // The table carries two keys, one nested, so a reader sees a
+            // table survives the hop through this enum without flattening.
+            envelope(
+                36,
+                Request::SetSheepDogSettings {
+                    name: "web".to_string(),
+                    dog: "jobs".to_string(),
+                    table: Some(DogTable::from(serde_json::Map::from_iter([
+                        ("concurrency".to_string(), serde_json::json!(2)),
+                        (
+                            "hours".to_string(),
+                            serde_json::json!({ "start": "09:00:00" }),
+                        ),
+                    ]))),
+                },
+            ),
         ];
         insta::assert_json_snapshot!("request_wire_v10", requests);
     }

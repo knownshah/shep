@@ -1,5 +1,6 @@
 ---
 source: crates/shep-core/src/protocol/request/verbs.rs
+assertion_line: 994
 expression: requests
 ---
 [
@@ -472,6 +473,29 @@ expression: requests
     "deadline_ms": null,
     "body": {
       "kind": "host_usage"
+    }
+  },
+  {
+    "id": 35,
+    "deadline_ms": null,
+    "body": {
+      "kind": "dog_sheep_settings",
+      "dog": "jobs"
+    }
+  },
+  {
+    "id": 36,
+    "deadline_ms": null,
+    "body": {
+      "kind": "set_sheep_dog_settings",
+      "name": "web",
+      "dog": "jobs",
+      "table": {
+        "concurrency": 2,
+        "hours": {
+          "start": "09:00:00"
+        }
+      }
     }
   }
 ]
