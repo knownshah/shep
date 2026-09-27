@@ -170,14 +170,16 @@ socket.
 
 ### 8. The client parses a table into the dog's own type
 
-`shep-client` gains a typed read that returns every table for a dog, and
-`DogTable::parse::<S>()` in shep-core that deserializes one into the dog's
-type. A dog parses each sheep's table on its own, so one bad table does not
-hide the rest.
+`shep-client` gains a typed read that returns every table for a dog, and a
+parse helper that deserializes one sheep's table into the dog's type. A dog
+parses each sheep's table on its own, so one bad table does not hide the
+rest. The helper sits beside #614's `parse_section` and follows its shape.
 
-The parse error names the sheep's key path that failed and never carries the
-parser's message, which can quote a value. #614 makes the same call for a
-dog's section, and this follows whatever shape that lands in.
+The parse error names the dog and the sheep and never carries the parser's
+message, which can quote a value. #614 makes the same call for a dog's
+section and reports a line number instead. A JSON table has no line, and a
+key path would take a new dependency to narrow what the sheep name already
+narrows.
 
 An older daemon answers the new request as unrecognized. The typed read maps
 that to an error that says the shepherd predates per-sheep tables.
@@ -272,8 +274,8 @@ PR 1:
   `config.sheep.jobs` and watches a load and a write arrive.
 - `DogTable`'s `Debug` exact string. `AppConfig`'s `Debug` of a config
   carrying a table does not contain its values.
-- `DogTable::parse` into a dog's type, and a failure whose message has no
-  value in it.
+- The parse helper into a dog's type, and a failure whose `Display` and
+  `Debug` hold no value from the table.
 - Wire fixtures for both requests, both responses and the event, and the
   protocol-version pin at 10.
 - The Flockfile JSON Schema asset is regenerated and its test passes.
@@ -299,7 +301,9 @@ Two pull requests.
 
 1. This spec, PR 1's plan, and everything but the pane: shep-core,
    shep-daemon, shep-client and their docs. A dog can read and receive its
-   tables once this merges.
+   tables once this merges. It also carries the `kind_of` fix from decision
+   10, so between the two PRs the pane shows `dogs` as read-only JSON rather
+   than as env's editor.
 2. The per-sheep schema key, `probe_with_sheep`, and the lookout sub-screen.
    Its plan is written when PR 1 is finishing, against the code as merged.
 
