@@ -14,7 +14,7 @@ use super::{
 // Named by intra-doc links and by nothing rustc compiles, so the
 // import is behind `cfg(doc)` rather than flagged unused.
 #[cfg(doc)]
-use super::{Request, sort_flock};
+use super::{Request, RpcErrorCode, sort_flock};
 #[cfg(doc)]
 use crate::config::AppConfig;
 
