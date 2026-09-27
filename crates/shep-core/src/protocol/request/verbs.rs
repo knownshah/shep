@@ -962,6 +962,15 @@ mod tests {
                     ]))),
                 },
             ),
+            // The removal half, pinned so `None` is visibly `null`.
+            envelope(
+                37,
+                Request::SetSheepDogSettings {
+                    name: "web".to_string(),
+                    dog: "jobs".to_string(),
+                    table: None,
+                },
+            ),
         ];
         insta::assert_json_snapshot!("request_wire_v10", requests);
     }
