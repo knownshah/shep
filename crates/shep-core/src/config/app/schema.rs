@@ -414,7 +414,7 @@ pub struct AppConfig {
     pub level_rules: Vec<LevelRule>,
     /// One table per dog, keyed by dog name, for this sheep alone.
     ///
-    /// shep stores this and hands it to the dog it names; it is never read
+    /// shep stores this and hands it to the dog it names. It is never read
     /// or validated here. A dog name need not be one shep already knows:
     /// configuring a dog before installing it is the order an operator
     /// wants. Never read by the daemon at a spawn or a decision, so a write

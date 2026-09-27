@@ -201,7 +201,7 @@
           }
         },
         "dogs": {
-          "description": "One table per dog, keyed by dog name, for this sheep alone.\n\nshep stores this and hands it to the dog it names; it is never read\nor validated here. A dog name need not be one shep already knows:\nconfiguring a dog before installing it is the order an operator\nwants. Never read by the daemon at a spawn or a decision, so a write\ntakes effect the moment it lands.",
+          "description": "One table per dog, keyed by dog name, for this sheep alone.\n\nshep stores this and hands it to the dog it names. It is never read\nor validated here. A dog name need not be one shep already knows:\nconfiguring a dog before installing it is the order an operator\nwants. Never read by the daemon at a spawn or a decision, so a write\ntakes effect the moment it lands.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/DogTable"
