@@ -240,11 +240,11 @@ pub enum Request {
     },
     /// One dog's `[app.dogs.<name>]` table, for every sheep carrying one.
     ///
-    /// It reads the stored spec, which is what is in force: `dogs` is
-    /// [`ApplyGroup::Live`](crate::config::ApplyGroup::Live), so it is
-    /// parked only when a whole config fails to normalize and parks with
-    /// it. A dog never sees another dog's tables, and a sheep carrying no
-    /// table for `dog` is absent from the answer.
+    /// It reads the stored spec, which is in force because `dogs` is
+    /// [`ApplyGroup::Live`](crate::config::ApplyGroup::Live). A sheep with
+    /// no table for `dog` is absent. `dog` is self-declared, as it is for
+    /// [`Self::DogConfig`], so the scoping is a convenience: the boundary
+    /// is the socket.
     ///
     /// Answers [`Response::DogSheepSettings`] with an empty map when no
     /// sheep names `dog`, never [`RpcErrorCode::NotFound`]: unlike

@@ -153,7 +153,7 @@ pub enum BusEvent {
     /// credential, the same reason [`Self::DogConfigChanged`] carries only
     /// the dog's own name. A dog that wants the values re-asks with
     /// [`Request::DogSheepSettings`](crate::protocol::Request::DogSheepSettings),
-    /// which answers only that dog's own tables.
+    /// which answers with that dog's tables.
     DogSheepSettingsChanged {
         /// The dog whose table changed.
         dog: String,

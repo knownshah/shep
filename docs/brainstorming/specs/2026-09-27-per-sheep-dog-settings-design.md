@@ -113,8 +113,9 @@ write is in force at once and nothing respawns or re-arms.
 
 `Request::DogSheepSettings { dog }` answers
 `Response::DogSheepSettings { tables }`, a `BTreeMap<String, DogTable>` from
-sheep name to that dog's table, for every sheep carrying one. A dog never sees
-another dog's tables. No sheep carrying one is an empty map, never
+sheep name to that dog's table, for every sheep carrying one. The scoping is a
+convenience, not a boundary: `dog` is self-declared, as it is for `DogConfig`,
+and the boundary is the `0700` socket. No sheep carrying one is an empty map, never
 `NotFound`. Dogs carry no tables and never appear.
 
 It reads the stored spec, which is what is in force. `dogs` is Live, so it is
