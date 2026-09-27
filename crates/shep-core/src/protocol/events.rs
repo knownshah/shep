@@ -165,11 +165,11 @@ pub enum BusEvent {
 impl BusEvent {
     /// The dotted subscription topic for this event (spec §6 grammar)
     ///
-    /// A [`Cow`] rather than a `&'static str`, because one topic is not
-    /// fixed: [`Self::DogConfigChanged`] names its dog in the topic
-    /// itself, which is what lets a dog subscribe to its own config and
-    /// hear nobody else's. Every other variant is still a borrowed
-    /// literal and allocates nothing.
+    /// A [`Cow`] rather than a `&'static str`, because two topics are not
+    /// fixed: [`Self::DogConfigChanged`] and [`Self::DogSheepSettingsChanged`]
+    /// name their dog in the topic itself, which is what lets a dog
+    /// subscribe to its own config and hear nobody else's. Every other
+    /// variant is still a borrowed literal and allocates nothing.
     #[must_use]
     pub fn topic(&self) -> Cow<'static, str> {
         let fixed = match self {
@@ -202,10 +202,10 @@ impl BusEvent {
             },
             Self::Dropped { .. } => "daemon.dropped",
             Self::DaemonShutdown => "daemon.shutdown",
-            // The one topic built rather than named. `config.dog.` is the
-            // prefix a subscriber globs on; the dog's own name is the last
-            // segment, so `config.dog.bark` reaches one dog and `config.*`
-            // reaches all of them.
+            // Built rather than named. `config.dog.` is the prefix a
+            // subscriber globs on; the dog's own name is the last segment,
+            // so `config.dog.bark` reaches one dog and `config.*` reaches
+            // all of them.
             Self::DogConfigChanged { dog } => return Cow::Owned(format!("config.dog.{dog}")),
             // Named by the dog, like `DogConfigChanged` above: the sheep is
             // the payload, not the topic, so a dog subscribes once for
