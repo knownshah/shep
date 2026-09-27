@@ -247,6 +247,27 @@ async fn a_dogs_own_name_is_refused_and_an_unknown_sheep_is_not_found() {
     assert_eq!(err.code, RpcErrorCode::NotFound);
 }
 
+/// `normalize` refuses an empty dog name the way it refuses one in a
+/// Flockfile; the write is checked before the store is touched, so the
+/// refusal leaves it untouched too.
+#[tokio::test(start_paused = true)]
+async fn an_empty_dog_name_is_refused_and_writes_nothing() {
+    let h = harness(vec![ProcScript::never_exits()]);
+    start(&h.ctx, 1, vec![carrying("web", Vec::new())]).await;
+    let jobs = table(serde_json::json!({ "concurrency": 2 }));
+
+    let Err(err) = set_table(&h.ctx, 2, "web", "", Some(jobs)).await else {
+        panic!("an empty dog name was accepted")
+    };
+    assert_eq!(err.code, RpcErrorCode::InvalidConfig);
+    assert!(
+        shep_core::overrides::get(&h.ctx.paths.overrides, "web")
+            .unwrap()
+            .is_none(),
+        "the refusal still wrote the store"
+    );
+}
+
 /// A whole-map write from a pane editing one dog would overwrite a
 /// concurrent edit to another dog's table.
 #[tokio::test(start_paused = true)]
