@@ -440,7 +440,11 @@ retype under the constant's own rule, not an addition, so it bumps on the
 same terms as the 4-to-5 move rather than skating past it. Restart the
 shepherd after upgrading to this one too.
 
-**A sheep carries a per-dog settings table, merged on 2026-09-27.** `AppConfig` gained `dogs: BTreeMap<String, DogTable>`, one opaque `[app.dogs.<name>]` table per dog that shep stores and hands over without reading; `PROTOCOL_VERSION` moved to 10 and `MIN_SUPPORTED` stayed 8.
+**A sheep carries a settings table per dog.** `AppConfig` gained `dogs`, one
+`[app.dogs.<name>]` table per dog, which shep stores and hands to that dog
+without reading it. A dog reads its tables with `DogSheepSettings` and hears a
+change on `config.sheep.<dog>`. `PROTOCOL_VERSION` moved to 10 and
+`MIN_SUPPORTED` stayed at 8, so no peer is refused.
 
 Project memory (cross-session state) tracks decisions; docs above are the
 source of truth.
