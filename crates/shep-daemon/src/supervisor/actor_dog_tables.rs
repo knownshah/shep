@@ -6,6 +6,7 @@
 //! here from the one table that moved. `run` compares the view after every
 //! message against the last one it announced.
 
+use super::actor_config::speaker_rank;
 use super::*;
 
 /// Sheep name to that sheep's `dogs` map, borrowed from the flock.
@@ -18,15 +19,12 @@ impl<R: ProcessRunner> Actor<R> {
     /// One pass rather than `representative_id` per name, which would walk
     /// the flock once for every sheep in it.
     fn dog_tables(&self) -> DogView<'_> {
-        // Ranked as `representative_id` ranks: a non-drainee first, then by
-        // instance, then by id.
         let mut chosen: BTreeMap<&str, (bool, u32, u32)> = BTreeMap::new();
         for (id, slot) in &self.sheep {
             if slot.entry.dog.is_some() {
                 continue;
             }
-            let draining = matches!(slot.entry.reload, ReloadState::Drainee { .. });
-            let rank = (draining, slot.entry.instance, *id);
+            let rank = speaker_rank(*id, slot);
             chosen
                 .entry(slot.entry.spec.config().name.as_str())
                 .and_modify(|held| *held = rank.min(*held))
