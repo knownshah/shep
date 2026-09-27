@@ -279,6 +279,59 @@ impl SupervisorHandle {
         rx.await.map_err(|_| SupervisorError::EngineStopped)?
     }
 
+    /// `dog`'s table on every sheep carrying one, by sheep name. See
+    /// [`Actor::handle_dog_sheep_settings`].
+    ///
+    /// # Errors
+    ///
+    /// - [`SupervisorError::EngineStopped`] - the actor is gone.
+    pub(crate) async fn dog_sheep_settings(
+        &self,
+        dog: String,
+    ) -> Result<BTreeMap<String, DogTable>, SupervisorError> {
+        let (reply, rx) = oneshot::channel();
+        self.tx
+            .send(Msg::Command(Command::DogSheepSettings { dog, reply }))
+            .await
+            .map_err(|_| SupervisorError::EngineStopped)?;
+        rx.await.map_err(|_| SupervisorError::EngineStopped)
+    }
+
+    /// Sets `dog`'s table on `name`, or removes it with `None`, as an
+    /// operator override of the whole `dogs` field. `Ok(None)` when no sheep
+    /// has that name.
+    ///
+    /// `rpc.rs` hands the answer's `app` to the registry for
+    /// [`Self::set_sheep_env`]'s reason. See
+    /// [`Actor::handle_set_sheep_dog_settings`].
+    ///
+    /// # Errors
+    ///
+    /// - [`SupervisorError::IsADog`] - the name is a dog's.
+    /// - [`SupervisorError::InvalidField`] - `normalize` refuses the result,
+    ///   as it does an empty dog name. Nothing was written.
+    /// - [`SupervisorError::Overrides`] - the override store could not be
+    ///   read or written, so nothing was recorded.
+    /// - [`SupervisorError::EngineStopped`] - the actor is gone.
+    pub(crate) async fn set_sheep_dog_settings(
+        &self,
+        name: String,
+        dog: String,
+        table: Option<DogTable>,
+    ) -> Result<Option<FieldSet>, SupervisorError> {
+        let (reply, rx) = oneshot::channel();
+        self.tx
+            .send(Msg::Command(Command::SetSheepDogSettings {
+                name,
+                dog,
+                table,
+                reply,
+            }))
+            .await
+            .map_err(|_| SupervisorError::EngineStopped)?;
+        rx.await.map_err(|_| SupervisorError::EngineStopped)?
+    }
+
     /// Registers and starts one dog, marked as coming from `source`.
     ///
     /// Idempotent by name: a dog already registered under `app`'s name is

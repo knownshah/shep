@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot};
 
 use shep_core::config::{
-    AppConfig, ApplyGroup, DeclaredApp, ResetDepth, ResolvedApp, apply_group, normalize,
+    AppConfig, ApplyGroup, DeclaredApp, DogTable, ResetDepth, ResolvedApp, apply_group, normalize,
     reaches_running,
 };
 use shep_core::overrides::{self, AppOverrides};
@@ -76,6 +76,7 @@ use crate::secrets::ProviderSecrets;
 mod actor_actions;
 mod actor_config;
 mod actor_core;
+mod actor_dog_tables;
 mod actor_exit;
 mod actor_lifecycle;
 mod actor_pane;

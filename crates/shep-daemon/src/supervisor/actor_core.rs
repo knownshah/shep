@@ -156,6 +156,20 @@ impl<R: ProcessRunner> Actor<R> {
                 let _ = reply.send(self.handle_set_sheep_field(&name, &key, &value));
                 false
             }
+            // Both answered during a shutdown, as the pane's doors above are.
+            Command::DogSheepSettings { dog, reply } => {
+                let _ = reply.send(self.handle_dog_sheep_settings(&dog));
+                false
+            }
+            Command::SetSheepDogSettings {
+                name,
+                dog,
+                table,
+                reply,
+            } => {
+                let _ = reply.send(self.handle_set_sheep_dog_settings(&name, &dog, table));
+                false
+            }
             Command::SetSmit {
                 conn,
                 sheep,
