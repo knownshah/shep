@@ -962,7 +962,6 @@ mod tests {
                     ]))),
                 },
             ),
-            // The removal half, pinned so `None` is visibly `null`.
             envelope(
                 37,
                 Request::SetSheepDogSettings {
