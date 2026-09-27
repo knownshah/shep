@@ -2338,3 +2338,13 @@ It was measured on Linux by preloading a shim that adds a fixed delay to every `
 `reloading_an_unchanged_file_leaves_the_override_store_unwritten` is the guard, since nothing in CI times a start. It fails against the store as it was before this change.
 
 `verified crates/shep-core/src/overrides.rs (holds, put, update), crates/shep-daemon/src/supervisor/actor_config.rs (handle_apply_config), crates/shep-cli/src/commands/lifecycle/start.rs (the establishing apply_declared), crates/shep-core/src/atomic_file.rs (publish, sync_dir), crates/shep-daemon/src/snapshot/mod.rs (FlockRegistry::record)`
+
+## Per-sheep dog settings
+
+### `dogs`, not `dog`; one field, not a per-dog merge; a schema key, not a new flag
+
+A sheep's Flockfile entry carries `[app.dogs.<name>]`, stored as `AppConfig::dogs: BTreeMap<String, DogTable>`, an opaque table shep stores and hands to the named dog without reading a key inside it. Three choices in the design each picked the option that fails loudly over the one that reads clean. The field is named `dogs`, not `dog`: `dog` already names the top-level `[dog.<name>]` table, so a Flockfile missing the `app.` prefix would have `[dog.jobs]` land there and be silently discarded. `dogs` merges and resets as one field, the way `level_rules` does, rather than per dog key the way `env` merges: per-key merging would copy `env`'s tombstones and its documented gap for a case, two dogs sharing one sheep, that nobody has asked for. And a dog's per-sheep schema will ride inside the existing `--schema` answer as a new `x-shep-sheep` key rather than a new flag, sharing the answer's own `$defs` rather than asking lookout to spawn the binary twice.
+
+**Why:** Every one of the three has a version that reads better on its own and fails quietly. A bare `dog` key would validate today's Flockfiles and misplace tomorrow's typo. Merging `dogs` per key would look more precise than merging it whole, until the first time two dogs' tables raced on one sheep and the merge had to decide which one's deletion was real, the exact question `env`'s own gap already leaves open. A `--schema-sheep` flag would look like a cleaner separation than one more key on an existing answer, until it doubled every spawn `shep lookout` makes to open a dog's pane. None of the three is implemented yet outside the wire types themselves; the schema key and the pane it feeds are PR 2.
+
+`verified docs/brainstorming/specs/2026-09-27-per-sheep-dog-settings-design.md, crates/shep-core/src/config/app/schema.rs (the dogs field's own doc and extend("init")), crates/shep-core/src/config/app/dog_table.rs`
