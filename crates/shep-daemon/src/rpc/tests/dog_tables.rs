@@ -9,7 +9,7 @@ use shep_core::config::DogTable;
 /// # Panics
 ///
 /// If `value` is not an object, which is a fixture bug.
-fn table(value: serde_json::Value) -> DogTable {
+pub(super) fn table(value: serde_json::Value) -> DogTable {
     let serde_json::Value::Object(map) = value else {
         panic!("a table fixture is an object")
     };
@@ -17,7 +17,7 @@ fn table(value: serde_json::Value) -> DogTable {
 }
 
 /// `name` carrying one table per `(dog, table)` pair.
-fn carrying(name: &str, tables: Vec<(&str, DogTable)>) -> AppConfig {
+pub(super) fn carrying(name: &str, tables: Vec<(&str, DogTable)>) -> AppConfig {
     let mut app = AppConfig::minimal(name, "./srv");
     app.dogs = tables
         .into_iter()
@@ -27,7 +27,7 @@ fn carrying(name: &str, tables: Vec<(&str, DogTable)>) -> AppConfig {
 }
 
 /// Starts `apps` and asserts the start landed.
-async fn start(ctx: &RpcContext, id: u64, apps: Vec<AppConfig>) {
+pub(super) async fn start(ctx: &RpcContext, id: u64, apps: Vec<AppConfig>) {
     let started = reply_of(dispatch(envelope(id, Request::Start { apps }), ctx).await);
     assert!(started.result.is_ok(), "{:?}", started.result);
 }
@@ -53,7 +53,7 @@ async fn tables_for(ctx: &RpcContext, id: u64, dog: &str) -> BTreeMap<String, Do
 }
 
 /// Sends one `SetSheepDogSettings` and hands back the reply.
-async fn set_table(
+pub(super) async fn set_table(
     ctx: &RpcContext,
     id: u64,
     name: &str,
@@ -286,7 +286,7 @@ async fn set_sheep_field_refuses_dogs_and_names_the_request_that_owns_it() {
 }
 
 /// `web` declaring `dogs` with `concurrency` at `n`, as a Flockfile would.
-fn declared_jobs(n: u64) -> DeclaredApp {
+pub(super) fn declared_jobs(n: u64) -> DeclaredApp {
     DeclaredApp {
         config: carrying(
             "web",
@@ -298,7 +298,7 @@ fn declared_jobs(n: u64) -> DeclaredApp {
 }
 
 /// Sends one `ApplyConfig` of `app` at `reset` and hands back its report.
-async fn apply(
+pub(super) async fn apply(
     ctx: &RpcContext,
     id: u64,
     app: DeclaredApp,

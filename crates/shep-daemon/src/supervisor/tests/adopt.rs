@@ -344,3 +344,51 @@ async fn a_carried_manual_stop_stops_the_sheep_instead_of_respawning_it() {
     );
     assert_eq!(info[0].pid, None, "a stopped sheep holds no pid");
 }
+
+/// A handover changes no answer, so the successor announces none of the
+/// tables its flock carried in. The start after it is the control: the
+/// same actor does announce a name it did not inherit.
+#[cfg(unix)]
+#[tokio::test(start_paused = true)]
+async fn an_adopted_flock_announces_none_of_the_tables_it_carried() {
+    let dir = tempfile::tempdir().unwrap();
+    let (events, mut rx) = crate::bus::test_bus(64);
+    let with_jobs = |name: &str| {
+        let mut app = AppConfig::minimal(name, "./srv");
+        app.autorestart = false;
+        let mut table = serde_json::Map::new();
+        table.insert("concurrency".to_string(), serde_json::json!(2));
+        app.dogs.insert("jobs".to_string(), DogTable::from(table));
+        normalize(app).unwrap()
+    };
+    let sup = SupervisorBuilder::new(AdoptingRunner, test_paths(&dir), events)
+        .spawn_adopted(
+            vec![without_handles(carried("web", 7, Some(4242), |entry| {
+                entry.spec = with_jobs("web");
+            }))],
+            counters(9),
+            Vec::new(),
+        )
+        .expect("a carried flock installs");
+
+    let started = tokio::time::timeout(Duration::from_secs(5), sup.start(vec![with_jobs("api")]))
+        .await
+        .expect("a start must answer rather than hang");
+    assert!(started.is_ok(), "{started:?}");
+    // A fence: the actor announces after each message, so once this
+    // answers, the start's announcement is queued.
+    let fence = tokio::time::timeout(Duration::from_secs(5), sup.list_checked()).await;
+    assert!(matches!(fence, Ok(Ok(_))), "{fence:?}");
+
+    let mut announced = Vec::new();
+    while let Ok(event) = rx.try_recv() {
+        if let BusEvent::DogSheepSettingsChanged { dog, sheep } = event.to_event() {
+            announced.push((dog, sheep));
+        }
+    }
+    assert_eq!(
+        announced,
+        [("jobs".to_string(), "api".to_string())],
+        "web's table crossed the handover and is not news"
+    );
+}

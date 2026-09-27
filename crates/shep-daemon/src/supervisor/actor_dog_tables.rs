@@ -1,9 +1,10 @@
-//! A dog's per-sheep tables: the read and the write.
+//! A dog's per-sheep tables: the read, the write, and `config.sheep.<dog>`.
 //!
 //! Every answer comes off one view of the flock, [`Actor::dog_tables`], so
-//! the read and anything that compares it later agree about which slot
-//! speaks for a name. The write is [`Actor::write_sheep_field`] on the whole
-//! `dogs` map, built here from the one table that moved.
+//! the read and the announcement agree about which slot speaks for a name.
+//! The write is [`Actor::write_sheep_field`] on the whole `dogs` map, built
+//! here from the one table that moved. `run` compares the view after every
+//! message against the last one it announced.
 
 use super::*;
 
@@ -85,5 +86,170 @@ impl<R: ProcessRunner> Actor<R> {
             SupervisorError::InvalidField(format!("dogs: {dog}'s table would not serialize"))
         })?;
         self.write_sheep_field(name, "dogs", &value)
+    }
+
+    /// The index `run` starts from, taken off whatever flock the builder
+    /// installed, so a handover's carried tables are not news.
+    pub(super) fn dog_index(&self) -> DogIndex {
+        owned(&self.dog_tables())
+    }
+
+    /// Publishes one `DogSheepSettingsChanged` per table that moved since
+    /// `announced`, then records what it announced.
+    ///
+    /// Compared before anything is cloned: a message that moved no table
+    /// costs a pass over the flock and no copy.
+    pub(super) fn announce_dog_tables(&self, announced: &mut DogIndex) {
+        let no_tables = || {
+            self.sheep
+                .values()
+                .all(|slot| slot.entry.spec.config().dogs.is_empty())
+        };
+        if announced.is_empty() && no_tables() {
+            return;
+        }
+        let current = self.dog_tables();
+        let changed = changed_tables(announced, &current);
+        if changed.is_empty() {
+            return;
+        }
+        *announced = owned(&current);
+        for (dog, sheep) in changed {
+            let _ = self
+                .events
+                .send(BusEvent::DogSheepSettingsChanged { dog, sheep }.into());
+        }
+    }
+}
+
+/// The last [`DogView`] announced, owned so it outlives the message that
+/// built it.
+type DogIndex = BTreeMap<String, BTreeMap<String, DogTable>>;
+
+/// `view` with every name and table cloned.
+fn owned(view: &DogView<'_>) -> DogIndex {
+    view.iter()
+        .map(|(name, dogs)| ((*name).to_string(), (*dogs).clone()))
+        .collect()
+}
+
+/// Each `(dog, sheep)` whose table `before` and `after` disagree on, once
+/// each, ordered by dog then sheep.
+fn changed_tables(before: &DogIndex, after: &DogView<'_>) -> Vec<(String, String)> {
+    let same = before.len() == after.len()
+        && before
+            .iter()
+            .zip(after)
+            .all(|((name, dogs), (now, now_dogs))| name == now && dogs == *now_dogs);
+    if same {
+        return Vec::new();
+    }
+    let none = BTreeMap::new();
+    let names: BTreeSet<&str> = before
+        .keys()
+        .map(String::as_str)
+        .chain(after.keys().copied())
+        .collect();
+    let mut changed = Vec::new();
+    for sheep in names {
+        let was = before.get(sheep).unwrap_or(&none);
+        let is = after.get(sheep).copied().unwrap_or(&none);
+        let dogs: BTreeSet<&String> = was.keys().chain(is.keys()).collect();
+        changed.extend(
+            dogs.into_iter()
+                .filter(|dog| was.get(*dog) != is.get(*dog))
+                .map(|dog| (dog.clone(), sheep.to_string())),
+        );
+    }
+    changed.sort_unstable();
+    changed
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// One index row per `(sheep, [(dog, concurrency)])`, each table
+    /// distinct by its `concurrency`.
+    fn index(rows: &[(&str, &[(&str, u64)])]) -> DogIndex {
+        rows.iter()
+            .map(|(sheep, tables)| {
+                let dogs = tables
+                    .iter()
+                    .map(|(dog, n)| {
+                        let mut table = serde_json::Map::new();
+                        table.insert("concurrency".to_string(), serde_json::json!(n));
+                        ((*dog).to_string(), DogTable::from(table))
+                    })
+                    .collect();
+                ((*sheep).to_string(), dogs)
+            })
+            .collect()
+    }
+
+    /// `index` borrowed the way `Actor::dog_tables` hands the flock over.
+    fn view(index: &DogIndex) -> DogView<'_> {
+        index
+            .iter()
+            .map(|(name, dogs)| (name.as_str(), dogs))
+            .collect()
+    }
+
+    fn pairs(expected: &[(&str, &str)]) -> Vec<(String, String)> {
+        expected
+            .iter()
+            .map(|(dog, sheep)| ((*dog).to_string(), (*sheep).to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn an_unchanged_flock_changes_nothing() {
+        let same = index(&[
+            ("web", &[("jobs", 2), ("deploy", 1)]),
+            ("api", &[("jobs", 1)]),
+        ]);
+        assert_eq!(changed_tables(&same, &view(&same)), pairs(&[]));
+        assert_eq!(
+            changed_tables(&DogIndex::new(), &DogView::new()),
+            pairs(&[])
+        );
+    }
+
+    /// `web` gains `deploy`, `api` loses its only table, `db` edits `jobs`
+    /// and keeps `audit`, and `worker` arrives carrying two: every change
+    /// named once, by dog then sheep, and nothing for the untouched table.
+    #[test]
+    fn an_added_a_removed_and_an_edited_table_are_each_named_once() {
+        let before = index(&[
+            ("api", &[("jobs", 1)]),
+            ("db", &[("audit", 1), ("jobs", 1)]),
+            ("web", &[("jobs", 2)]),
+        ]);
+        let after = index(&[
+            ("db", &[("audit", 1), ("jobs", 5)]),
+            ("web", &[("deploy", 1), ("jobs", 2)]),
+            ("worker", &[("audit", 3), ("jobs", 3)]),
+        ]);
+        assert_eq!(
+            changed_tables(&before, &view(&after)),
+            pairs(&[
+                ("audit", "worker"),
+                ("deploy", "web"),
+                ("jobs", "api"),
+                ("jobs", "db"),
+                ("jobs", "worker"),
+            ])
+        );
+    }
+
+    /// Every table on a sheep that disappears is named, since each one's
+    /// dog loses an answer.
+    #[test]
+    fn a_sheep_that_goes_names_every_table_it_carried() {
+        let before = index(&[("web", &[("deploy", 1), ("jobs", 2)])]);
+        assert_eq!(
+            changed_tables(&before, &DogView::new()),
+            pairs(&[("deploy", "web"), ("jobs", "web")])
+        );
     }
 }
