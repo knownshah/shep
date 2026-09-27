@@ -193,15 +193,9 @@ mod tests {
     /// beside a second key is left alone.
     #[test]
     fn a_real_key_of_the_same_name_beside_another_is_left_alone() {
-        let table = table_of([("$__toml_private_datetime", json!("09:00:00"))]);
-        let mut map = table.into_map();
-        map.insert("extra".to_string(), json!(true));
-        let table = DogTable::from(map);
-        let json = serde_json::to_value(&table).unwrap();
-        assert_eq!(
-            json,
-            json!({"$__toml_private_datetime": "09:00:00", "extra": true})
-        );
+        let raw = json!({"at": {"$__toml_private_datetime": "09:00:00", "extra": true}});
+        let table: DogTable = serde_json::from_value(raw.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&table).unwrap(), raw);
     }
 
     #[test]
