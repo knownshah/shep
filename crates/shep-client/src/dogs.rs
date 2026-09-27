@@ -206,7 +206,7 @@ impl core::error::Error for SheepSettingsError {}
 ///     })
 ///     .await?
 /// else {
-///     unreachable!("the shepherd answers its own request with its own response");
+///     return Err("the shepherd answered with something else".into());
 /// };
 /// for (sheep, table) in &tables {
 ///     let settings: JobsSettings = parse_sheep_settings("jobs", sheep, table)?;
