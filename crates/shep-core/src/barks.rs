@@ -207,7 +207,7 @@ pub fn read_last(path: &Path, limit: usize) -> Result<Vec<Bark>, BarkError> {
         // suffices is within a factor of two of this one, so the total
         // read is bounded by twice the answer's size rather than by the
         // file's.
-        window = (window * 2).min(len);
+        window = window.saturating_mul(2).min(len);
     }
 }
 
