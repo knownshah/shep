@@ -351,6 +351,16 @@ mod tests {
         );
     }
 
+    /// The dog decides what an edit costs, so the pane names no cost for
+    /// any row, as a dog's own pane does.
+    #[test]
+    fn no_row_has_a_cost_shep_can_name() {
+        let pane = jobs_pane();
+        for key in ["concurrency", "merge", "hours.start", "models.worker.token"] {
+            assert_eq!(pane.cost(key), None, "{key}");
+        }
+    }
+
     /// The table carries a credential in `models.worker.token`, and a
     /// derived `Debug` anywhere on the way would print it (IR-41).
     #[test]
