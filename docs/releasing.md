@@ -194,10 +194,9 @@ Whether that trade is worth it is the maintainer's call.
 
 ## The sequence
 
-**Every release after the first happens on its own.** release-plz opens the
-pull request, queues it to merge behind `main`'s required checks, and the
-resulting push tags, releases and uploads. Nothing below is something you
-run.
+**Every release after the first is one merge.** release-plz opens the pull
+request, you merge it, and the resulting push tags, releases and uploads.
+Nothing below is something you run.
 
 What follows is how 0.1.0 was done by hand, kept because the checks in it are
 the ones release-plz now performs for you, and because knowing what they were
@@ -241,18 +240,18 @@ tag to push and no local `cargo publish` in the sequence.
 
 Two workflow files, one job each. `release-plz-pr.yml` maintains a pull
 request that bumps `[workspace.package]` and writes the changelogs from the
-conventional commits since the last release, on every push to `main`, then
-queues that pull request to merge itself. `release-plz-release.yml` runs on
-the resulting push and does nothing unless a manifest names a version that is
-not on crates.io. It tags, creates the GitHub release, and uploads in
-dependency order.
+conventional commits since the last release, on every push to `main`. Merging
+it is a hand decision, so several merges to `main` stack into one release.
+`release-plz-release.yml` runs on the push that merge makes and does nothing
+unless a manifest names a version that is not on crates.io. It tags, creates
+the GitHub release, and uploads in dependency order.
 
-**So a release needs no human step at all now.** Land an ordinary pull
-request on `main` and the version follows it out, once `main`'s required
-checks pass on the release pull request. The two things that can stop it are
-deliberate: a release pull request that bumps no version is left open and red
-rather than merged, and the `crates-io` environment will hold the publish if a
-required reviewer is ever configured there.
+**So a release needs one human step: merging the release pull request.**
+It stopped merging itself on 2026-09-19 (`e7a7dffb`), so a release waits for
+someone to decide the stacked changes are worth a version. The workflow turns
+red on a release pull request that bumps no version, and the `crates-io`
+environment will hold the publish if a required reviewer is ever configured
+there.
 
 **One check is yours, deliberately.** `benches/versus-pm2/versus-pm2.sh
 --check` compares shep's performance with the committed baseline, and it
