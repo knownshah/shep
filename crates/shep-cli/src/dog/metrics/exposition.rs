@@ -38,9 +38,11 @@ impl MetricGroup {
         }
     }
 
-    /// Appends one series line. `label_str` comes from [`labels`], braces
-    /// included, or empty for a label-less metric.
-    fn push(&mut self, label_str: &str, value: impl fmt::Display) {
+    /// Appends one series line. `label_str` is the label list, braces
+    /// included, or empty for a label-less metric: anything that `Display`s,
+    /// so a caller with a shared prefix can hand over that prefix plus the
+    /// one pair that differs rather than a rebuilt `String`.
+    fn push(&mut self, label_str: impl fmt::Display, value: impl fmt::Display) {
         let mut line = String::new();
         let _ = writeln!(line, "{}{label_str} {value}", self.name);
         self.series.push(line);
@@ -77,12 +79,11 @@ fn escape_label_value(value: &str) -> String {
     escaped
 }
 
-/// Formats a label list as `{k1="v1",k2="v2"}`, or an empty string for no
-/// labels, so [`MetricGroup::push`] formats both cases the same way.
-fn labels(pairs: &[(&str, &str)]) -> String {
-    if pairs.is_empty() {
-        return String::new();
-    }
+/// Escapes and formats `pairs` as an *open* label list: `{k1="v1",k2="v2"`
+/// with no closing brace. A caller that appends one more pair and closes it
+/// once then pays the shared prefix's escapes once instead of once per
+/// appended pair, which is what [`render`]'s status loop does.
+fn label_prefix(pairs: &[(&str, &str)]) -> String {
     let mut out = String::from("{");
     for (i, (key, value)) in pairs.iter().enumerate() {
         if i > 0 {
@@ -90,8 +91,52 @@ fn labels(pairs: &[(&str, &str)]) -> String {
         }
         let _ = write!(out, "{key}=\"{}\"", escape_label_value(value));
     }
-    out.push('}');
     out
+}
+
+/// Formats a label list as `{k1="v1",k2="v2"}`, or an empty string for no
+/// labels, so [`MetricGroup::push`] formats both cases the same way.
+fn labels(pairs: &[(&str, &str)]) -> String {
+    if pairs.is_empty() {
+        return String::new();
+    }
+    format!("{}}}", label_prefix(pairs))
+}
+
+/// [`render`]'s status series: an open prefix already escaped once per
+/// sheep, closed by the one `status` pair that differs between the six
+/// candidates.
+///
+/// `Display` rather than a `String` so the six series reuse the one escaped
+/// prefix instead of each cloning it, re-escaping it, or reformatting it.
+struct StatusLabels<'a> {
+    prefix: &'a str,
+    status: &'static str,
+}
+
+impl fmt::Display for StatusLabels<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{},status=\"{}\"}}", self.prefix, self.status)
+    }
+}
+
+/// `ProcStatus`'s label value, the same spelling [`ProcStatus`]'s own
+/// `Display` and wire form use. `ProcStatus` is `#[non_exhaustive]`, so a kind
+/// this client predates renders `unknown` rather than failing to build.
+///
+/// A `&'static str` so the status loop pays no `to_string` for a spelling
+/// fixed at compile time. The dog-source spelling lives in `shep-core`'s own
+/// `From<&DogSource> for &'static str`; the two hand-listed vocabularies sit
+/// where the type that owns them is defined.
+fn status_label(status: ProcStatus) -> &'static str {
+    match status {
+        ProcStatus::Starting => "starting",
+        ProcStatus::Online => "online",
+        ProcStatus::Stopping => "stopping",
+        ProcStatus::Stopped => "stopped",
+        ProcStatus::Errored => "errored",
+        ProcStatus::WaitingRestart => "waiting-restart",
+    }
 }
 
 /// Renders `reading` as Prometheus text exposition, format version 0.0.4.
@@ -172,7 +217,7 @@ pub fn render(reading: &Reading) -> String {
                 ("source", <&'static str>::from(source)),
             ];
             let up = i32::from(info.status == ProcStatus::Online);
-            dog_up.push(&labels(&pairs), up);
+            dog_up.push(labels(&pairs), up);
             continue;
         }
 
@@ -183,7 +228,12 @@ pub fn render(reading: &Reading) -> String {
             ("id", id_string.as_str()),
             ("fold", fold),
         ];
-        let sheep_labels = labels(&sheep_pairs);
+        // The open form first, because the closed one is it plus a brace.
+        // Only `status` differs between the six candidates below, so
+        // building them separately would escape this sheep's name, id and
+        // fold twice here and six times more per status, every scrape.
+        let sheep_prefix = label_prefix(&sheep_pairs);
+        let sheep_labels = format!("{sheep_prefix}}}");
 
         if let Some(cpu_percent) = info.cpu_percent {
             cpu.push(&sheep_labels, cpu_percent);
@@ -195,18 +245,18 @@ pub fn render(reading: &Reading) -> String {
         uptime.push(&sheep_labels, info.uptime_ms / 1000);
 
         for candidate in ALL_STATUSES {
-            let status_pairs = [
-                ("sheep", info.name.as_str()),
-                ("id", id_string.as_str()),
-                ("fold", fold),
-                ("status", <&'static str>::from(candidate)),
-            ];
             let value = i32::from(info.status == candidate);
-            status.push(&labels(&status_pairs), value);
+            status.push(
+                StatusLabels {
+                    prefix: &sheep_prefix,
+                    status: status_label(candidate),
+                },
+                value,
+            );
         }
     }
 
-    daemon_up.push(&labels(&[("version", reading.daemon_version.as_str())]), 1);
+    daemon_up.push(labels(&[("version", reading.daemon_version.as_str())]), 1);
     daemon_pid.push("", reading.daemon_pid);
 
     if let Some(host) = &reading.host {
@@ -243,6 +293,20 @@ mod tests {
 
     use super::super::{HostReading, Reading};
     use super::render;
+
+    /// The exposition of [`golden_reading`], byte for byte, as the code
+    /// before the shared-prefix change rendered it. That change moves the
+    /// sheep/id/fold escapes out of the status loop so they are paid once
+    /// per sheep instead of once per candidate status, which is an
+    /// allocation change and nothing else: the wire bytes must not move.
+    ///
+    /// Captured from the pre-change `render`. After an intentional format
+    /// change, regenerate it with:
+    ///
+    /// ```text
+    /// BLESS=1 cargo test -p shep --lib --all-features bless_exposition_golden -- --ignored
+    /// ```
+    const GOLDEN_EXPOSITION: &str = include_str!("testdata/exposition_golden.prom");
 
     /// A sheep fixture shared by every test below: id `3`, fold `backend`,
     /// online, with a CPU and memory sample. Both are fixed, since the
@@ -419,5 +483,45 @@ mod tests {
         assert_eq!(super::escape_label_value(r"a\b"), r"a\\b");
         assert_eq!(super::escape_label_value("a\nb"), r"a\nb");
         assert_eq!(super::escape_label_value(r#"we"b\x"#), r#"we\"b\\x"#);
+    }
+
+    /// The [`Reading`] [`GOLDEN_EXPOSITION`] was captured from: one plain
+    /// sheep, one idle sheep with no CPU or memory sample, one dog, and
+    /// one sheep whose name needs all three escapes while in a non-online
+    /// state, so every label path and all six status spellings appear in
+    /// it.
+    fn golden_reading() -> Reading {
+        let mut dog = sample_info("bark");
+        dog.dog = Some(DogSource::BuiltIn);
+        let mut odd = sample_info("we\"b\\x\n");
+        odd.status = ProcStatus::WaitingRestart;
+        let mut idle = sample_info("worker");
+        idle.cpu_percent = None;
+        idle.memory_bytes = None;
+        Reading {
+            flock: vec![sample_info("web"), idle, dog, odd],
+            ..reading()
+        }
+    }
+
+    #[test]
+    fn a_full_flock_renders_exactly_the_bytes_the_baseline_did() {
+        assert_eq!(render(&golden_reading()), GOLDEN_EXPOSITION);
+    }
+
+    /// Rewrites the golden file from the current `render`. Deliberate only:
+    /// `#[ignore]`d, and a no-op unless `BLESS` is set, so a stray
+    /// `--ignored` run cannot silently move the pin.
+    #[test]
+    #[ignore = "writes testdata/exposition_golden.prom; run it only to bless an intentional format change"]
+    fn bless_exposition_golden() {
+        if std::env::var_os("BLESS").is_none() {
+            return;
+        }
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/dog/metrics/testdata/exposition_golden.prom"
+        );
+        std::fs::write(path, render(&golden_reading())).unwrap();
     }
 }
