@@ -516,6 +516,11 @@ mod tests {
             .expect("db is drawn at 160 columns");
         assert!(row.contains("<set>"), "{row:?}");
         assert!(
+            text.iter()
+                .any(|line| line.contains("now") && line.contains("<set>")),
+            "the panel's now line: {text:?}"
+        );
+        assert!(
             !text.join("\n").contains("ab12cd34"),
             "the password leaked: {text:?}"
         );
