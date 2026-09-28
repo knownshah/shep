@@ -151,7 +151,8 @@ pub struct App {
     next_write_ticket: u64,
     /// The newest [`Effect::LoadSheepDogs`] asked. Only its own answer may
     /// open the dogs sub-screen: two quick `Enter`s ask twice, and the
-    /// older answer landing after the list closed would reopen it.
+    /// older answer landing after the list closed would reopen it. Closing
+    /// the pane moves it on too, so no answer outlives the pane that asked.
     sheep_dogs_ask: u64,
     link: Link,
     notice: Option<Notice>,

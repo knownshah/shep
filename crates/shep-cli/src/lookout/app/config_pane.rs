@@ -383,6 +383,10 @@ impl App {
         self.config_target = None;
         self.config_for = None;
         self.dog_target = None;
+        // A dogs probe still out belongs to this pane. Retired here, not on
+        // a refresh, so a pane reopened on the same sheep does not open the
+        // list for an Enter it never saw.
+        self.sheep_dogs_ask += 1;
         self.release_text_mode_if_unowned();
     }
 

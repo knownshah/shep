@@ -864,6 +864,24 @@ mod tests {
         assert!(app.config_pane().unwrap().dogs().is_none(), "late");
     }
 
+    /// A probe outlives its pane: Enter, close, reopen the same sheep, and
+    /// the first pane's answer lands on the second, which asked nothing.
+    #[test]
+    fn an_answer_for_a_closed_pane_opens_nothing_on_its_reopening() {
+        let mut app = app_in_web(Control::Allowed);
+        let ask = ask_dogs(&mut app, KeyPress::Confirm);
+        let _ = app.update(Msg::Key(KeyPress::Escape));
+        assert!(app.config_pane().is_none());
+        let _ = app.update(Msg::Key(KeyPress::Edit));
+        let _ = app.update(Msg::Replied {
+            sent: Sent::SheepConfig { name: "web".into() },
+            result: Ok(Response::SheepConfig(Box::new(web_view(true)))),
+        });
+        assert!(app.config_pane().is_some(), "reopened");
+        answer(&mut app, "web", ask);
+        assert!(app.config_pane().unwrap().dogs().is_none());
+    }
+
     #[test]
     fn a_reply_of_the_wrong_kind_is_reported_and_re_reads_nothing() {
         let mut app = app_in_dogs(Control::Allowed);
