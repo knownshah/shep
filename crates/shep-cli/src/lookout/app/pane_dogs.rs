@@ -401,6 +401,21 @@ mod tests {
         }
     }
 
+    /// `d` there would file `dogs = null`, and the close would then drop
+    /// every table the sheep carries in one write.
+    #[test]
+    fn d_or_space_on_the_dogs_row_files_nothing_and_points_at_enter() {
+        for key in [KeyPress::Remove, KeyPress::Cycle] {
+            let mut app = app_in_web(Control::Allowed);
+            assert_eq!(app.update(Msg::Key(key)), Effect::None);
+            assert!(app.config_pane().unwrap().edits().is_empty(), "{key:?}");
+            assert_eq!(
+                app.notice().expect("refused").to_string(),
+                "dogs opens its own screen: press enter"
+            );
+        }
+    }
+
     #[test]
     fn enter_or_e_on_the_dogs_row_probes_and_the_answer_opens_the_list() {
         let mut app = app_in_web(Control::ReadOnly);
