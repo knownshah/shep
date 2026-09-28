@@ -89,7 +89,7 @@ impl DogRow {
         self.state
     }
 
-    /// The table's top-level key names, in the table's own order. Empty
+    /// The table's top-level key names, in key order. Empty
     /// for an unset row.
     #[must_use]
     pub fn keys(&self) -> &[String] {

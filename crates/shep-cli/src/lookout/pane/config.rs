@@ -304,7 +304,9 @@ impl ConfigPane {
     ///
     /// [`Lock::Refused`] outranks [`Lock::NoWidget`]: a Structural field
     /// that also happened to have no widget is still refused by shep, which
-    /// is the fact that survives the pane gaining every widget it lacks.
+    /// is the fact that survives the pane gaining every widget it lacks. A
+    /// sheep's `dogs` is [`Lock::SubScreen`] ahead of its own missing
+    /// widget, since Enter there does open something.
     #[must_use]
     pub fn lock(&self, key: &str) -> Option<Lock> {
         if self.cost(key) == Some(ApplyGroup::Structural) {

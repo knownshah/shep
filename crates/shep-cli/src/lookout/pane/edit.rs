@@ -334,7 +334,8 @@ impl ConfigPane {
     /// cannot answer this for it; [`Self::is_overridden`] is the fact that
     /// can. A dog's `values` is the raw section text with no defaults
     /// merged in, so an absent or `null` key already means default there,
-    /// which is exactly what [`Self::stored_value_is`] checks.
+    /// which is exactly what [`Self::stored_value_is`] checks. A dog's table
+    /// on a sheep is read the same raw way.
     fn field_shows_default(&self, key: &str) -> bool {
         if self.edits.get(&EditKey::Field(key.to_owned())).is_some() {
             return false;
