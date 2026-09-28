@@ -51,9 +51,6 @@ pub enum PaneTarget {
         sheep: String,
         /// The dog the table is for.
         dog: String,
-        /// The binary the dog's schema was probed from, or [`None`] for a
-        /// built-in.
-        adopted_path: Option<PathBuf>,
     },
 }
 
@@ -68,11 +65,12 @@ impl PaneTarget {
     }
 }
 
-/// Why a row cannot be edited from the pane.
+/// Why a row cannot be edited in place.
 ///
-/// Two different facts, and an operator has to be able to tell them apart:
-/// one says the field is beyond editing anywhere, the other says only that
-/// this screen has no widget for its shape and a Flockfile still can.
+/// Three different facts, and an operator has to be able to tell them
+/// apart: one says the field is beyond editing anywhere, one says only
+/// that this screen has no widget for its shape and a Flockfile still can,
+/// and one says the row opens a screen of its own for the editing.
 /// Collapsing them into `Field::editable` alone is what made six rows claim
 /// the wrong one.
 ///

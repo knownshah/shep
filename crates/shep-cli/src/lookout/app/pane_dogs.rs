@@ -63,6 +63,8 @@ impl App {
     /// confirms and every other key but a quit cancels, the secrets pane's
     /// rule. An armed removal eats the first `Escape`, as it does there.
     pub(super) fn on_dogs_key(&mut self, key: KeyPress) -> Effect {
+        // Disarms as it asks: every key but Enter and a quit cancels an
+        // armed removal before its own arm runs.
         let was_armed = !matches!(key, KeyPress::Confirm | KeyPress::Quit)
             && self.dogs_mut().is_some_and(DogsPane::disarm);
         match key {
@@ -169,13 +171,8 @@ impl App {
             });
             return Effect::None;
         }
-        let opened = ConfigPane::sheep_dog(
-            sheep.clone(),
-            dog.clone(),
-            row.entry().adopted_path.clone(),
-            &schema,
-            pane.sheep_table(&dog),
-        );
+        let opened =
+            ConfigPane::sheep_dog(sheep.clone(), dog.clone(), &schema, pane.sheep_table(&dog));
         self.body = Body::ConfigPane(opened);
         self.release_text_mode_if_unowned();
         Effect::None
@@ -505,7 +502,6 @@ mod tests {
             &PaneTarget::SheepDog {
                 sheep: "web".into(),
                 dog: "jobs".into(),
-                adopted_path: Some("/opt/jobs".into()),
             }
         );
         assert_eq!(pane.value("concurrency"), "2");

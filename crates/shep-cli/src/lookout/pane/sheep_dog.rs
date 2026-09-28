@@ -6,7 +6,6 @@
 //! touched, the schema's or not, goes back exactly as it came.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use serde_json::{Map, Value};
 
@@ -51,18 +50,13 @@ impl ConfigPane {
     pub fn sheep_dog(
         sheep: String,
         dog: String,
-        adopted_path: Option<PathBuf>,
         schema: &Value,
         table: Map<String, Value>,
     ) -> Self {
         let Flattened { fields, paths } = flattened(schema);
         let values = flatten_values(&table, &paths);
         Self {
-            target: PaneTarget::SheepDog {
-                sheep,
-                dog,
-                adopted_path,
-            },
+            target: PaneTarget::SheepDog { sheep, dog },
             fields,
             values,
             env_keys: Vec::new(),
@@ -212,13 +206,7 @@ mod tests {
     }
 
     fn jobs_pane() -> ConfigPane {
-        ConfigPane::sheep_dog(
-            "web".into(),
-            "jobs".into(),
-            Some("/opt/jobs".into()),
-            &jobs_schema(),
-            jobs_table(),
-        )
+        ConfigPane::sheep_dog("web".into(), "jobs".into(), &jobs_schema(), jobs_table())
     }
 
     fn edits_of(pairs: &[(&str, Value)]) -> Edits {
@@ -306,13 +294,7 @@ mod tests {
 
     #[test]
     fn a_set_under_a_table_the_sheep_lacks_creates_it() {
-        let pane = ConfigPane::sheep_dog(
-            "web".into(),
-            "jobs".into(),
-            None,
-            &jobs_schema(),
-            Map::new(),
-        );
+        let pane = ConfigPane::sheep_dog("web".into(), "jobs".into(), &jobs_schema(), Map::new());
         let table = pane.edited_table_with(&edits_of(&[
             ("models.worker.model", json!("large")),
             ("hours.end", Value::Null),
@@ -332,7 +314,6 @@ mod tests {
         let pane = ConfigPane::sheep_dog(
             "web".into(),
             "jobs".into(),
-            None,
             &jobs_schema(),
             stored.as_object().cloned().expect("a table"),
         );
@@ -368,7 +349,7 @@ mod tests {
         let pane = jobs_pane();
         assert_eq!(
             format!("{pane:?}"),
-            r#"ConfigPane { target: SheepDog { sheep: "web", dog: "jobs", adopted_path: Some("/opt/jobs") }, fields: 6, env_keys: 0, cursor: 0 }"#
+            r#"ConfigPane { target: SheepDog { sheep: "web", dog: "jobs" }, fields: 6, env_keys: 0, cursor: 0 }"#
         );
         let state = pane.dog_table.as_ref().expect("a table pane");
         assert_eq!(format!("{state:?}"), "SheepDogTable { rows: 6, keys: 5 }");
