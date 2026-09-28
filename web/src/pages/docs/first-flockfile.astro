@@ -486,12 +486,13 @@ DB_PASSWORD = "{{secret:DB_PASSWORD}}"`}</CodeBlock>
       of its own: see <a href="/docs/boot-order">boot order</a>.
     </p>
     <p class="fine">
-      Every field below is also editable from <a href="/docs/lookout">lookout</a>:
-      its config pane builds its form straight off this same Flockfile JSON
-      Schema, the way it builds one for a dog's own <code>--schema</code>{" "}
-      answer. <code>dogs</code> is the one exception: its row opens a
-      sub-screen instead, editing each dog's table through that dog's own
-      schema rather than this one.
+      <a href="/docs/lookout">Lookout</a>'s config pane builds its form
+      straight off this same Flockfile JSON Schema, the way it builds one
+      for a dog's own <code>--schema</code> answer. A row it cannot edit
+      says why: <code>=</code> for read-only, like <code>name</code>, and{" "}
+      <code>~</code> for a shape with no widget, like the probes.{" "}
+      <code>dogs</code> opens a sub-screen instead, editing each dog's
+      table through that dog's own schema rather than this one.
     </p>
     {
       fieldGroups.map((group) => (
