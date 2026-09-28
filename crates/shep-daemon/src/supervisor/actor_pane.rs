@@ -2,7 +2,7 @@
 //!
 //! An operator editing a single sheep is not the same as loading a
 //! Flockfile: the change is theirs, it outlives the next load, and it is
-//! stored as an override. These four answer a pane's read and take its
+//! stored as an override. The handlers here answer a pane's read and take its
 //! writes, one field or a batch of environment variables at a time.
 
 use super::*;
@@ -340,6 +340,41 @@ impl<R: ProcessRunner> Actor<R> {
         }))
     }
 
+    /// A pane's door to [`Self::write_sheep_field`]: refuses the keys
+    /// another request owns, then writes.
+    ///
+    /// # Errors
+    ///
+    /// - [`SupervisorError::InvalidField`] - `env`, `dogs`, or a
+    ///   Structural key. Nothing was read or written.
+    /// - Whatever [`Self::write_sheep_field`] refuses.
+    pub(super) fn handle_set_sheep_field(
+        &mut self,
+        name: &str,
+        key: &str,
+        value: &serde_json::Value,
+    ) -> Result<Option<FieldSet>, SupervisorError> {
+        // A pane is never sent a whole `env` or `dogs` map, and a wholesale
+        // write of either would wipe every env key, or every other dog's
+        // table, but the one being set. The Structural fields are identity
+        // and flock shape: `handle_scale` owns the count.
+        let owner = match key {
+            "env" => Some("env is set one key at a time; use `SetSheepEnv`"),
+            "dogs" => Some("dogs is set one dog's table at a time; use `SetSheepDogSettings`"),
+            _ => None,
+        };
+        if let Some(refusal) = owner {
+            return Err(SupervisorError::InvalidField(refusal.to_string()));
+        }
+        if apply_group(key) == ApplyGroup::Structural {
+            return Err(SupervisorError::InvalidField(format!(
+                "{key} is not a config write; `shep stock` moves an instance count, and a \
+                 name change is a different sheep"
+            )));
+        }
+        self.write_sheep_field(name, key, value)
+    }
+
     /// Records `key` on `name` as an operator override, applies what can
     /// reach the running process, and parks the rest for its next spawn.
     ///
@@ -388,47 +423,23 @@ impl<R: ProcessRunner> Actor<R> {
     ///
     /// - [`SupervisorError::IsADog`] - the name is a dog's. Raised before
     ///   the store is read, so nothing was written.
-    /// - [`SupervisorError::InvalidField`] - the key is one this door does
-    ///   not own or `AppConfig` does not have, the value will not
-    ///   deserialize into it, or `normalize` refuses the result. Nothing
-    ///   was written.
+    /// - [`SupervisorError::InvalidField`] - `AppConfig` has no such key,
+    ///   the value will not deserialize into it, or `normalize` refuses
+    ///   the result. Nothing was written.
     /// - [`SupervisorError::Overrides`] - the override store could not be
     ///   read or written. Nothing was parked.
-    pub(super) fn handle_set_sheep_field(
+    pub(super) fn write_sheep_field(
         &mut self,
         name: &str,
         key: &str,
         value: &serde_json::Value,
     ) -> Result<Option<FieldSet>, SupervisorError> {
-        // `env` has its own request, and it needs one: a whole env map is
-        // never sent (a pane is not told the values), and this door's
-        // wholesale replacement of one field would wipe every key but the
-        // one being set. The two Structural fields are identity and flock
-        // shape rather than runtime knobs: `handle_scale` owns the count,
-        // and a `name` change is a different sheep.
-        if key == "env" {
-            return Err(SupervisorError::InvalidField(
-                "env is set one key at a time; use `SetSheepEnv`".to_string(),
-            ));
-        }
-        if apply_group(key) == ApplyGroup::Structural {
-            return Err(SupervisorError::InvalidField(format!(
-                "{key} is not a config write; `shep stock` moves an instance count, and a \
-                 name change is a different sheep"
-            )));
-        }
         let Some(id) = self.representative_id(name) else {
             return Ok(None);
         };
-        // Checked before the store is read and long before it is written,
-        // for the reason `handle_set_sheep_env`'s own guard gives at
-        // length: a dog runs at the daemon's own trust level, a dog is
-        // never in the override store so nothing further down would catch
-        // it, and this door reaches `script` and `args` directly.
-        // `apply_one` refuses a dog with this same sentence; `handle_scale`
-        // refuses one too, but with its own: a count is not a config
-        // write, so it says a dog runs one process, under `InvalidScale`
-        // rather than `IsADog`.
+        // Before the store is read, for `handle_set_sheep_env`'s reason: a
+        // dog runs at the daemon's own trust level, is never in the override
+        // store, and this door reaches `script` and `args` directly.
         if self
             .sheep
             .get(&id)
@@ -470,26 +481,10 @@ impl<R: ProcessRunner> Actor<R> {
         let merged = normalize(edited)
             .map_err(|err| SupervisorError::InvalidField(format!("{key}: {err}")))?;
 
-        // Advisory, never a second way to refuse the write above: the
-        // validation has already accepted the value. Not that the override
-        // store has been written, which happens further down; what is
-        // settled here is that nothing below will refuse. `normalize` cannot make
-        // this call itself (`normalize_with_home`'s own doc gives the
-        // reason: the CLI and the daemon can normalize the same config as
-        // different users), and the gap between this check and the respawn
-        // that actually needs the path is the same one `check_log_ancestry`
-        // documents for its own check-then-open window
-        // (`docs/specs/deferred.md`). `cwd` and `script` share one spec and
-        // one `preflight` call because each one's resolution already
-        // depends on the other; `out_file`/`err_file` need neither `cwd`
-        // nor one another.
-        //
-        // The two arms each build their own spec rather than hoisting one
-        // above the `match`, which would look tidier and cost more: most
-        // keys reach `_ => None`, and `describe` renders every template and
-        // resolves every secret reference the config carries. Duplicated
-        // lines here buy that work being skipped on every field but these
-        // four.
+        // Advisory, never a second refusal: `normalize` cannot see the
+        // filesystem (`normalize_with_home` says why). `cwd` and `script`
+        // share one `preflight` since each resolves against the other. Each
+        // arm builds its own spec so every other key skips `describe`.
         let warning = match key {
             "cwd" | "script" => {
                 let view = self.secret_view(&merged);
@@ -560,11 +555,8 @@ impl<R: ProcessRunner> Actor<R> {
             let Some(slot) = self.sheep.get_mut(&id) else {
                 continue;
             };
-            // Against this slot's own spec and before it is overwritten,
-            // and `|=` rather than `=`. Both halves are `apply_one`'s and
-            // the argument for them is stated there, at the same line in
-            // that function, not restated here: a paraphrase of a reason
-            // is what goes stale when the reason changes.
+            // Against this slot's own spec before it is overwritten, and
+            // `|=`, for the reasons `apply_one` gives at the same line.
             if let Some(parked) = &parked {
                 let spawned = slot.entry.spec.config();
                 slot.entry.pending_reidentifies |=

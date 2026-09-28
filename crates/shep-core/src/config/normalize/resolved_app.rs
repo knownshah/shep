@@ -49,6 +49,7 @@ impl ResolvedApp {
 /// - [`NormalizeError::ZeroWatchDelay`]: `watch_delay` is `0`.
 /// - [`NormalizeError::InvalidWatchGlob`]: a `watch_options` or `ignore_watch` pattern globset will not compile.
 /// - [`NormalizeError::InvalidLevelRule`]: a `level_rules` entry has an empty pattern, one regex will not compile, or the list is longer than the ceiling on how many rules an app may declare.
+/// - [`NormalizeError::EmptyDogName`]: a `dogs` key is the empty string.
 /// - [`NormalizeError::BadTemplate`]: an `env`/`args`/log-path value carries an undefined or unclosed `{{...}}` token.
 /// - [`NormalizeError::SecretInLogPath`]: `out_file` or `err_file` carries a `{{secret:...}}`.
 /// - [`NormalizeError::SharedLogPath`]: `out_file` or `err_file` renders to the same path for two instances.
@@ -292,6 +293,9 @@ pub fn normalize_with_home(
         name: app.name.clone(),
         reason: err.to_string(),
     })?;
+    if app.dogs.keys().any(String::is_empty) {
+        return Err(NormalizeError::EmptyDogName { name: app.name });
+    }
     let mut seen = BTreeSet::new();
     let mut deduped = Vec::with_capacity(app.depends_on.len());
     for target in &app.depends_on {
@@ -883,5 +887,37 @@ mod tests {
             resolved.config().depends_on,
             vec!["db".to_string(), "cache".to_string()]
         );
+    }
+
+    #[test]
+    fn an_empty_dog_name_is_refused_naming_the_sheep() {
+        // fails if a dogs key of "" is accepted, or if the error drops
+        // which sheep's Flockfile entry to edit
+        let mut app = AppConfig::minimal("web", "./srv");
+        app.dogs.insert(
+            String::new(),
+            crate::config::DogTable::from(serde_json::Map::new()),
+        );
+        let err = normalize(app).unwrap_err();
+        assert_eq!(
+            err,
+            NormalizeError::EmptyDogName {
+                name: "web".to_string()
+            }
+        );
+        assert!(err.to_string().contains("web"));
+    }
+
+    #[test]
+    fn a_named_dog_table_survives_normalize() {
+        // fails if a well-formed dogs table is refused, or dropped from the
+        // resolved config
+        let mut app = AppConfig::minimal("web", "./srv");
+        let mut table = serde_json::Map::new();
+        table.insert("concurrency".to_string(), serde_json::json!(2));
+        app.dogs
+            .insert("jobs".to_string(), crate::config::DogTable::from(table));
+        let resolved = normalize(app).expect("a named dog table normalizes");
+        assert!(resolved.config().dogs.contains_key("jobs"));
     }
 }

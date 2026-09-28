@@ -2338,3 +2338,13 @@ It was measured on Linux by preloading a shim that adds a fixed delay to every `
 `reloading_an_unchanged_file_leaves_the_override_store_unwritten` is the guard, since nothing in CI times a start. It fails against the store as it was before this change.
 
 `verified crates/shep-core/src/overrides.rs (holds, put, update), crates/shep-daemon/src/supervisor/actor_config.rs (handle_apply_config), crates/shep-cli/src/commands/lifecycle/start.rs (the establishing apply_declared), crates/shep-core/src/atomic_file.rs (publish, sync_dir), crates/shep-daemon/src/snapshot/mod.rs (FlockRegistry::record)`
+
+## Per-sheep dog settings
+
+### A sheep's per-dog table is `dogs`, merges as one field, and publishes its schema inside `--schema`
+
+A sheep's Flockfile entry carries `[app.dogs.<name>]`, stored as `AppConfig::dogs`, a map of opaque `DogTable`s that shep hands to the dog each one names without reading it. The key is `dogs`, not `dog`. It merges, overrides and resets as one field, like `level_rules`. A dog's per-sheep schema rides in its existing `--schema` answer under an `x-shep-sheep` key rather than behind a new flag. The key and the merge ship with the field. The schema key ships with lookout's editor.
+
+**Why:** `dog` already names the top-level `[dog.<name>]` table, which shep reads and discards, so a per-sheep header missing its `app.` prefix would land there silently. With `dogs` the same slip is an unknown key and fails. Merging per dog, the way `env` merges per key, would copy env's tombstones and its documented gap for a case nobody has asked for yet. A new probe flag would cost a spawn each time a pane opens, and a dog that predates it would run its ordinary job until the budget killed it. An extension key costs neither, and follows `x-shep-secret`, the other key shep reads out of that answer.
+
+`verified docs/brainstorming/specs/2026-09-27-per-sheep-dog-settings-design.md, crates/shep-core/src/config/app/schema.rs (the dogs field's own doc and extend("init")), crates/shep-core/src/config/app/dog_table.rs, crates/shep-daemon/src/supervisor/config_merge.rs (establish_env), crates/shep-cli/src/commands/dogs/vet/mod.rs (ask, kill_probe_tree)`

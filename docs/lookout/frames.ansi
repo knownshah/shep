@@ -1220,7 +1220,7 @@ The sheep pane on web, at its design size: 160 = 8 gutter + 140 body + 12 margin
 [0m[38;5;245minputs[0m                                                                      [0m[38;5;245m│[0m                                                                                   [0m
 [0m[38;5;245margs                      [0m  ["--port","8080"]                               [0m[38;5;245m│[0m                                                                                   [0m
 [0m[38;5;245mchannel                   [0m  [0m[38;5;245m(default)                                       │[0m                                                                                   [0m
-[0m[38;5;245menvironment               [0m  [0m[38;5;245m(unset)                                         │[0m                                                                                   [0m
+[0m[38;5;245mdogs                      [0m  [0m[38;5;245m(default)                                       │[0m                                                                                   [0m
                                                                                                                                                                 [0m
 [0m[38;5;221m[48;5;235mesc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log   / filter                                                     [0m[38;5;245m[48;5;235m control enabled[0m
 
@@ -1273,7 +1273,7 @@ rss 30.0M of 64.0M █████░░░░░                               
 [0m[38;5;245minputs[0m                                                                                                                                     [0m
 [0m[38;5;245margs                      [0m  ["--port","8080"]                                                                                              [0m
 [0m[38;5;245mchannel                   [0m  [0m[38;5;245m(default)                                       [0m                                                               [0m
-[0m[38;5;245menvironment               [0m  [0m[38;5;245m(unset)                                         [0m                                                               [0m
+[0m[38;5;245mdogs                      [0m  [0m[38;5;245m(default)                                       [0m                                                               [0m
                                                                                                                                            [0m
 [0m[38;5;221m[48;5;235mesc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log   / filter                                [0m[38;5;245m[48;5;235m control enabled[0m
 
@@ -1326,7 +1326,7 @@ rss 30.0M of 64.0M █████░░░░░                               
 [0m[38;5;245minputs[0m                                                                                             [0m
 [0m[38;5;245margs                      [0m  ["--port","8080"]                                                      [0m
 [0m[38;5;245mchannel                   [0m  [0m[38;5;245m(default)                                       [0m                       [0m
-[0m[38;5;245menvironment               [0m  [0m[38;5;245m(unset)                                         [0m                       [0m
+[0m[38;5;245mdogs                      [0m  [0m[38;5;245m(default)                                       [0m                       [0m
                                                                                                    [0m
 [0m[38;5;221m[48;5;235mesc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log  …[0m[38;5;245m[48;5;235m control enabled[0m
 

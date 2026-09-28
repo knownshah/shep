@@ -7,6 +7,7 @@ mod outcomes;
 mod process;
 mod redacted;
 mod response;
+mod selector_spec;
 mod smit;
 mod verbs;
 
@@ -19,5 +20,6 @@ pub use outcomes::{
 pub use process::{DogSource, ExitInfo, Lamb, ProcessInfo, ProcessInfoBuilder, sort_flock};
 pub use redacted::{DogSectionToml, EnvValue};
 pub use response::{HostUsage, Response};
+pub use selector_spec::SelectorSpec;
 pub use smit::{Smit, SmitError};
-pub use verbs::{Request, SelectorSpec};
+pub use verbs::Request;

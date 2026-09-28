@@ -1,5 +1,6 @@
 ---
 source: crates/shep-cli/src/lookout/frames/mod.rs
+assertion_line: 91
 expression: render_text(&buffer)
 ---
 shep lookout   /home/ada/.shep                                                       1 in the flock
@@ -47,6 +48,6 @@ out_file                    (unset)
 inputs                                                                                             
 args                        ["--port","8080"]                                                      
 channel                     (default)                                                              
-environment                 (unset)                                                                
+dogs                        (default)                                                              
                                                                                                    
 esc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log  … control enabled

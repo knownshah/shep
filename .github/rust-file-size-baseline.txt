@@ -20,7 +20,3 @@
 1065 crates/shep-daemon/src/boot_order.rs
 1030 crates/shep-cli/src/dog_index.rs
 1003 crates/shep-daemon/src/testing.rs
-
-# #301 left this one alone on purpose. IR-48 no longer allows that, so it is
-# listed until the maintainer decides.
-1004 crates/shep-core/src/protocol/request/verbs.rs

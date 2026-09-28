@@ -12,6 +12,9 @@ impl<R: ProcessRunner> Actor<R> {
     /// fully resolves. Dropping `rx` then closes the mailbox, so later
     /// [`SupervisorHandle`] calls see [`SupervisorError::EngineStopped`].
     pub(super) async fn run(mut self, mut rx: mpsc::Receiver<Msg>) {
+        // Both spawn paths install their flock before this runs, so seeding
+        // here is what keeps a handover from announcing a carried table.
+        let mut announced = self.dog_index();
         while let Some(msg) = rx.recv().await {
             let should_break = match msg {
                 // Synchronous: nothing in the command path awaits, so the
@@ -61,6 +64,9 @@ impl<R: ProcessRunner> Actor<R> {
                     false
                 }
             };
+            // After every message rather than in each handler, so no path
+            // that registers, deletes or edits a sheep can forget it.
+            self.announce_dog_tables(&mut announced);
             if should_break {
                 break;
             }
@@ -154,6 +160,20 @@ impl<R: ProcessRunner> Actor<R> {
                 reply,
             } => {
                 let _ = reply.send(self.handle_set_sheep_field(&name, &key, &value));
+                false
+            }
+            // Both answered during a shutdown, as the pane's doors above are.
+            Command::DogSheepSettings { dog, reply } => {
+                let _ = reply.send(self.handle_dog_sheep_settings(&dog));
+                false
+            }
+            Command::SetSheepDogSettings {
+                name,
+                dog,
+                table,
+                reply,
+            } => {
+                let _ = reply.send(self.handle_set_sheep_dog_settings(&name, &dog, table));
                 false
             }
             Command::SetSmit {

@@ -87,15 +87,11 @@ impl<R: ProcessRunner> Actor<R> {
     /// window still finds its app rather than being told it is not
     /// registered.
     pub(super) fn representative_id(&self, name: &str) -> Option<u32> {
-        let ids = self.ids_of_name(name);
-        ids.iter()
-            .copied()
-            .find(|id| {
-                self.sheep
-                    .get(id)
-                    .is_some_and(|slot| !matches!(slot.entry.reload, ReloadState::Drainee { .. }))
-            })
-            .or_else(|| ids.first().copied())
+        self.sheep
+            .iter()
+            .filter(|(_, slot)| slot.entry.spec.config().name == name)
+            .min_by_key(|(id, slot)| speaker_rank(**id, slot))
+            .map(|(id, _)| *id)
     }
 
     /// One app's half of [`Self::handle_apply_config`].
@@ -520,4 +516,14 @@ impl<R: ProcessRunner> Actor<R> {
         }
         specs
     }
+}
+
+/// How a slot ranks to speak for its name, lowest first: a non-drainee,
+/// then the lowest instance, then the lowest id.
+///
+/// [`Actor::representative_id`] and the per-sheep table view both pick by
+/// this, so they cannot disagree about which slot a name's config is.
+pub(super) fn speaker_rank(id: u32, slot: &SheepSlot) -> (bool, u32, u32) {
+    let draining = matches!(slot.entry.reload, ReloadState::Drainee { .. });
+    (draining, slot.entry.instance, id)
 }

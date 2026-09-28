@@ -566,9 +566,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_sheep_pane_has_forty_two_fields_in_eight_groups() {
+    fn a_sheep_pane_has_forty_three_fields_in_eight_groups() {
         let pane = ConfigPane::sheep(web());
-        assert_eq!(pane.fields().len(), 42);
+        assert_eq!(pane.fields().len(), 43);
         let mut groups: Vec<&str> = Vec::new();
         for field in pane.fields().fields() {
             let group = field.group.as_deref().expect("every field carries a group");
@@ -836,7 +836,7 @@ mod tests {
         let pane = ConfigPane::sheep(SheepConfigView::new(config, Vec::new(), Vec::new()));
         assert_eq!(
             format!("{pane:?}"),
-            r#"ConfigPane { target: Sheep { name: "web" }, fields: 42, env_keys: 1, cursor: 0 }"#
+            r#"ConfigPane { target: Sheep { name: "web" }, fields: 43, env_keys: 1, cursor: 0 }"#
         );
     }
 }

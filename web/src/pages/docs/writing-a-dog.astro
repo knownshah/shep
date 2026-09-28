@@ -658,5 +658,17 @@ speaks protocol 9, accepts 8 and newer`}</CodeBlock>
       watching, and a stale schema is worse than a stale version number,
       because it mislabels which field is a credential. Shep asks the binary
       again when it needs one.
-    </p>  </article>
+    </p>
+
+    <h2 id="reading-a-sheep-s-own-table">Reading a sheep's own table</h2>
+    <p>
+      A dog that acts per sheep asks{" "}
+      <code>Request::DogSheepSettings {"{"} dog {"}"}</code> for its own
+      name and parses each sheep's table with{" "}
+      <code>shep_client::dogs::parse_sheep_settings</code>, one at a time,
+      so a table that doesn't fit never hides the rest. shep stores every
+      table and reads none of them itself. Subscribe to{" "}
+      <code>config.sheep.&lt;dog&gt;</code> to hear one change.
+    </p>
+  </article>
 </DocsLayout>

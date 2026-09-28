@@ -244,6 +244,12 @@ pub enum NormalizeError {
         /// The entry as written
         target: String,
     },
+    /// A `dogs` key is the empty string. Carries the sheep name, so the
+    /// error names which Flockfile entry to edit.
+    EmptyDogName {
+        /// The sheep name
+        name: String,
+    },
 }
 
 impl fmt::Display for NormalizeError {
@@ -379,6 +385,9 @@ impl fmt::Display for NormalizeError {
                      Depend on `{app}` instead: a dependency waits for every \
                      instance of an app"
                 )
+            }
+            Self::EmptyDogName { name } => {
+                write!(f, "sheep `{name}` has a dogs entry with an empty name")
             }
         }
     }

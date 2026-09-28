@@ -4,42 +4,14 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::{AppConfig, DeclaredApp, ResetDepth};
+use crate::config::{AppConfig, DeclaredApp, DogTable, ResetDepth};
 
-use super::{DogSectionToml, DogSource, EnvValue, Smit};
+use super::{DogSectionToml, DogSource, EnvValue, SelectorSpec, Smit};
 
 // Named by intra-doc links and by nothing rustc compiles, so the
 // import is behind `cfg(doc)` rather than flagged unused.
 #[cfg(doc)]
 use super::{Response, RpcErrorCode, SheepApplied, SheepDrift};
-
-/// Serializable selector (mirror of [`crate::selector::ProcessSelector`];
-/// regex travels as its source string)
-// wire format: changing this is a breaking change
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
-pub enum SelectorSpec {
-    /// Every sheep
-    All,
-    /// By id
-    Id(u32),
-    /// By exact name
-    Name(String),
-    /// By regex source
-    Regex(String),
-    /// By fold name
-    Fold(String),
-    // Both field names are wire contract, pinned by `request_wire_v9`.
-    /// By app name and instance slot
-    ///
-    /// On the wire: `{"kind":"instance","value":{"name":"web","slot":2}}`.
-    Instance {
-        /// The app name
-        name: String,
-        /// The instance slot, counting from 0
-        slot: u32,
-    },
-}
 
 /// One RPC request
 // wire format: changing existing variants is a breaking change
@@ -266,6 +238,45 @@ pub enum Request {
         /// `Debug`, not to this field.
         value: serde_json::Value,
     },
+    /// One dog's `[app.dogs.<name>]` table, for every sheep carrying one.
+    ///
+    /// It reads the stored spec, which is in force because `dogs` is
+    /// [`ApplyGroup::Live`](crate::config::ApplyGroup::Live). A sheep with
+    /// no table for `dog` is absent. `dog` is self-declared, as it is for
+    /// [`Self::DogConfig`], so the scoping is a convenience: the boundary
+    /// is the socket.
+    ///
+    /// Answers [`Response::DogSheepSettings`] with an empty map when no
+    /// sheep names `dog`, never [`RpcErrorCode::NotFound`]: unlike
+    /// [`Self::SheepConfig`], this does not name one sheep that could be
+    /// missing.
+    DogSheepSettings {
+        /// The dog's own name, the config key.
+        dog: String,
+    },
+    /// Sets, replaces, or with `None` removes one dog's table on one sheep,
+    /// recorded as an operator override of the whole `dogs` field so the
+    /// `*` marker shows, and publishes `config.sheep.<dog>` so a running
+    /// dog re-reads its tables.
+    ///
+    /// A single dog's table, not the whole `dogs` map:
+    /// [`Self::SetSheepField`] refuses the key `dogs` and names this
+    /// request, the way it refuses `env`, since a whole-map write from a
+    /// pane editing one dog would overwrite a concurrent edit to another
+    /// dog's table on the same sheep.
+    ///
+    /// Answers [`Response::SheepDogSettingsSet`], [`RpcErrorCode::NotFound`]
+    /// when no sheep has `name`, and refuses a dog's own name the way
+    /// [`Self::SetSheepField`] does.
+    SetSheepDogSettings {
+        /// The sheep's name, not a selector, for [`Self::SheepConfig`]'s
+        /// reason.
+        name: String,
+        /// Which dog's table to write.
+        dog: String,
+        /// The new table, or `None` to remove it.
+        table: Option<DogTable>,
+    },
     /// Replaces one dog's `[<name>]` section in `dogs.toml` and publishes
     /// `config.dog.<name>` so a running dog re-reads it.
     ///
@@ -487,6 +498,15 @@ mod tests {
     use super::*;
     use crate::protocol::MIN_SUPPORTED;
 
+    /// A wire fixture row with no deadline, which every row but the first uses.
+    fn envelope(id: u64, body: Request) -> Envelope {
+        Envelope {
+            id,
+            deadline_ms: None,
+            body,
+        }
+    }
+
     #[test]
     fn a_signal_request_and_its_reply_round_trip() {
         let request = Request::Signal {
@@ -647,158 +667,130 @@ mod tests {
                 deadline_ms: Some(5000),
                 body: Request::Ping,
             },
-            Envelope {
-                id: 2,
-                deadline_ms: None,
-                body: Request::ListFlock,
-            },
-            Envelope {
-                id: 3,
-                deadline_ms: None,
-                body: Request::Stop {
+            envelope(2, Request::ListFlock),
+            envelope(
+                3,
+                Request::Stop {
                     selector: SelectorSpec::Name("web".to_string()),
                 },
-            },
-            Envelope {
-                id: 4,
-                deadline_ms: None,
-                body: Request::Start {
+            ),
+            envelope(
+                4,
+                Request::Start {
                     apps: vec![AppConfig::minimal("web", "./srv")],
                 },
-            },
+            ),
             // `All` rather than a named sheep: the selector `shep reopen`
             // sends when given no argument.
-            Envelope {
-                id: 5,
-                deadline_ms: None,
-                body: Request::Reopen {
+            envelope(
+                5,
+                Request::Reopen {
                     selector: SelectorSpec::All,
                 },
-            },
+            ),
             // The same selector as the row above, so the two log-plane rows
             // differ by their `kind` and by nothing else.
-            Envelope {
-                id: 6,
-                deadline_ms: None,
-                body: Request::Flush {
+            envelope(
+                6,
+                Request::Flush {
                     selector: SelectorSpec::All,
                 },
-            },
+            ),
             // The same selector as the `stop` row: `reload` under `stop`'s tag
             // shows up here as two identical objects.
-            Envelope {
-                id: 7,
-                deadline_ms: None,
-                body: Request::Reload {
+            envelope(
+                7,
+                Request::Reload {
                     selector: SelectorSpec::Name("web".to_string()),
                 },
-            },
+            ),
             // `action`/`params` match channel.rs's with-params fixture
             // verbatim, so a trigger reads the same at every hop.
-            Envelope {
-                id: 8,
-                deadline_ms: None,
-                body: Request::Trigger {
+            envelope(
+                8,
+                Request::Trigger {
                     selector: SelectorSpec::Name("web".to_string()),
                     action: "set-log-level".to_string(),
                     params: Some("debug".to_string()),
                 },
-            },
+            ),
             // A fieldless verb: a bare `{"kind":"..."}` with no `selector` key.
-            Envelope {
-                id: 9,
-                deadline_ms: None,
-                body: Request::SaveRoll,
-            },
+            envelope(9, Request::SaveRoll),
             // Paired with the `save_roll` row: they differ by their `kind` alone.
-            Envelope {
-                id: 10,
-                deadline_ms: None,
-                body: Request::Muster,
-            },
+            envelope(10, Request::Muster),
             // The three dog verbs. `enable_dog` and `disable_dog` differ by
             // their `kind` and by `source` alone.
-            Envelope {
-                id: 11,
-                deadline_ms: None,
-                body: Request::DogConfig {
+            envelope(
+                11,
+                Request::DogConfig {
                     name: "bark".to_string(),
                 },
-            },
-            Envelope {
-                id: 12,
-                deadline_ms: None,
-                body: Request::EnableDog {
+            ),
+            envelope(
+                12,
+                Request::EnableDog {
                     name: "metrics".to_string(),
                     source: DogSource::BuiltIn,
                 },
-            },
-            Envelope {
-                id: 13,
-                deadline_ms: None,
-                body: Request::DisableDog {
+            ),
+            envelope(
+                13,
+                Request::DisableDog {
                     name: "metrics".to_string(),
                 },
-            },
+            ),
             // `Id`, `Regex` and `Fold` are three newtypes the wire tells apart
             // only by their `kind` tag: a `Fold` under `regex`'s tag turns
             // `shep restart fold:api` into a regex match.
-            Envelope {
-                id: 14,
-                deadline_ms: None,
-                body: Request::Describe {
+            envelope(
+                14,
+                Request::Describe {
                     selector: SelectorSpec::Id(7),
                 },
-            },
-            Envelope {
-                id: 15,
-                deadline_ms: None,
-                body: Request::Describe {
+            ),
+            envelope(
+                15,
+                Request::Describe {
                     selector: SelectorSpec::Regex("^web-".to_string()),
                 },
-            },
-            Envelope {
-                id: 16,
-                deadline_ms: None,
-                body: Request::Describe {
+            ),
+            envelope(
+                16,
+                Request::Describe {
                     selector: SelectorSpec::Fold("api".to_string()),
                 },
-            },
+            ),
             // `SIGHUP` rather than `SIGTERM`: the stop ladder already sends
             // TERM, so a TERM fixture could not tell the two frames apart.
-            Envelope {
-                id: 17,
-                deadline_ms: None,
-                body: Request::Signal {
+            envelope(
+                17,
+                Request::Signal {
                     selector: SelectorSpec::Name("web".to_string()),
                     signal: "SIGHUP".to_string(),
                 },
-            },
+            ),
             // The one verb here whose body has no `selector` key.
-            Envelope {
-                id: 18,
-                deadline_ms: None,
-                body: Request::Scale {
+            envelope(
+                18,
+                Request::Scale {
                     name: "web".to_string(),
                     count: 4,
                 },
-            },
+            ),
             // The line carries no terminator on the wire, since the shepherd
             // appends it.
-            Envelope {
-                id: 19,
-                deadline_ms: None,
-                body: Request::SendLine {
+            envelope(
+                19,
+                Request::SendLine {
                     selector: SelectorSpec::All,
                     line: "reload-config".to_string(),
                 },
-            },
+            ),
             // Both halves of the `Option` are pinned, a paint and a clear, so a
             // dog author does not have to guess the clear frame's shape.
-            Envelope {
-                id: 20,
-                deadline_ms: None,
-                body: Request::SetSmit {
+            envelope(
+                20,
+                Request::SetSmit {
                     sheep: "web".to_string(),
                     smit: Some(
                         "\u{25b2} main@a1b2c3"
@@ -806,55 +798,40 @@ mod tests {
                             .expect("the reference smit is valid"),
                     ),
                 },
-            },
-            Envelope {
-                id: 21,
-                deadline_ms: None,
-                body: Request::SetSmit {
+            ),
+            envelope(
+                21,
+                Request::SetSmit {
                     sheep: "web".to_string(),
                     smit: None,
                 },
-            },
+            ),
             // An empty `apps`: `start`'s row already pins the payload type, so
             // this row's own are the tag and the key the list travels under.
-            Envelope {
-                id: 22,
-                deadline_ms: None,
-                body: Request::ConfigDrift { apps: Vec::new() },
-            },
+            envelope(22, Request::ConfigDrift { apps: Vec::new() }),
             // The only struct-shaped `SelectorSpec` variant, so the only place
             // `"kind":"instance"` and the `slot` key are pinned.
-            Envelope {
-                id: 23,
-                deadline_ms: None,
-                body: Request::Restart {
+            envelope(
+                23,
+                Request::Restart {
                     selector: SelectorSpec::Instance {
                         name: "web".to_string(),
                         slot: 2,
                     },
                 },
-            },
+            ),
             // The one request an older daemon must never be sent: shep-cli
             // gates it on the daemon's crate version.
-            Envelope {
-                id: 24,
-                deadline_ms: None,
-                body: Request::HandoverFitness,
-            },
+            envelope(24, Request::HandoverFitness),
             // The second request gated on the daemon's crate version.
-            Envelope {
-                id: 25,
-                deadline_ms: None,
-                body: Request::DogStaleness,
-            },
+            envelope(25, Request::DogStaleness),
             // The only request carrying a `DeclaredApp`: a merge keys on what a
             // document claimed. `declared_env` is non-empty to show it holds
             // env key names and no env value, and `reset` is pinned at a
             // non-default depth.
-            Envelope {
-                id: 26,
-                deadline_ms: None,
-                body: Request::ApplyConfig {
+            envelope(
+                26,
+                Request::ApplyConfig {
                     apps: vec![DeclaredApp {
                         config: AppConfig::minimal("web", "./srv"),
                         declared: ["name", "script"]
@@ -865,77 +842,71 @@ mod tests {
                     }],
                     reset: ResetDepth::Policy,
                 },
-            },
+            ),
             // The same app as the `start` row above: the two differ by their
             // `kind` alone, so a mis-tagged `add` shows up as two identical
             // objects.
-            Envelope {
-                id: 27,
-                deadline_ms: None,
-                body: Request::Add {
+            envelope(
+                27,
+                Request::Add {
                     apps: vec![AppConfig::minimal("web", "./srv")],
                 },
-            },
+            ),
             // The four config-pane requests. `SheepConfig` takes a name
             // rather than a selector, like `Scale` and `SetSmit` above and
             // for their reason: a pane edits one sheep.
-            Envelope {
-                id: 28,
-                deadline_ms: None,
-                body: Request::SheepConfig {
+            envelope(
+                28,
+                Request::SheepConfig {
                     name: "web".to_string(),
                 },
-            },
+            ),
             // `value` is pinned as `Some`, because the `None` spelling is
             // what removes the key, and a reader that guessed the two apart
             // wrongly would delete an operator's env instead of setting it.
             // The value is a placeholder, not a secret: this is the one
             // request in the enum that carries an env value at all, and it
             // travels in one direction only, nothing ever reads it back.
-            Envelope {
-                id: 29,
-                deadline_ms: None,
-                body: Request::SetSheepEnv {
+            envelope(
+                29,
+                Request::SetSheepEnv {
                     name: "web".to_string(),
                     key: "DATABASE_URL".to_string(),
                     value: Some("postgres://localhost/app".to_string().into()),
                 },
-            },
+            ),
             // `SetSheepEnv`'s twin for everything that is not `env`, and
             // pinned beside it: the two are one letter apart in the tag and
             // a reader that crossed them would write a config field into an
             // env map. `value` is a bare JSON value rather than a string,
             // which is the half a hand-written reader gets wrong: an
             // integer field is an integer here, not `"32"`.
-            Envelope {
-                id: 30,
-                deadline_ms: None,
-                body: Request::SetSheepField {
+            envelope(
+                30,
+                Request::SetSheepField {
                     name: "web".to_string(),
                     key: "max_restarts".to_string(),
                     value: serde_json::json!(32),
                 },
-            },
+            ),
             // The second request carrying a `DogSectionToml`, and pinned
             // beside its reader: `DogConfig` asks for a section and this
             // writes one back, so the two have to agree about the shape a
             // section takes on the wire.
-            Envelope {
-                id: 31,
-                deadline_ms: None,
-                body: Request::SetDogConfig {
+            envelope(
+                31,
+                Request::SetDogConfig {
                     name: "bark".to_string(),
                     toml: "debounce = \"30s\"\n".to_string().into(),
                 },
-            },
+            ),
             // The one request a provider dog sends, and the row that pins
             // what `EnvValue` costs the wire: `entries` is a plain object
             // of strings, so a dog written against this fixture in another
             // language needs no newtype of its own.
-            Envelope {
-                id: 32,
-                deadline_ms: None,
-                body: Request::PutSecrets {
+            envelope(
+                32,
+                Request::PutSecrets {
                     namespace: "vercel".to_string(),
                     environment: "production".to_string(),
                     entries: BTreeMap::from([(
@@ -943,17 +914,16 @@ mod tests {
                         EnvValue::from("sk_live_placeholder".to_string()),
                     )]),
                 },
-            },
+            ),
             // `SetSheepEnvBatch`'s own doc comment calls this the densest
             // run of secrets on the wire, so it gets two entries rather
             // than one: a single-entry map would not distinguish an object
             // from a map with one key. `force` and `dry_run` are both
             // pinned away from their default so a silent default flip on
             // either field shows up here.
-            Envelope {
-                id: 33,
-                deadline_ms: None,
-                body: Request::SetSheepEnvBatch {
+            envelope(
+                33,
+                Request::SetSheepEnvBatch {
                     name: "web".to_string(),
                     entries: BTreeMap::from([
                         (
@@ -968,14 +938,40 @@ mod tests {
                     force: true,
                     dry_run: true,
                 },
-            },
-            Envelope {
-                id: 34,
-                deadline_ms: None,
-                body: Request::HostUsage,
-            },
+            ),
+            envelope(34, Request::HostUsage),
+            envelope(
+                35,
+                Request::DogSheepSettings {
+                    dog: "jobs".to_string(),
+                },
+            ),
+            // The table carries two keys, one nested, so a reader sees a
+            // table survives the hop through this enum without flattening.
+            envelope(
+                36,
+                Request::SetSheepDogSettings {
+                    name: "web".to_string(),
+                    dog: "jobs".to_string(),
+                    table: Some(DogTable::from(serde_json::Map::from_iter([
+                        ("concurrency".to_string(), serde_json::json!(2)),
+                        (
+                            "hours".to_string(),
+                            serde_json::json!({ "start": "09:00:00" }),
+                        ),
+                    ]))),
+                },
+            ),
+            envelope(
+                37,
+                Request::SetSheepDogSettings {
+                    name: "web".to_string(),
+                    dog: "jobs".to_string(),
+                    table: None,
+                },
+            ),
         ];
-        insta::assert_json_snapshot!("request_wire_v9", requests);
+        insta::assert_json_snapshot!("request_wire_v10", requests);
     }
 
     #[test]
