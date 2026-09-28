@@ -177,11 +177,7 @@ pub fn probe<T: DogConfig>(name: &str, version: &str) {
 /// before `main` opens anything.
 #[cfg(not(feature = "schema"))]
 pub fn probe_with_sheep<T: DogConfig, S: DogConfig>(name: &str, version: &str) {
-    match first_argument().as_deref() {
-        Some(VERSION_FLAG) => answer(&version_answer(name, version)),
-        Some(SCHEMA_FLAG) => std::process::exit(0),
-        _ => (),
-    }
+    probe::<T>(name, version);
 }
 
 /// The argument shep spawns a probe with, which is the only one it passes.
@@ -219,11 +215,16 @@ fn version_answer(name: &str, version: &str) -> String {
 /// The `--schema` answer, whole, ending in a newline.
 #[cfg(feature = "schema")]
 fn schema_answer<T: DogConfig + schemars::JsonSchema>() -> String {
-    let schema = config_schema::<T>();
+    rendered(&config_schema::<T>())
+}
+
+/// `schema` as the schema flag prints it: pretty JSON and a newline.
+#[cfg(feature = "schema")]
+fn rendered(schema: &schemars::Schema) -> String {
     // The same expectation shep-core's own schema printer holds: a schemars
     // `Schema` is a `serde_json::Value` already, so serializing it cannot
     // meet a type serde_json has no representation for.
-    let json = serde_json::to_string_pretty(&schema).expect("a schemars Schema always serializes");
+    let json = serde_json::to_string_pretty(schema).expect("a schemars Schema always serializes");
     format!("{json}\n")
 }
 
@@ -235,9 +236,7 @@ where
     T: DogConfig + schemars::JsonSchema,
     S: DogConfig + schemars::JsonSchema,
 {
-    let schema = config_schema_with_sheep::<T, S>();
-    let json = serde_json::to_string_pretty(&schema).expect("a schemars Schema always serializes");
-    format!("{json}\n")
+    rendered(&config_schema_with_sheep::<T, S>())
 }
 
 /// One sheep's `[app.dogs.<dog>]` table did not fit `dog`'s own settings
@@ -693,10 +692,16 @@ mod tests {
         fn a_struct_nested_inside_the_sheep_type_resolves_in_root_defs_too() {
             let schema = config_schema_with_sheep::<JobsConfig, JobsSheepSettings>();
             let schema = schema.as_value();
+            let def_name = sheep_def_name(schema);
+            let hours = schema
+                .pointer(&format!("/$defs/{def_name}/properties/hours/$ref"))
+                .and_then(serde_json::Value::as_str)
+                .and_then(|r| r.strip_prefix("#/$defs/"))
+                .expect("the nested field holds a $ref into $defs");
 
             assert!(
                 schema
-                    .pointer("/$defs/WorkingHours/properties/start")
+                    .pointer(&format!("/$defs/{hours}/properties/start"))
                     .is_some(),
                 "a type nested inside the sheep type is hoisted into the same $defs, \
                  so lookout can flatten it"
