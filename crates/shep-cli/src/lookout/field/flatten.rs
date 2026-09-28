@@ -62,7 +62,14 @@ pub(crate) fn flattened(schema: &Value) -> Flattened {
 
     let mut fields = Vec::new();
     let mut paths = BTreeMap::new();
-    walk(&properties, &defs, &[], &mut fields, &mut paths);
+    walk(
+        &properties,
+        &defs,
+        &[],
+        &mut vec![root],
+        &mut fields,
+        &mut paths,
+    );
 
     Flattened {
         fields: FieldSet::from_fields(fields, &[]),
@@ -79,10 +86,29 @@ fn is_nested_table(schema: &Value) -> bool {
         && schema.get("additionalProperties").is_none()
 }
 
-fn walk(
-    properties: &Map<String, Value>,
-    defs: &Map<String, Value>,
+/// `key` as one segment of a dotted row key: bare when TOML would write it
+/// bare, quoted otherwise, so a property named `a.b` shows as `"a.b"` and
+/// can never collide with a nested `a` holding `b`.
+fn segment(key: &str) -> String {
+    let bare = !key.is_empty()
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+    if bare {
+        key.to_owned()
+    } else {
+        serde_json::to_string(key).unwrap_or_else(|_| format!("\"{key}\""))
+    }
+}
+
+/// `open` holds the nested tables on the current path, by identity: a
+/// schema is finite, so only a `$ref` back to one of them can loop, and
+/// that table is shown as one read-only leaf rather than walked again.
+fn walk<'a>(
+    properties: &'a Map<String, Value>,
+    defs: &'a Map<String, Value>,
     prefix: &[String],
+    open: &mut Vec<&'a Value>,
     fields: &mut Vec<Field>,
     paths: &mut BTreeMap<String, Vec<String>>,
 ) {
@@ -91,17 +117,25 @@ fn walk(
         path.push(key.clone());
 
         let resolved = super::schema::resolved(property_schema, defs);
-        if is_nested_table(resolved)
+        let looped = open.iter().any(|seen| core::ptr::eq(*seen, resolved));
+        if !looped
+            && is_nested_table(resolved)
             && let Some(nested) = resolved.get("properties").and_then(Value::as_object)
         {
-            walk(nested, defs, &path, fields, paths);
+            open.push(resolved);
+            walk(nested, defs, &path, open, fields, paths);
+            open.pop();
             continue;
         }
 
-        let dotted = path.join(".");
+        let dotted = path
+            .iter()
+            .map(|key| segment(key))
+            .collect::<Vec<_>>()
+            .join(".");
         let mut field = super::field_from(key, property_schema, defs);
         field.key.clone_from(&dotted);
-        if matches!(field.kind, FieldKind::Map | FieldKind::List(_)) {
+        if looped || matches!(field.kind, FieldKind::Map | FieldKind::List(_)) {
             field.kind = FieldKind::Opaque;
             field.editable = false;
         }
@@ -261,10 +295,71 @@ mod tests {
     fn a_property_literally_named_with_a_dot_keeps_a_one_element_path() {
         let flat = flattened(&sheep_schema());
         assert_eq!(
-            flat.paths.get("a.b").map(Vec::as_slice),
+            flat.paths.get("\"a.b\"").map(Vec::as_slice),
             Some(["a.b"].map(str::to_owned).as_slice())
         );
-        assert!(flat.fields.by_key("a.b").is_some());
+        assert!(flat.fields.by_key("\"a.b\"").is_some());
+    }
+
+    #[test]
+    fn a_literal_dotted_key_and_a_nested_one_are_two_rows() {
+        let flat = flattened(&json!({
+            "type": "object",
+            "properties": {
+                "a.b": { "type": "string" },
+                "a": { "type": "object", "properties": { "b": { "type": "integer" } } },
+            },
+        }));
+        assert_eq!(flat.paths.get("\"a.b\"").map(Vec::len), Some(1));
+        assert_eq!(flat.paths.get("a.b").map(Vec::len), Some(2));
+        assert_eq!(flat.fields.len(), 2);
+    }
+
+    /// A dog's schema comes out of a stranger's binary, and a type that
+    /// holds itself would otherwise recurse until the stack overflows.
+    #[test]
+    fn a_table_that_refers_to_itself_stops_at_one_read_only_row() {
+        let flat = flattened(&json!({
+            "$ref": "#/$defs/Node",
+            "$defs": {
+                "Node": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "child": { "anyOf": [{ "$ref": "#/$defs/Node" }, { "type": "null" }] },
+                    },
+                },
+            },
+        }));
+        let child = flat.fields.by_key("child").expect("the loop is one row");
+        assert_eq!(child.kind, FieldKind::Opaque);
+        assert!(!child.editable);
+        assert!(flat.fields.by_key("name").is_some());
+        assert_eq!(flat.fields.len(), 2);
+    }
+
+    #[test]
+    fn a_loop_below_the_root_stops_where_it_closes() {
+        let flat = flattened(&json!({
+            "type": "object",
+            "properties": { "tree": { "$ref": "#/$defs/Node" } },
+            "$defs": {
+                "Node": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "child": { "anyOf": [{ "$ref": "#/$defs/Node" }, { "type": "null" }] },
+                    },
+                },
+            },
+        }));
+        let keys: Vec<&str> = flat
+            .fields
+            .fields()
+            .iter()
+            .map(|f| f.key.as_str())
+            .collect();
+        assert_eq!(keys, ["tree.child", "tree.name"]);
     }
 
     #[test]
@@ -280,7 +375,7 @@ mod tests {
         assert_eq!(values.get("concurrency"), Some(&json!(2)));
         assert_eq!(values.get("models.worker.model"), Some(&json!("gpt")));
         assert_eq!(values.get("models.worker.token"), Some(&json!("hunter2")));
-        assert_eq!(values.get("a.b"), Some(&json!("literal")));
+        assert_eq!(values.get("\"a.b\""), Some(&json!("literal")));
         assert_eq!(
             values.get("merge"),
             Some(&Value::Null),
