@@ -115,7 +115,8 @@ write is in force at once and nothing respawns or re-arms.
 `Response::DogSheepSettings { tables }`, a `BTreeMap<String, DogTable>` from
 sheep name to that dog's table, for every sheep carrying one. The scoping is a
 convenience, not a boundary: `dog` is self-declared, as it is for `DogConfig`,
-and the boundary is the `0700` socket. No sheep carrying one is an empty map, never
+and the boundary is the socket: the `0700` runtime directory and the same-uid
+peer check. No sheep carrying one is an empty map, never
 `NotFound`. Dogs carry no tables and never appear.
 
 It reads the stored spec, which is what is in force. `dogs` is Live, so it is
@@ -166,8 +167,8 @@ can hold a credential. `DogTable`'s `Debug` prints `DogTable(<3 keys>)`, with
 an exact-string test (IR-41). `AppConfig`'s `Debug` already omits the field.
 
 `SheepConfig` carries tables whole, and the pane masks fields marked secret.
-That is the exposure `DogConfig`'s section has today, behind the same `0700`
-socket.
+That is the exposure `DogConfig`'s section has today, behind the same socket
+(`0700` runtime directory, same-uid peer check).
 
 ### 8. The client parses a table into the dog's own type
 
