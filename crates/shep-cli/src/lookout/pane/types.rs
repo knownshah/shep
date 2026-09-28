@@ -87,6 +87,9 @@ pub enum Lock {
     /// `shep start <Flockfile>` writes these perfectly well, and
     /// [`ConfigPane::cost`] still reports what doing so would cost.
     NoWidget,
+    /// The row opens a screen of its own rather than editing in place: a
+    /// sheep's `dogs` row, whose tables `enter` lists one dog at a time.
+    SubScreen,
 }
 
 /// One row of the pane.

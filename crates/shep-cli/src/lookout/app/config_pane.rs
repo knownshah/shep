@@ -411,6 +411,7 @@ impl App {
             Lock::NoWidget => {
                 format!("{key} has no editor in this pane; a Flockfile still sets it")
             }
+            Lock::SubScreen => format!("{key} opens its own screen: press enter"),
         }
     }
 

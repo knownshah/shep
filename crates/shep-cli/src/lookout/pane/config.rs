@@ -310,6 +310,9 @@ impl ConfigPane {
         if self.cost(key) == Some(ApplyGroup::Structural) {
             return Some(Lock::Refused);
         }
+        if key == "dogs" && matches!(self.target, PaneTarget::Sheep { .. }) {
+            return Some(Lock::SubScreen);
+        }
         match self.fields.by_key(key) {
             Some(field) if !field.editable => Some(Lock::NoWidget),
             _ => None,
@@ -814,6 +817,15 @@ mod tests {
         );
         assert_eq!(pane.value("poll"), "60s");
         assert_eq!(pane.cost("poll"), None);
+    }
+
+    /// The sheep's `dogs` row opens a screen, so neither `space` nor `d`
+    /// should tell the operator to go and edit a Flockfile instead.
+    #[test]
+    fn a_sheeps_dogs_row_opens_a_screen_rather_than_lacking_a_widget() {
+        let pane = ConfigPane::sheep(web());
+        assert_eq!(pane.lock("dogs"), Some(Lock::SubScreen));
+        assert_eq!(pane.lock("args"), None);
     }
 
     /// Shep writes a `sinks` table happily; this screen simply has no
