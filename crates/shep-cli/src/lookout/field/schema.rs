@@ -216,6 +216,7 @@ mod tests {
             "Token": { "type": "string", "x-shep-secret": true },
             "Creds": { "type": "object", "properties": { "token": { "$ref": "#/$defs/Token" } } },
             "Node": { "type": "object", "properties": { "next": { "$ref": "#/$defs/Node" } } },
+            "Plain": { "type": "object" },
         }));
         let secret = |schema: Value| holds_secret(&schema, &defs);
         assert!(secret(json!({ "type": "string", "x-shep-secret": true })));
@@ -228,6 +229,13 @@ mod tests {
         );
         assert!(secret(json!({ "$ref": "#/$defs/Token" })));
         assert!(secret(json!({ "$ref": "#/$defs/Creds" })), "two hops");
+        assert!(
+            secret(json!({
+                "$ref": "#/$defs/Plain",
+                "properties": { "key": { "type": "string", "x-shep-secret": true } },
+            })),
+            "a plain $ref does not end the walk"
+        );
         assert!(secret(
             json!({ "type": "array", "items": { "$ref": "#/$defs/Creds" } })
         ));
