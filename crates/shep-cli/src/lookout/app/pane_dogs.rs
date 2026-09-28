@@ -777,4 +777,73 @@ mod tests {
         assert_eq!(pane.view().cursor(), cursor);
         assert_eq!(pane.edits().len(), 1, "the operator's edit survives");
     }
+
+    /// Called directly: `on_sheep_config` already drops a reply for a sheep
+    /// nobody asked about, so through `Msg` this guard is never the one
+    /// that holds. Without it, closing the pane would write `api`'s table
+    /// to `web`.
+    #[test]
+    fn a_re_read_of_another_sheep_leaves_the_table_pane_alone() {
+        let mut app = app_in_jobs_table();
+        let mut view = web_view(true);
+        view.name = "api".into();
+        let other = json!({ "concurrency": 64 });
+        view.config.dogs.insert(
+            "jobs".into(),
+            other.as_object().cloned().expect("a table").into(),
+        );
+        assert!(!app.refresh_sheep_dog_pane(&view));
+        assert_eq!(app.config_pane().unwrap().value("concurrency"), "2");
+    }
+
+    /// An answer opens nothing over an editor opened while the probe ran,
+    /// and rebuilds nothing under a list already up (two quick Enters ask
+    /// twice): either would take the keys from what holds them.
+    #[test]
+    fn an_answer_over_an_editor_or_an_open_list_opens_nothing() {
+        let mut app = app_in_web(Control::Allowed);
+        let _ = app.update(Msg::Key(KeyPress::Confirm));
+        pane_to(&mut app, "cwd");
+        let _ = app.update(Msg::Key(KeyPress::Edit));
+        assert!(app.config_pane().unwrap().typing().is_some(), "an editor");
+        let _ = app.update(Msg::SheepDogs {
+            sheep: "web".into(),
+            dogs: probe(),
+        });
+        let pane = app.config_pane().unwrap();
+        assert!(pane.dogs().is_none() && pane.typing().is_some(), "{pane:?}");
+
+        let mut app = app_in_dogs(Control::Allowed);
+        cursor_on(&mut app, "legacy");
+        let _ = app.update(Msg::SheepDogs {
+            sheep: "web".into(),
+            dogs: probe(),
+        });
+        assert_eq!(
+            dogs(&app).cursor_row().map(|row| row.name()),
+            Some("legacy")
+        );
+    }
+
+    #[test]
+    fn a_reply_of_the_wrong_kind_is_reported_and_re_reads_nothing() {
+        let mut app = app_in_dogs(Control::Allowed);
+        let effect = app.update(Msg::Replied {
+            sent: Sent::SetSheepDogTable {
+                name: "web".into(),
+                dog: "jobs".into(),
+                ticket: 7,
+                table: None,
+                authority: WriteAuthority::granted(&app).expect("the gate is open"),
+            },
+            result: Ok(Response::SheepConfig(Box::new(web_view(true)))),
+        });
+        assert_eq!(effect, Effect::None);
+        let notice = app.notice().expect("reported");
+        assert!(notice.is_grave());
+        assert_eq!(
+            notice.to_string(),
+            "web: jobs: the shepherd answered something this lookout does not understand"
+        );
+    }
 }
