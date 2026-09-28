@@ -12,7 +12,7 @@ use shep_core::protocol::{Response, RpcError, RpcErrorCode};
 
 use crate::commands::settings::{SettingField, load_settings};
 use crate::commands::shep_toml::ShepToml;
-use crate::lookout::app::{ActionVerb, App, KeyPress, Msg, RevealedValue, RowKey, Sent};
+use crate::lookout::app::{ActionVerb, App, Effect, KeyPress, Msg, RevealedValue, RowKey, Sent};
 use crate::lookout::frames::fixtures::{
     close_dialog_config_view, dogs_probe, edit_pane_config_view, flock_without_api,
     move_settings_cursor_to, restarted_api, settings_snapshot_for_gallery,
@@ -258,9 +258,13 @@ pub(super) fn apply_post_tick_scene(app: &mut App, which: Scene) {
                 // `Enter` probes every dog, then the probe's own answer
                 // opens the sub-screen, cursor first on `deploy`, sorted
                 // before `jobs` by name, then one row down onto `jobs`.
-                app.update(Msg::Key(KeyPress::Confirm));
+                let Effect::LoadSheepDogs { ask, .. } = app.update(Msg::Key(KeyPress::Confirm))
+                else {
+                    panic!("Enter on the dogs row probes");
+                };
                 app.update(Msg::SheepDogs {
                     sheep: "api".to_string(),
+                    ask,
                     dogs: dogs_probe(),
                 });
                 app.update(Msg::Key(KeyPress::SelectDown));

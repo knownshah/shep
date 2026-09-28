@@ -12,6 +12,7 @@ impl App {
             filter: String::new(),
             mode: InputMode::Normal,
             next_write_ticket: 0,
+            sheep_dogs_ask: 0,
             link: Link::Live,
             notice: None,
             palette,
@@ -458,7 +459,7 @@ impl App {
                 adopted_path,
                 result,
             } => self.on_dog_pane(name, adopted_path, result),
-            Msg::SheepDogs { sheep, dogs } => self.on_sheep_dogs(&sheep, dogs),
+            Msg::SheepDogs { sheep, ask, dogs } => self.on_sheep_dogs(&sheep, ask, dogs),
             // `Ok` raises the daemon half: `Cycle` arms, `Confirm` writes the
             // file, this arm asks the shepherd. `Err` never reaches it, since
             // there is nothing for the daemon half to agree with.

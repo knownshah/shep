@@ -149,6 +149,10 @@ pub struct App {
     /// settings screen's one edit. Monotonic and never reused, so a reply
     /// can only name the write it belongs to.
     next_write_ticket: u64,
+    /// The newest [`Effect::LoadSheepDogs`] asked. Only its own answer may
+    /// open the dogs sub-screen: two quick `Enter`s ask twice, and the
+    /// older answer landing after the list closed would reopen it.
+    sheep_dogs_ask: u64,
     link: Link,
     notice: Option<Notice>,
     palette: Palette,

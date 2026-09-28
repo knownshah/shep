@@ -441,7 +441,7 @@ where
             // Off this task for `Effect::LoadDogPane`'s reason, once per dog.
             // A probe that panicked lists no dog, which leaves every table
             // read-only rather than editable through a schema nobody read.
-            Effect::LoadSheepDogs { sheep } => {
+            Effect::LoadSheepDogs { sheep, ask } => {
                 let (config, home) = (daemon_config.clone(), home.clone());
                 let handle = tokio::task::spawn_blocking(move || {
                     let budget = crate::commands::dogs::VERSION_BUDGET;
@@ -449,7 +449,7 @@ where
                 });
                 inflight.push(Box::pin(async move {
                     let dogs = handle.await.unwrap_or_default();
-                    Msg::SheepDogs { sheep, dogs }
+                    Msg::SheepDogs { sheep, ask, dogs }
                 }));
                 dirty = true;
             }

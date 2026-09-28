@@ -5,8 +5,9 @@ use super::*;
 
 impl App {
     /// `Enter` or `e` on a sheep pane's `dogs` row: probe every dog for its
-    /// per-sheep schema. [`None`] on any other row, and on any other pane.
-    pub(super) fn dogs_row_effect(&self) -> Option<Effect> {
+    /// per-sheep schema, as a new ask. [`None`] on any other row, and on any
+    /// other pane.
+    pub(super) fn dogs_row_effect(&mut self) -> Option<Effect> {
         let pane = self.config_pane()?;
         let PaneTarget::Sheep { name } = pane.target() else {
             return None;
@@ -14,8 +15,11 @@ impl App {
         let PaneRow::Field(index) = pane.cursor()? else {
             return None;
         };
-        (pane.fields().fields().get(index)?.key == "dogs").then(|| Effect::LoadSheepDogs {
-            sheep: name.clone(),
+        let sheep = (pane.fields().fields().get(index)?.key == "dogs").then(|| name.clone())?;
+        self.sheep_dogs_ask += 1;
+        Some(Effect::LoadSheepDogs {
+            sheep,
+            ask: self.sheep_dogs_ask,
         })
     }
 
@@ -25,12 +29,19 @@ impl App {
     /// Guarded on the pane's own sheep the way [`Self::on_dog_section`] is
     /// guarded on its dog: an answer for a sheep the operator has left opens
     /// nothing. Nor does one landing over an editor or a sub-screen opened
-    /// while the probe ran, which would leave two things owning the keys.
-    pub(super) fn on_sheep_dogs(&mut self, sheep: &str, dogs: Vec<SheepDogEntry>) -> Effect {
+    /// while the probe ran, which would leave two things owning the keys, or
+    /// one a newer ask has superseded.
+    pub(super) fn on_sheep_dogs(
+        &mut self,
+        sheep: &str,
+        ask: u64,
+        dogs: Vec<SheepDogEntry>,
+    ) -> Effect {
+        let latest = ask == self.sheep_dogs_ask;
         let Some(pane) = self.config_pane_mut() else {
             return Effect::None;
         };
-        let asked = matches!(pane.target(), PaneTarget::Sheep { name } if name == sheep);
+        let asked = latest && matches!(pane.target(), PaneTarget::Sheep { name } if name == sheep);
         let busy = pane.typing().is_some()
             || pane.env_typing().is_some()
             || pane.list().is_some()
@@ -369,20 +380,29 @@ mod tests {
         ]
     }
 
+    /// `key` on `web`'s dogs row, and the ask the probe it raised carries.
+    fn ask_dogs(app: &mut App, key: KeyPress) -> u64 {
+        match app.update(Msg::Key(key)) {
+            Effect::LoadSheepDogs { sheep, ask } if sheep == "web" => ask,
+            other => panic!("no probe for web: {other:?}"),
+        }
+    }
+
+    /// The probe's answer for `sheep`, as ask `ask`.
+    fn answer(app: &mut App, sheep: &str, ask: u64) {
+        let _ = app.update(Msg::SheepDogs {
+            sheep: sheep.into(),
+            ask,
+            dogs: probe(),
+        });
+    }
+
     /// `app_in_web`, with the probe answered and the sub-screen up. Rows
     /// sort by name: `deploy`, `jobs`, `legacy`.
     fn app_in_dogs(control: Control) -> App {
         let mut app = app_in_web(control);
-        assert_eq!(
-            app.update(Msg::Key(KeyPress::Confirm)),
-            Effect::LoadSheepDogs {
-                sheep: "web".into()
-            }
-        );
-        let _ = app.update(Msg::SheepDogs {
-            sheep: "web".into(),
-            dogs: probe(),
-        });
+        let ask = ask_dogs(&mut app, KeyPress::Confirm);
+        answer(&mut app, "web", ask);
         app
     }
 
@@ -419,22 +439,14 @@ mod tests {
     #[test]
     fn enter_or_e_on_the_dogs_row_probes_and_the_answer_opens_the_list() {
         let mut app = app_in_web(Control::ReadOnly);
-        assert_eq!(
-            app.update(Msg::Key(KeyPress::Edit)),
-            Effect::LoadSheepDogs {
-                sheep: "web".into()
-            }
-        );
+        let ask = ask_dogs(&mut app, KeyPress::Edit);
         assert!(
             app.config_pane().unwrap().dogs().is_none(),
             "not on the key"
         );
         let waiting = app.notice().expect("the probe's wait is said");
         assert!(!waiting.grave, "{waiting:?}");
-        let _ = app.update(Msg::SheepDogs {
-            sheep: "web".into(),
-            dogs: probe(),
-        });
+        answer(&mut app, "web", ask);
         let names: Vec<&str> = dogs(&app).rows().iter().map(|row| row.name()).collect();
         assert_eq!(names, ["deploy", "jobs", "legacy"]);
         assert!(app.notice().is_none(), "the list replaces the wait");
@@ -443,19 +455,13 @@ mod tests {
     #[test]
     fn an_answer_for_a_sheep_the_pane_has_left_opens_nothing() {
         let mut app = app_in_web(Control::Allowed);
-        let _ = app.update(Msg::Key(KeyPress::Confirm));
-        let _ = app.update(Msg::SheepDogs {
-            sheep: "api".into(),
-            dogs: probe(),
-        });
+        let ask = ask_dogs(&mut app, KeyPress::Confirm);
+        answer(&mut app, "api", ask);
         assert!(app.config_pane().unwrap().dogs().is_none(), "another sheep");
 
         let _ = app.update(Msg::Key(KeyPress::Escape));
         assert!(app.config_pane().is_none());
-        let _ = app.update(Msg::SheepDogs {
-            sheep: "web".into(),
-            dogs: probe(),
-        });
+        answer(&mut app, "web", ask);
         assert!(
             app.config_pane().is_none(),
             "a late answer re-opens nothing"
@@ -518,11 +524,8 @@ mod tests {
         let _ = app.update(Msg::Key(KeyPress::Cycle));
         assert_eq!(app.config_pane().unwrap().edits().len(), 1);
         pane_to(&mut app, "dogs");
-        let _ = app.update(Msg::Key(KeyPress::Confirm));
-        let _ = app.update(Msg::SheepDogs {
-            sheep: "web".into(),
-            dogs: probe(),
-        });
+        let ask = ask_dogs(&mut app, KeyPress::Confirm);
+        answer(&mut app, "web", ask);
         cursor_on(&mut app, "jobs");
         assert_eq!(app.update(Msg::Key(KeyPress::Confirm)), Effect::None);
         let pane = app.config_pane().expect("the sheep pane stays");
@@ -676,6 +679,7 @@ mod tests {
     fn a_probe_answers_debug_names_no_schema() {
         let msg = Msg::SheepDogs {
             sheep: "web".into(),
+            ask: 1,
             dogs: vec![SheepDogEntry {
                 name: "jobs".into(),
                 adopted_path: None,
@@ -817,32 +821,45 @@ mod tests {
     }
 
     /// An answer opens nothing over an editor opened while the probe ran,
-    /// and rebuilds nothing under a list already up (two quick Enters ask
-    /// twice): either would take the keys from what holds them.
+    /// and rebuilds nothing under a list already up: either would take the
+    /// keys from what holds them.
     #[test]
     fn an_answer_over_an_editor_or_an_open_list_opens_nothing() {
         let mut app = app_in_web(Control::Allowed);
-        let _ = app.update(Msg::Key(KeyPress::Confirm));
+        let ask = ask_dogs(&mut app, KeyPress::Confirm);
         pane_to(&mut app, "cwd");
         let _ = app.update(Msg::Key(KeyPress::Edit));
         assert!(app.config_pane().unwrap().typing().is_some(), "an editor");
-        let _ = app.update(Msg::SheepDogs {
-            sheep: "web".into(),
-            dogs: probe(),
-        });
+        answer(&mut app, "web", ask);
         let pane = app.config_pane().unwrap();
         assert!(pane.dogs().is_none() && pane.typing().is_some(), "{pane:?}");
 
-        let mut app = app_in_dogs(Control::Allowed);
+        let mut app = app_in_web(Control::Allowed);
+        let ask = ask_dogs(&mut app, KeyPress::Confirm);
+        answer(&mut app, "web", ask);
         cursor_on(&mut app, "legacy");
-        let _ = app.update(Msg::SheepDogs {
-            sheep: "web".into(),
-            dogs: probe(),
-        });
+        answer(&mut app, "web", ask);
         assert_eq!(
             dogs(&app).cursor_row().map(|row| row.name()),
             Some("legacy")
         );
+    }
+
+    /// Two quick Enters ask twice, and either answer can land first. Only
+    /// the second ask's may open the list: the first, landing after the
+    /// list closed again, would reopen it with the older schemas.
+    #[test]
+    fn only_the_newest_asks_answer_opens_the_list() {
+        let mut app = app_in_web(Control::Allowed);
+        let first = ask_dogs(&mut app, KeyPress::Confirm);
+        let second = ask_dogs(&mut app, KeyPress::Confirm);
+        answer(&mut app, "web", first);
+        assert!(app.config_pane().unwrap().dogs().is_none(), "superseded");
+        answer(&mut app, "web", second);
+        assert!(app.config_pane().unwrap().dogs().is_some(), "the newest");
+        let _ = app.update(Msg::Key(KeyPress::Escape));
+        answer(&mut app, "web", first);
+        assert!(app.config_pane().unwrap().dogs().is_none(), "late");
     }
 
     #[test]

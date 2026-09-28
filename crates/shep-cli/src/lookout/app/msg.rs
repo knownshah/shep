@@ -316,6 +316,8 @@ pub enum Msg {
     SheepDogs {
         /// The sheep whose `dogs` row asked.
         sheep: String,
+        /// The [`Effect::LoadSheepDogs`] this answers.
+        ask: u64,
         /// One entry per dog probed, in no particular order.
         dogs: Vec<SheepDogEntry>,
     },
@@ -490,6 +492,8 @@ pub enum Effect {
     LoadSheepDogs {
         /// The sheep whose `dogs` row asked.
         sheep: String,
+        /// Which ask this is, carried back on the answer.
+        ask: u64,
     },
     /// Apply one dog's file half; the result lands as [`Msg::DogWritten`].
     ///
