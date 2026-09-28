@@ -22,6 +22,7 @@ use super::chrome::{
     title_line,
 };
 use super::close::draw_close_dialog;
+use super::dogs::dogs_lines;
 use super::field_row::push_wrapped_blurb;
 use super::layout::{body_width, lands_fits_beside_panel, line_columns, panel_width};
 use super::list::list_lines;
@@ -246,6 +247,9 @@ pub fn pane_lines(
     }
     if let Some(list) = pane.list() {
         return list_lines(pane, list, palette, width, budget);
+    }
+    if let Some(dogs) = pane.dogs() {
+        return dogs_lines(pane, dogs, palette, width, budget);
     }
     if has_groups(pane) {
         if let Some(panel_w) = panel_width(width) {

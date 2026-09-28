@@ -438,6 +438,21 @@ where
                 }));
                 dirty = true;
             }
+            // Off this task for `Effect::LoadDogPane`'s reason, once per dog.
+            // A probe that panicked lists no dog, which leaves every table
+            // read-only rather than editable through a schema nobody read.
+            Effect::LoadSheepDogs { sheep } => {
+                let (config, home) = (daemon_config.clone(), home.clone());
+                let handle = tokio::task::spawn_blocking(move || {
+                    let budget = crate::commands::dogs::VERSION_BUDGET;
+                    super::probe_sheep_dogs::probe_sheep_dogs(&config, &home, budget)
+                });
+                inflight.push(Box::pin(async move {
+                    let dogs = handle.await.unwrap_or_default();
+                    Msg::SheepDogs { sheep, dogs }
+                }));
+                dirty = true;
+            }
             // `dogs::enable_in_config`/`dogs::disable_in_config` take
             // `ShepToml`'s own lock, which blocks with no deadline, so this
             // arm does not wait for it either. `_authority` is dropped as in

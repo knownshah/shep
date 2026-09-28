@@ -48,10 +48,6 @@ impl ConfigPane {
     /// attached; `table` is what the sheep carries for it, empty for none.
     /// Flat, in schema order, with no group headers, like [`Self::dog`].
     #[must_use]
-    #[allow(
-        dead_code,
-        reason = "opened from the dogs sub-screen task 5 of this plan adds"
-    )]
     pub fn sheep_dog(
         sheep: String,
         dog: String,

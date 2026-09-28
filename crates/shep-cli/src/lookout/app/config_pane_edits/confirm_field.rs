@@ -1,9 +1,11 @@
 use super::super::*;
 
 impl App {
-    /// The operator's `Enter` on the config pane. Three meanings, picked in
+    /// The operator's `Enter` on the config pane. Four meanings, picked in
     /// this order:
     ///
+    /// - The cursor is on a sheep's `dogs` row: probes the dogs for the
+    ///   sub-screen that lists them. A read, so no gate.
     /// - The cursor is on an env row or `+ add a key`: opens the env
     ///   editor, in place, on the same row.
     /// - The cursor is on an array field: opens the list sub-screen.
@@ -15,6 +17,9 @@ impl App {
     /// is checked on the keystroke that would file an edit, not on the
     /// close that writes them.
     pub(in crate::lookout::app) fn confirm_field(&mut self) -> Effect {
+        if let Some(probe) = self.dogs_row_effect() {
+            return probe;
+        }
         let Some(pane) = self.config_pane() else {
             return Effect::None;
         };

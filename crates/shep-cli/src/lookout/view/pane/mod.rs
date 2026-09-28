@@ -19,6 +19,7 @@
 mod body;
 mod chrome;
 pub(super) mod close;
+mod dogs;
 mod draw;
 mod env;
 mod field_row;

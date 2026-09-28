@@ -236,6 +236,9 @@ impl App {
                 Sent::SheepConfig { name } => self.on_sheep_config(&name, result),
                 Sent::DogSection { name } => self.on_dog_section(&name, result),
                 Sent::SetDogSection { name, .. } => self.on_dog_section_set(&name, result),
+                Sent::SetSheepDogTable {
+                    name, dog, table, ..
+                } => self.on_table_set(&name, &dog, table.is_none(), result),
                 Sent::ApplyField {
                     name,
                     ticket,
@@ -317,6 +320,7 @@ impl App {
                     });
                     Effect::None
                 }
+                Sent::SetSheepDogTable { name, dog, .. } => self.on_table_unsent(&name, &dog),
                 // The arm above, against the settings screen's pending line.
                 Sent::Dog {
                     name,
@@ -454,6 +458,7 @@ impl App {
                 adopted_path,
                 result,
             } => self.on_dog_pane(name, adopted_path, result),
+            Msg::SheepDogs { sheep, dogs } => self.on_sheep_dogs(&sheep, dogs),
             // `Ok` raises the daemon half: `Cycle` arms, `Confirm` writes the
             // file, this arm asks the shepherd. `Err` never reaches it, since
             // there is nothing for the daemon half to agree with.

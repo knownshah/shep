@@ -109,6 +109,9 @@ impl App {
             .config_pane()
             .and_then(ConfigPane::list)
             .map(|list| (list.key().to_owned(), list.view().clone()));
+        // The dogs sub-screen rides across too, rebuilt from the new
+        // tables with its probe answers, so a removal shows at once.
+        let carried_dogs = self.config_pane().and_then(ConfigPane::dogs).cloned();
         // The pending set survives the rebuild: the values are
         // the shepherd's and the edits are the operator's. An open
         // editor is dropped. See `ConfigPane::adopt_edits`.
@@ -126,6 +129,9 @@ impl App {
         }
         if let Some((key, carried)) = carried_list {
             pane.adopt_list_view(&key, carried);
+        }
+        if let Some(dogs) = carried_dogs {
+            pane.adopt_dogs(&dogs);
         }
         self.body = Body::ConfigPane(pane);
         // The rebuilt pane carries no editor, so the keyboard must not
@@ -194,6 +200,9 @@ impl App {
         }
         if self.config_pane().is_some_and(|pane| pane.list().is_some()) {
             return self.on_list_key(key);
+        }
+        if self.config_pane().is_some_and(|pane| pane.dogs().is_some()) {
+            return self.on_dogs_key(key);
         }
         if key == KeyPress::Quit {
             return Effect::Quit;
