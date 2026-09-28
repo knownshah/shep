@@ -37,11 +37,7 @@ impl core::fmt::Debug for SheepDogEntry {
             "SheepDogEntry {{ name: {:?}, adopted_path: {:?}, schema: {} }}",
             self.name,
             self.adopted_path,
-            if self.schema.is_some() {
-                "Some(..)"
-            } else {
-                "None"
-            }
+            self.schema.as_ref().map_or("None", |_| "Some(..)")
         )
     }
 }
