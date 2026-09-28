@@ -17,7 +17,7 @@ use super::ConfigPane;
 
 /// Which thing the pane is editing.
 ///
-/// Two shapes of edit. A sheep's config is shep's own document, so shep
+/// Three targets, two shapes of edit. A sheep's config is shep's own document, so shep
 /// knows what every field costs; a dog's section, and a dog's table on a
 /// sheep, belong to the dog, so shep publishes the change and the dog
 /// decides what to reload, which is what [`ConfigPane::cost`]'s [`Option`]

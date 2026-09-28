@@ -166,7 +166,7 @@ pub enum Scene {
     /// The fresh pane at 88 columns: the panel is gone, so `LANDS` is
     /// back, since nothing else on screen carries cost.
     EditPaneNarrow,
-    /// The sheep pane's `dogs` row, cursor parked on it: dog names only,
+    /// A sheep config pane's `dogs` row, cursor parked on it: dog names only,
     /// `jobs, legacy`, and the `\u{203a}` lock glyph, not yet opened.
     SheepDogsRow,
     /// `Enter` on the `dogs` row, probed and opened: `jobs` set, `deploy`

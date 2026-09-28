@@ -57,9 +57,10 @@ pub(super) fn has_groups(pane: &ConfigPane) -> bool {
 /// The pane's own reverse-video summary band: which target's config this
 /// is, and how many edits are filed and unsent.
 ///
-/// The only line that names the target: [`title_line`] duplicated it
-/// directly underneath, and the design's own row allocation gives the
-/// sheep or dog's name exactly one row.
+/// The grouped layout's only line naming the target: [`title_line`], which
+/// once duplicated it directly underneath, is now the ungrouped layout's
+/// title instead, and the design's own row allocation gives the target's
+/// name exactly one row.
 ///
 /// Never the shepherd's own word for a field that is written and parked:
 /// `pending` is what `shep flock`'s CFG column and this same pane's `!`

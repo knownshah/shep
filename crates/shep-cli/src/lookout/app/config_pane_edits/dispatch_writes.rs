@@ -9,10 +9,11 @@ impl App {
     /// reported rather than sent as an empty table.
     ///
     /// A sheep's set is one request per entry and a dog's is one request
-    /// for the lot: `Request::SetDogConfig` and
-    /// `Request::SetSheepDogSettings` each replace a whole table, so a
-    /// batch of edits to one is one write. See
-    /// `ConfigPane::edited_section_with` and `ConfigPane::edited_table_with`.
+    /// for the lot: [`Sent::SetDogSection`] and [`Sent::SetSheepDogTable`]
+    /// go out as `Request::SetDogConfig` and `Request::SetSheepDogSettings`,
+    /// each of which replaces a whole table, so a batch of edits to one is
+    /// one write. See `ConfigPane::edited_section_with` and
+    /// `ConfigPane::edited_table_with`.
     pub(in crate::lookout::app) fn take_pane_writes(&mut self) -> Vec<Sent> {
         // `WriteAuthority::granted`, not `Self::authorize_write`: the gate
         // is checked on the keystroke that files an edit, so a read-only
