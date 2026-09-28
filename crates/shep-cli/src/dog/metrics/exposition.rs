@@ -493,7 +493,7 @@ mod tests {
     fn golden_reading() -> Reading {
         let mut dog = sample_info("bark");
         dog.dog = Some(DogSource::BuiltIn);
-        let mut odd = sample_info(r#"we"b\x"#);
+        let mut odd = sample_info("we\"b\\x\n");
         odd.status = ProcStatus::WaitingRestart;
         let mut idle = sample_info("worker");
         idle.cpu_percent = None;
