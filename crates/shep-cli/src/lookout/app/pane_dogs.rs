@@ -210,6 +210,30 @@ impl App {
         })
     }
 
+    /// A sheep's re-read landing under one of its dogs' table panes: the
+    /// pane takes that table's current value in place, cursor and edits
+    /// kept. `false`, and nothing touched, when no such pane is up.
+    pub(super) fn refresh_sheep_dog_pane(&mut self, view: &SheepConfigView) -> bool {
+        let Some(pane) = self.config_pane_mut() else {
+            return false;
+        };
+        let PaneTarget::SheepDog { sheep, dog, .. } = pane.target() else {
+            return false;
+        };
+        if *sheep != view.name {
+            return false;
+        }
+        let table = view
+            .config
+            .dogs
+            .get(dog)
+            .map(|table| table.as_map().clone())
+            .unwrap_or_default();
+        pane.adopt_table(table);
+        self.release_text_mode_if_unowned();
+        true
+    }
+
     /// The open sub-screen, for the keys that move or arm on it.
     fn dogs_mut(&mut self) -> Option<&mut DogsPane> {
         self.config_pane_mut()?.dogs_mut()
@@ -636,5 +660,118 @@ mod tests {
             }],
         };
         assert!(!format!("{msg:?}").contains(TOKEN), "{msg:?}");
+    }
+
+    /// `app_in_dogs`, with `jobs`'s table pane open over `web`.
+    fn app_in_jobs_table() -> App {
+        let mut app = app_in_dogs(Control::Allowed);
+        cursor_on(&mut app, "jobs");
+        let _ = app.update(Msg::Key(KeyPress::Confirm));
+        assert!(matches!(
+            app.config_pane().map(ConfigPane::target),
+            Some(PaneTarget::SheepDog { .. })
+        ));
+        app
+    }
+
+    fn type_concurrency(app: &mut App, typed: &str) {
+        pane_to(app, "concurrency");
+        let _ = app.update(Msg::Key(KeyPress::Confirm));
+        let _ = app.update(Msg::Key(KeyPress::TextBackspace));
+        for typed in typed.chars() {
+            let _ = app.update(Msg::Key(KeyPress::TextChar(typed)));
+        }
+        let _ = app.update(Msg::Key(KeyPress::TextApply));
+    }
+
+    /// `SetSheepDogSettings` replaces the table, so the one write carries
+    /// the secret the operator never touched exactly as it was.
+    #[test]
+    fn closing_a_table_pane_sends_the_whole_table_once_and_lands_on_the_dashboard() {
+        let mut app = app_in_jobs_table();
+        type_concurrency(&mut app, "4");
+        let effect = app.update(Msg::Key(KeyPress::Escape));
+        assert!(!format!("{effect:?}").contains(TOKEN), "{effect:?}");
+        let batch = wire_batch(effect);
+        let [
+            Sent::SetSheepDogTable {
+                name,
+                dog,
+                table: Some(table),
+                ..
+            },
+        ] = batch.as_slice()
+        else {
+            panic!("one table write: {batch:?}");
+        };
+        assert_eq!((name.as_str(), dog.as_str()), ("web", "jobs"));
+        assert_eq!(
+            serde_json::Value::Object(table.as_map().clone()),
+            json!({ "concurrency": 4, "token": TOKEN })
+        );
+        assert!(
+            matches!(app.body(), Body::FlockTable),
+            "esc lands on the dashboard"
+        );
+    }
+
+    #[test]
+    fn closing_a_table_pane_with_no_edits_sends_nothing() {
+        let mut app = app_in_jobs_table();
+        assert_eq!(app.update(Msg::Key(KeyPress::Escape)), Effect::None);
+        assert!(matches!(app.body(), Body::FlockTable));
+    }
+
+    #[test]
+    fn a_landed_table_write_says_so_and_names_no_value() {
+        let mut app = app_in_jobs_table();
+        type_concurrency(&mut app, "4");
+        let mut batch = wire_batch(app.update(Msg::Key(KeyPress::Escape)));
+        let effect = app.update(Msg::Replied {
+            sent: batch.remove(0),
+            result: Ok(Response::SheepDogSettingsSet {
+                name: "web".into(),
+                dog: "jobs".into(),
+            }),
+        });
+        assert_eq!(
+            effect,
+            Effect::Send(Sent::SheepConfig { name: "web".into() })
+        );
+        let notice = app.notice().expect("reported").to_string();
+        assert_eq!(notice, "web: its jobs table is written, and jobs is told");
+    }
+
+    /// The sheep is the table's owner, so `r` re-reads the sheep and the
+    /// pane takes its table from the answer, cursor and edits kept.
+    #[test]
+    fn r_re_reads_the_sheep_and_rebuilds_the_table_keeping_the_cursor() {
+        let mut app = app_in_jobs_table();
+        type_concurrency(&mut app, "4");
+        pane_to(&mut app, "token");
+        let cursor = app.config_pane().unwrap().view().cursor();
+        assert_ne!(cursor, 0, "a cursor a reset would move");
+        assert_eq!(
+            app.update(Msg::Key(KeyPress::Refresh)),
+            Effect::Send(Sent::SheepConfig { name: "web".into() })
+        );
+        let mut view = web_view(true);
+        let moved = json!({ "concurrency": 9, "token": "rotated" });
+        view.config.dogs.insert(
+            "jobs".into(),
+            moved.as_object().cloned().expect("a table").into(),
+        );
+        let _ = app.update(Msg::Replied {
+            sent: Sent::SheepConfig { name: "web".into() },
+            result: Ok(Response::SheepConfig(Box::new(view))),
+        });
+        let pane = app.config_pane().expect("still open");
+        assert!(
+            matches!(pane.target(), PaneTarget::SheepDog { .. }),
+            "{pane:?}"
+        );
+        assert_eq!(pane.value("concurrency"), "9");
+        assert_eq!(pane.view().cursor(), cursor);
+        assert_eq!(pane.edits().len(), 1, "the operator's edit survives");
     }
 }

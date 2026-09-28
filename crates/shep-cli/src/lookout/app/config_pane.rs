@@ -96,6 +96,9 @@ impl App {
     /// [`ConfigFor::SheepPane`] reply to [`Self::sheep_pane_mut`] instead
     /// without repeating its guard or its error arms.
     fn open_or_refresh_config_pane(&mut self, view: SheepConfigView) {
+        if self.refresh_sheep_dog_pane(&view) {
+            return;
+        }
         let carried = self.config_pane().map(|pane| pane.view().clone());
         // An env row's own cursor is carried by key, not index: a
         // set re-reads the whole config, and a removal shortens the

@@ -88,7 +88,6 @@ impl ConfigPane {
     /// names stays exactly as the shepherd sent it. Empty for any other
     /// target.
     #[must_use]
-    #[allow(dead_code, reason = "sent on close by task 6 of this plan")]
     pub fn edited_table_with(&self, edits: &Edits) -> Map<String, Value> {
         let Some(state) = &self.dog_table else {
             return Map::new();
@@ -103,6 +102,18 @@ impl ConfigPane {
             }
         }
         table
+    }
+
+    /// Replaces the table under an open pane with the shepherd's current
+    /// one, keeping the cursor and the filed edits. An open editor is
+    /// dropped, for the reason [`Self::adopt_edits`] gives.
+    pub(in crate::lookout) fn adopt_table(&mut self, table: Map<String, Value>) {
+        let Some(state) = self.dog_table.as_mut() else {
+            return;
+        };
+        self.values = flatten_values(&table, &state.paths);
+        state.table = table;
+        self.typing = None;
     }
 }
 

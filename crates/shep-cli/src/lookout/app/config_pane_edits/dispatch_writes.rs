@@ -9,9 +9,10 @@ impl App {
     /// reported rather than sent as an empty table.
     ///
     /// A sheep's set is one request per entry and a dog's is one request
-    /// for the lot: `Request::SetDogConfig` replaces the whole table, so
-    /// a batch of edits to one dog is one write. See
-    /// `ConfigPane::edited_section_with`.
+    /// for the lot: `Request::SetDogConfig` and
+    /// `Request::SetSheepDogSettings` each replace a whole table, so a
+    /// batch of edits to one is one write. See
+    /// `ConfigPane::edited_section_with` and `ConfigPane::edited_table_with`.
     pub(in crate::lookout::app) fn take_pane_writes(&mut self) -> Vec<Sent> {
         // `WriteAuthority::granted`, not `Self::authorize_write`: the gate
         // is checked on the keystroke that files an edit, so a read-only
@@ -90,7 +91,20 @@ impl App {
                 }
                 requests
             }
-            PaneTarget::SheepDog { .. } => Vec::new(),
+            // One write for the whole table, since the request replaces
+            // it: every key no edit touched rides along unchanged.
+            PaneTarget::SheepDog { sheep, dog, .. } => {
+                let table = pane.edited_table_with(&edits);
+                let write = vec![Sent::SetSheepDogTable {
+                    name: sheep,
+                    dog,
+                    ticket,
+                    table: Some(table.into()),
+                    authority,
+                }];
+                ticket += 1;
+                write
+            }
         };
         // One ticket per request that goes out, and never reused: the
         // counter is what keeps two `Sent` values for the same field
