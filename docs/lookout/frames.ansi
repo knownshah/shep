@@ -7,9 +7,9 @@ These are real frames, rendered headlessly through ratatui's TestBackend by
 
 Nothing here is a mockup.
 
-frames.ansi renders all fifty-eight scenes through the same coloured
+frames.ansi renders all sixty-two scenes through the same coloured
 palette the pinned `.snap` tests use; read it with `less -R`. frames.txt
-renders the same fifty-eight scenes through the flattened NO_COLOR palette
+renders the same sixty-two scenes through the flattened NO_COLOR palette
 instead, the one an operator with $NO_COLOR set or a 16-colour terminal
 actually gets. The two files are deliberately different pictures of the
 same dashboard, not one file with the colour removed.
@@ -37,6 +37,15 @@ row: fresh at the 160x48 design target, the same pane with two edits filed
 (one of them needing a respawn), and the same fresh pane at 120 and at 88
 columns, where the explanation panel and the LANDS column trade places as
 the width falls.
+
+Four more sit inside that same pane, on its `dogs` row: the row itself,
+naming `jobs, legacy` and no value. `Enter` on it, probed and opened, with
+`jobs` set, `deploy` unset and `legacy` read-only, since nothing names
+which of its values is a secret. The same sub-screen with `jobs`'s table
+removal armed. And `jobs`'s own table pane, its nested `hours` and
+`models.worker` tables flattened into dotted rows, with
+`models.worker.token` drawn `<set>` and no value from any of the four
+frames anywhere on screen.
 
 The last eight are the keymap overlay, `h` or `?` from any body. Boxed and
 centred at the 160x48 target, at 130 where the border only just fits,
@@ -1571,6 +1580,218 @@ The same fresh pane at 88 columns: narrow enough that the explanation panel is g
                                                                                         [0m
                                                                                         [0m
 [0m[38;5;221m[48;5;235mesc close   j/k select   g/G first/last   r refresh   space cycle   e e…[0m[38;5;245m[48;5;235m control enabled[0m
+
+
+=== sheep_dogs_row  (160x48) ===
+api's editing pane, cursor on its dogs row: jobs, legacy names the tables the sheep already carries, and the › glyph is the only thing on the row saying Enter opens a screen rather than a value.
+
+[0m[7m[38;5;29mshep lookout   /home/ada/.shep                                                                                                                    6 in the flock[0m
+                                                                                                                                                                [0m
+[0m[7m[38;5;221m ██ api  (sheep config)                                                                                                                                         [0m
+  [0m[38;5;245m process   logging  [0m[48;5;235m inputs [0m[38;5;245m  restart   readiness   shutdown   watch   cron     tab next group   1…8 jump                                                     [0m
+[0m[38;5;238m  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+[0m[38;5;245m  FIELD                       VALUE                                           LANDS     [0m                                                                        [0m
+   args                       ["--port","8080"]                               respawn   [0m[7m[38;5;221m FOCUSED [0m dogs[0m[38;5;245m  opaque[0m                                                  [0m
+   channel                    false                                           respawn     Settings for one dog on this sheep alone, opaque to shep              [0m
+[0m[38;5;221m[48;5;235m>[0m[38;5;245m[48;5;235m› dogs                       jobs, legacy                                    now       [0m                                                                        [0m
+   environment                (unset)                                         respawn   [0m[38;5;245m  now     [0mjobs, legacy                                                  [0m
+   stdin                      false                                           respawn   [0m[38;5;245m  default [0m{}                                                            [0m
+                                                                                        [0m[38;5;245m  example [0m(none)                                                        [0m
+[0m[38;5;245m  env[0m                                                                                                                                                           [0m
+   DATABASE_URL               (set)                                                       ● now  the running sheep picks it up without stopping                 [0m
+   NODE_ENV                   (set)                                                                                      pick the timing when you close the pane[0m
+ [0m[38;5;245m  + add a key              [0m                                                                                                                                    [0m
+                                                                                        [0m[38;5;238m  ──────────────────────────────────────────────────────────────────────[0m
+                                                                                        [0m[38;5;245m  VALIDATION[0m                                                            [0m
+                                                                                        [0m[7m[38;5;29m  █ [0ma table of dog name to a table of settings                          [0m
+                                                                                        [0m[7m[38;5;29m  █ [0ma dog name shep does not know about yet                             [0m
+                                                                                        [0m[7m[38;5;166m  █ [0mrefused: a value that is not a table                                [0m
+                                                                                        [0m[7m[38;5;166m  █ [0mrefused: an empty dog name                                          [0m
+[0m[38;5;238m  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+[0m[38;5;245m  = read-only, set it in the Flockfile   ~ no widget for this shape   ! parked, awaits a respawn   * yours   -> changed by you, not yet written                 [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+[0m[38;5;221m[48;5;235mesc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d back to default   u undo   h help   * yours   ! parked   q quit  [0m[38;5;245m[48;5;235m control enabled[0m
+
+
+=== sheep_dogs_list  (160x48) ===
+Enter on the dogs row, probed and opened: jobs carries a schema and a table (set), deploy carries a schema and no table (unset), and legacy carries a table no schema describes (read-only), so it names key names alone. The cursor is parked on jobs, the row this frame exists to show set.
+
+[0m[7m[38;5;29mshep lookout   /home/ada/.shep                                                                                                                    6 in the flock[0m
+                                                                                                                                                                [0m
+[0m[38;5;245m  api › dogs                                                                                                                                                    [0m
+[0m[38;5;245m  deploy            -          (no table)                                                                                                                       [0m
+> jobs              set        concurrency, hours, merge, models                                                                                                [0m
+[0m[38;5;245m  legacy            read-only  url  (publishes no sheep schema)                                                                                                 [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+[0m[38;5;221m[48;5;235mesc back   j/k select   g/G first/last   r refresh   enter open   d remove   q quit                                                             [0m[38;5;245m[48;5;235m control enabled[0m
+
+
+=== sheep_dogs_remove  (160x48) ===
+The same sub-screen with jobs's table removal armed by d: the title asks remove api's jobs table? instead of naming the sheep, and any key but enter would cancel it.
+
+[0m[7m[38;5;29mshep lookout   /home/ada/.shep                                                                                                                    6 in the flock[0m
+                                                                                                                                                                [0m
+[0m[38;5;221m  remove api's jobs table? enter confirms, any other key cancels                                                                                                [0m
+[0m[38;5;245m  deploy            -          (no table)                                                                                                                       [0m
+> jobs              set        concurrency, hours, merge, models                                                                                                [0m
+[0m[38;5;245m  legacy            read-only  url  (publishes no sheep schema)                                                                                                 [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+[0m[38;5;221m[48;5;235mesc back   j/k select   g/G first/last   r refresh   enter open   d remove   q quit                                                             [0m[38;5;245m[48;5;235m control enabled[0m
+
+
+=== sheep_dog_table  (160x48) ===
+Enter on jobs opens its table pane: dotted rows for the nested hours and models.worker tables, and models.worker.token, the one field jobs's schema marks secret, drawn <set> with no value on screen anywhere in the frame.
+
+[0m[7m[38;5;29mshep lookout   /home/ada/.shep                                                                                                                    6 in the flock[0m
+                                                                                                                                                                [0m
+[0m[38;5;245m  api › jobs  (dog table)                                                                                                                                       [0m
+[0m[38;5;221m[48;5;235m>[0m[48;5;235m  concurrency                2                                                         [0m[7m[38;5;221m FOCUSED [0m concurrency[0m[38;5;245m  integer[0m                                          [0m
+   hours.end                  17:00                                                       concurrency                                                           [0m
+   hours.start                09:00                                                                                                                             [0m
+   merge                      ask                                                       [0m[38;5;245m  now     [0m2                                                             [0m
+   models.worker.model        small                                                     [0m[38;5;245m  default [0m(none)                                                        [0m
+   models.worker.token        <set>                                                     [0m[38;5;245m  example [0m(none)                                                        [0m
+                                                                                                                                                                [0m
+                                                                                        [0m[38;5;238m  ──────────────────────────────────────────────────────────────────────[0m
+                                                                                        [0m[38;5;245m  VALIDATION[0m                                                            [0m
+                                                                                        [0m[7m[38;5;29m  █ [0ma whole number                                                      [0m
+[0m[38;5;245m  shep publishes the change; jobs decides what to reload                                                                                                        [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+                                                                                                                                                                [0m
+[0m[38;5;221m[48;5;235mesc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d back to default   u undo   h help   * yours   ! parked   q quit  [0m[38;5;245m[48;5;235m control enabled[0m
 
 
 === close_dialog  (160x48) ===

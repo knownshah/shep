@@ -344,7 +344,9 @@ fn render_compiled_max_cron_sleep(default: Option<UpDuration>) -> String {
 
 /// Every candidate dog: [`BUILT_IN_DOGS`] plus every adopted name, sorted
 /// and deduplicated, each paired with whether it is enabled and its path.
-fn dog_candidates(doc: &ShepToml) -> Vec<DogView> {
+///
+/// `pub(crate)`: lookout's dogs sub-screen probes the same list.
+pub(crate) fn dog_candidates(doc: &ShepToml) -> Vec<DogView> {
     let enabled = doc.enabled_dog_names();
     let mut names: BTreeSet<String> = BUILT_IN_DOGS
         .iter()

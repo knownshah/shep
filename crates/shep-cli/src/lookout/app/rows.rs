@@ -189,6 +189,28 @@ pub enum Sent {
         /// Proof the control gate was open.
         authority: WriteAuthority,
     },
+    /// One dog's whole table on one sheep, or its removal with [`None`]:
+    /// the per-sheep table pane's close, or the dogs sub-screen's confirmed
+    /// `d`.
+    ///
+    /// The whole table, because `Request::SetSheepDogSettings` replaces
+    /// it. [`DogTable`]'s own `Debug` prints a key count, so a `{:?}` of
+    /// this enum prints no value (IR-41).
+    ///
+    /// The [`WriteAuthority`] is not decoration, for the reason
+    /// [`Effect::WriteSetting`]'s own doc gives.
+    SetSheepDogTable {
+        /// The sheep.
+        name: String,
+        /// The dog whose table moves.
+        dog: String,
+        /// Which write this is, for [`Self::ApplyField`]'s reason.
+        ticket: u64,
+        /// The new table, or [`None`] to remove it.
+        table: Option<DogTable>,
+        /// Proof the control gate was open.
+        authority: WriteAuthority,
+    },
     /// One env key of one sheep, off the env sub-screen's own `Enter`.
     ///
     /// Its own variant beside [`Self::ApplyField`] rather than a value of
@@ -265,6 +287,13 @@ impl Sent {
                 name: name.clone(),
                 toml: toml.clone(),
             },
+            Self::SetSheepDogTable {
+                name, dog, table, ..
+            } => Request::SetSheepDogSettings {
+                name: name.clone(),
+                dog: dog.clone(),
+                table: table.clone(),
+            },
             Self::SetEnv {
                 name, key, value, ..
             } => Request::SetSheepEnv {
@@ -287,6 +316,7 @@ impl Sent {
         match self {
             Self::ApplyField { ticket, .. }
             | Self::SetDogSection { ticket, .. }
+            | Self::SetSheepDogTable { ticket, .. }
             | Self::SetEnv { ticket, .. } => Some(*ticket),
             Self::Lambs { .. }
             | Self::Action { .. }

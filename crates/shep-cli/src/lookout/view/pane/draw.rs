@@ -22,6 +22,7 @@ use super::chrome::{
     title_line,
 };
 use super::close::draw_close_dialog;
+use super::dogs::dogs_lines;
 use super::field_row::push_wrapped_blurb;
 use super::layout::{body_width, lands_fits_beside_panel, line_columns, panel_width};
 use super::list::list_lines;
@@ -188,14 +189,17 @@ pub(super) fn merge_beside_panel(
 /// The trailing "shep publishes..." line a dog-target render reserves out
 /// of its own budget before the body claims what is left: `None` for a
 /// sheep, which owns its own reload rather than handing that decision to a
-/// dog's own binary, and for a dog with no budget left to spend on it.
+/// dog's own binary, and for a dog with no budget left to spend on it. A
+/// dog's table on a sheep gets the line too, naming the dog, since the dog
+/// is what reloads.
 ///
 /// Text only; the caller decides whether reserving it costs one line of
 /// `body_budget`, since [`pane_lines`]'s plain branch and
 /// `ungrouped_pane_lines_with_panel` both need that decision made before
 /// this call, not after.
 pub(super) fn dog_footer_text(pane: &ConfigPane, body_budget: usize) -> Option<String> {
-    let PaneTarget::Dog { name, .. } = pane.target() else {
+    let (PaneTarget::Dog { name, .. } | PaneTarget::SheepDog { dog: name, .. }) = pane.target()
+    else {
         return None;
     };
     (body_budget > 0).then(|| format!("shep publishes the change; {name} decides what to reload"))
@@ -245,6 +249,9 @@ pub fn pane_lines(
     }
     if let Some(list) = pane.list() {
         return list_lines(pane, list, palette, width, budget);
+    }
+    if let Some(dogs) = pane.dogs() {
+        return dogs_lines(pane, dogs, palette, width, budget);
     }
     if has_groups(pane) {
         if let Some(panel_w) = panel_width(width) {

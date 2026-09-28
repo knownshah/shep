@@ -12,10 +12,11 @@ use shep_core::protocol::{Response, RpcError, RpcErrorCode};
 
 use crate::commands::settings::{SettingField, load_settings};
 use crate::commands::shep_toml::ShepToml;
-use crate::lookout::app::{ActionVerb, App, KeyPress, Msg, RevealedValue, RowKey, Sent};
+use crate::lookout::app::{ActionVerb, App, Effect, KeyPress, Msg, RevealedValue, RowKey, Sent};
 use crate::lookout::frames::fixtures::{
-    close_dialog_config_view, edit_pane_config_view, flock_without_api, move_settings_cursor_to,
-    restarted_api, settings_snapshot_for_gallery, settings_snapshot_with_dog_drift,
+    close_dialog_config_view, dogs_probe, edit_pane_config_view, flock_without_api,
+    move_settings_cursor_to, restarted_api, settings_snapshot_for_gallery,
+    settings_snapshot_with_dog_drift, sheep_dogs_config_view,
 };
 use crate::lookout::frames::scene::Scene;
 use crate::lookout::secrets::{SecretRow, SecretsModel, Source};
@@ -235,6 +236,46 @@ pub(super) fn apply_post_tick_scene(app: &mut App, which: Scene) {
                         app.update(Msg::Key(KeyPress::TextChar(character)));
                     }
                     app.update(Msg::Key(KeyPress::TextApply));
+                }
+            }
+        }
+        Scene::SheepDogsRow
+        | Scene::SheepDogsList
+        | Scene::SheepDogsRemove
+        | Scene::SheepDogTable => {
+            // `e` on `api` (id 2), replied with a config carrying `jobs`'s
+            // table and `legacy`'s, then the cursor walked onto the `dogs`
+            // row the same way an operator's own `tab`/`j` would reach it.
+            app.update(Msg::Key(KeyPress::Edit));
+            app.update(Msg::Replied {
+                sent: Sent::SheepConfig {
+                    name: "api".to_string(),
+                },
+                result: Ok(Response::SheepConfig(Box::new(sheep_dogs_config_view()))),
+            });
+            select_field(app, "dogs");
+            if which != Scene::SheepDogsRow {
+                // `Enter` probes every dog, then the probe's own answer
+                // opens the sub-screen, cursor first on `deploy`, sorted
+                // before `jobs` by name, then one row down onto `jobs`.
+                let Effect::LoadSheepDogs { ask, .. } = app.update(Msg::Key(KeyPress::Confirm))
+                else {
+                    panic!("Enter on the dogs row probes");
+                };
+                app.update(Msg::SheepDogs {
+                    sheep: "api".to_string(),
+                    ask,
+                    dogs: dogs_probe(),
+                });
+                app.update(Msg::Key(KeyPress::SelectDown));
+                match which {
+                    Scene::SheepDogsRemove => {
+                        app.update(Msg::Key(KeyPress::Remove));
+                    }
+                    Scene::SheepDogTable => {
+                        app.update(Msg::Key(KeyPress::Confirm));
+                    }
+                    _ => {}
                 }
             }
         }
@@ -544,6 +585,84 @@ mod tests {
             !narrow_edit.contains("FOCUSED"),
             "the panel does not draw at 88 columns: {narrow_edit:?}"
         );
+    }
+
+    /// Each of the four dogs scenes shows the state it is named for, and
+    /// none of them draws `jobs`'s credential or `legacy`'s.
+    #[test]
+    #[cfg(unix)] // inherited, not measured per test: see the `build` module's docs
+    fn every_sheep_dogs_scene_shows_its_own_state_and_no_secret() {
+        const TOKEN: &str = "sk-live-51Hx9Qa";
+        const LEGACY_CREDENTIAL: &str = "hunter2";
+
+        // SheepDogsRow: the field row names both dogs and carries neither's
+        // value.
+        let row_scene = render_text(&scene(Scene::SheepDogsRow).1);
+        let dogs_row = row_scene
+            .lines()
+            .find(|line| line.contains("dogs") && line.contains("jobs, legacy"))
+            .expect("the dogs row names both dogs");
+        assert!(
+            dogs_row.contains('\u{203a}'),
+            "the lock glyph: {dogs_row:?}"
+        );
+        assert!(
+            !dogs_row.contains("2"),
+            "no table value leaks: {dogs_row:?}"
+        );
+        assert!(!row_scene.contains(TOKEN), "{row_scene:?}");
+        assert!(!row_scene.contains(LEGACY_CREDENTIAL), "{row_scene:?}");
+
+        // SheepDogsList: one row per state, key names only for the ones
+        // that carry a table.
+        let list = render_text(&scene(Scene::SheepDogsList).1);
+        assert!(
+            dog_row_for(&list, "deploy")
+                .is_some_and(|row| row.contains('-') && row.contains("(no table)")),
+            "deploy is unset: {list:?}"
+        );
+        assert!(
+            dog_row_for(&list, "jobs")
+                .is_some_and(|row| row.contains("set") && row.contains("concurrency")),
+            "jobs is set, by key name: {list:?}"
+        );
+        assert!(
+            dog_row_for(&list, "legacy")
+                .is_some_and(|row| row.contains("read-only") && row.contains("url")),
+            "legacy is read-only, by key name: {list:?}"
+        );
+        assert!(!list.contains(TOKEN), "{list:?}");
+        assert!(!list.contains(LEGACY_CREDENTIAL), "{list:?}");
+
+        // SheepDogsRemove: the title asks the question instead of naming
+        // the sheep.
+        let remove = render_text(&scene(Scene::SheepDogsRemove).1);
+        assert!(
+            remove.contains("remove api's jobs table? enter confirms"),
+            "{remove:?}"
+        );
+        assert!(!remove.contains(TOKEN), "{remove:?}");
+        assert!(!remove.contains(LEGACY_CREDENTIAL), "{remove:?}");
+
+        // SheepDogTable: every leaf `jobs_schema` declares is its own
+        // dotted row, and the one it marks secret draws `<set>` alone.
+        let table = render_text(&scene(Scene::SheepDogTable).1);
+        for dotted in [
+            "hours.end",
+            "hours.start",
+            "merge",
+            "models.worker.model",
+            "models.worker.token",
+        ] {
+            assert!(table.contains(dotted), "{dotted} is its own row: {table:?}");
+        }
+        let token_row = table
+            .lines()
+            .find(|line| line.contains("models.worker.token"))
+            .expect("the secret's own row");
+        assert!(token_row.contains("<set>"), "{token_row:?}");
+        assert!(!table.contains(TOKEN), "{table:?}");
+        assert!(!table.contains(LEGACY_CREDENTIAL), "{table:?}");
     }
 
     /// Each close-dialog scene draws the border its width allows, and the

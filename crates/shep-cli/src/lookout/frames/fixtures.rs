@@ -5,11 +5,13 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use serde_json::{Map, Value, json};
 use shep_core::config::AppConfig;
 use shep_core::protocol::{DogSource, ExitInfo, ProcessInfo, SheepConfigView};
 use shep_core::status::ProcStatus;
 
 use super::super::app::{App, KeyPress, Msg, RowKey, SettingsRow};
+use super::super::pane::SheepDogEntry;
 use super::super::tail::{Stream, Tail, TailLine};
 use crate::commands::settings::{DogView, ScalarView, SettingField, SettingsSnapshot};
 use crate::style::StyleSource;
@@ -614,4 +616,102 @@ pub(super) fn close_dialog_config_view() -> SheepConfigView {
         .env
         .insert("DATABASE_URL".to_string(), "postgres://db/api".to_string());
     SheepConfigView::new(config, Vec::new(), vec!["listen_timeout".to_string()])
+}
+
+/// The `jobs` dog's per-sheep schema, the shape `ConfigPane::sheep_dog`'s
+/// own tests build: a scalar, a closed choice, a nested `hours` table, and
+/// `models.worker` two tables deep holding a secret beside a plain field.
+/// Every dogs scene in the gallery reads `jobs` through this one schema.
+pub(super) fn jobs_schema() -> Value {
+    json!({
+        "$ref": "#/$defs/ProjectSettings",
+        "$defs": {
+            "ProjectSettings": {
+                "type": "object",
+                "properties": {
+                    "concurrency": { "type": "integer" },
+                    "merge": { "enum": ["ask", "auto"] },
+                    "hours": { "$ref": "#/$defs/Hours" },
+                    "models": { "$ref": "#/$defs/Models" },
+                },
+            },
+            "Hours": {
+                "type": "object",
+                "properties": {
+                    "start": { "type": "string" },
+                    "end": { "type": "string" },
+                },
+            },
+            "Models": {
+                "type": "object",
+                "properties": { "worker": { "$ref": "#/$defs/Worker" } },
+            },
+            "Worker": {
+                "type": "object",
+                "properties": {
+                    "model": { "type": "string" },
+                    "token": { "type": "string", "x-shep-secret": true },
+                },
+            },
+        },
+    })
+}
+
+/// `api`'s `jobs` table: a value for every leaf [`jobs_schema`] declares,
+/// with a credential at `models.worker.token`.
+pub(super) fn jobs_table() -> Map<String, Value> {
+    json!({
+        "concurrency": 2,
+        "merge": "ask",
+        "hours": { "start": "09:00", "end": "17:00" },
+        "models": { "worker": { "model": "small", "token": "sk-live-51Hx9Qa" } },
+    })
+    .as_object()
+    .cloned()
+    .expect("an object")
+}
+
+/// The probe answer the gallery's dogs scenes open with: `jobs` carries
+/// [`jobs_schema`] and the sheep already has [`jobs_table`] for it (set),
+/// `deploy` carries a schema and no table (unset), and `legacy` carries a
+/// table the probe names no schema for (read-only): one row of each state
+/// [`DogsPane`](crate::lookout::pane::DogsPane) draws.
+pub(super) fn dogs_probe() -> Vec<SheepDogEntry> {
+    vec![
+        SheepDogEntry {
+            name: "jobs".to_string(),
+            adopted_path: Some(PathBuf::from("/opt/jobs")),
+            schema: Some(jobs_schema()),
+        },
+        SheepDogEntry {
+            name: "deploy".to_string(),
+            adopted_path: Some(PathBuf::from("/opt/deploy")),
+            schema: Some(json!({ "type": "object", "properties": {} })),
+        },
+        SheepDogEntry {
+            name: "legacy".to_string(),
+            adopted_path: None,
+            schema: None,
+        },
+    ]
+}
+
+/// `api`'s config for the dogs sub-screen and per-sheep table scenes:
+/// [`edit_pane_config_view`]'s own fields, plus [`jobs_table`] and a
+/// `legacy` table naming a credential in a plain URL, so the sub-screen has
+/// a set, an unset (from [`dogs_probe`]) and a read-only row to draw.
+pub(super) fn sheep_dogs_config_view() -> SheepConfigView {
+    let mut view = edit_pane_config_view();
+    view.config
+        .dogs
+        .insert("jobs".to_string(), jobs_table().into());
+    view.config.dogs.insert(
+        "legacy".to_string(),
+        json!({ "url": "https://ops:hunter2@example.test" })
+            .as_object()
+            .cloned()
+            .expect("an object")
+            .into(),
+    );
+    view
 }

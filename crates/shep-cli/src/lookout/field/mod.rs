@@ -10,10 +10,12 @@
 mod bounds;
 #[cfg(test)]
 mod fixtures;
+mod flatten;
 mod init;
 mod schema;
 
 pub use bounds::Bounds;
+pub(crate) use flatten::{Flattened, flatten_values, flattened};
 
 use serde_json::{Map, Value};
 

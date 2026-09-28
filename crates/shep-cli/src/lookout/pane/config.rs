@@ -15,12 +15,14 @@ use super::super::edits::{EditKey, Edits};
 use super::super::field::{FieldKind, FieldSet};
 use super::super::viewport::Viewport;
 use super::fields::{render_json, resolved_display, sheep_fields};
+use super::sheep_dog::SheepDogTable;
 
 // Link-only (IR-32): the unit grammars a row's resolved display goes
 // through, and the field kind a locked row reports.
 #[cfg(doc)]
 use super::super::field::ValueKind;
-use super::{EnvTyping, ListPane, Lock, PaneEdit, PaneRow, PaneTarget, PaneTyping};
+use super::dogs::dog_names;
+use super::{DogsPane, EnvTyping, ListPane, Lock, PaneEdit, PaneRow, PaneTarget, PaneTyping};
 #[cfg(doc)]
 use shep_core::values::{MemSize, UpDuration};
 
@@ -62,6 +64,10 @@ pub struct ConfigPane {
     /// [`Self::env_typing`]: each opens on a row of its own kind, and
     /// `Escape` closes whichever is up before the pane.
     pub(super) list: Option<ListPane>,
+    /// The open dogs sub-screen, over a sheep's `dogs` row. Never open at
+    /// the same time as [`Self::list`] or an editor: it opens only on a
+    /// field list with nothing else up.
+    pub(super) dogs: Option<Box<DogsPane>>,
     /// The dog's `[<name>]` table as TOML text, and [`None`] for a sheep.
     ///
     /// Kept beside the parsed `values` rather than instead of them, because
@@ -71,6 +77,9 @@ pub struct ConfigPane {
     /// throw away every comment the operator wrote. See
     /// [`Self::edited_section_with`].
     pub(super) section: Option<String>,
+    /// A dog's table on a sheep, whole, and where each dotted row lives in
+    /// it. [`None`] for every other target. See [`Self::sheep_dog`].
+    pub(super) dog_table: Option<Box<SheepDogTable>>,
 }
 
 impl core::fmt::Debug for ConfigPane {
@@ -109,7 +118,9 @@ impl ConfigPane {
             edits: Edits::default(),
             env_typing: None,
             list: None,
+            dogs: None,
             section: None,
+            dog_table: None,
         }
     }
 
@@ -173,7 +184,9 @@ impl ConfigPane {
             edits: Edits::default(),
             env_typing: None,
             list: None,
+            dogs: None,
             section: Some(section),
+            dog_table: None,
         }
     }
 
@@ -220,7 +233,8 @@ impl ConfigPane {
     /// anything else shows compact JSON. A sheep's `env` is the one field
     /// whose value this pane never holds, since the shepherd strips it on
     /// the way out, so it shows its key count instead, and the sub-screen
-    /// shows the names.
+    /// shows the names. A sheep's `dogs` shows dog names and no value: a
+    /// table's secrets are marked only by a schema this pane does not hold.
     ///
     /// That special case is gated on the target, not on the key alone: a
     /// dog's schema is somebody else's, and one declaring a field named
@@ -238,6 +252,9 @@ impl ConfigPane {
                 1 => "1 key".to_owned(),
                 count => format!("{count} keys"),
             };
+        }
+        if key == "dogs" && matches!(self.target, PaneTarget::Sheep { .. }) {
+            return dog_names(self.values.get("dogs"));
         }
         self.values
             .get(key)
@@ -279,7 +296,7 @@ impl ConfigPane {
             PaneTarget::Sheep { .. } => Some(apply_group(key)),
             // The dog decides, not shep. Said once at the foot of the pane
             // rather than guessed per row.
-            PaneTarget::Dog { .. } => None,
+            PaneTarget::Dog { .. } | PaneTarget::SheepDog { .. } => None,
         }
     }
 
@@ -287,11 +304,16 @@ impl ConfigPane {
     ///
     /// [`Lock::Refused`] outranks [`Lock::NoWidget`]: a Structural field
     /// that also happened to have no widget is still refused by shep, which
-    /// is the fact that survives the pane gaining every widget it lacks.
+    /// is the fact that survives the pane gaining every widget it lacks. A
+    /// sheep's `dogs` is [`Lock::SubScreen`] ahead of its own missing
+    /// widget, since Enter there does open something.
     #[must_use]
     pub fn lock(&self, key: &str) -> Option<Lock> {
         if self.cost(key) == Some(ApplyGroup::Structural) {
             return Some(Lock::Refused);
+        }
+        if key == "dogs" && matches!(self.target, PaneTarget::Sheep { .. }) {
+            return Some(Lock::SubScreen);
         }
         match self.fields.by_key(key) {
             Some(field) if !field.editable => Some(Lock::NoWidget),
@@ -797,6 +819,15 @@ mod tests {
         );
         assert_eq!(pane.value("poll"), "60s");
         assert_eq!(pane.cost("poll"), None);
+    }
+
+    /// The sheep's `dogs` row opens a screen, so neither `space` nor `d`
+    /// should tell the operator to go and edit a Flockfile instead.
+    #[test]
+    fn a_sheeps_dogs_row_opens_a_screen_rather_than_lacking_a_widget() {
+        let pane = ConfigPane::sheep(web());
+        assert_eq!(pane.lock("dogs"), Some(Lock::SubScreen));
+        assert_eq!(pane.lock("args"), None);
     }
 
     /// Shep writes a `sinks` table happily; this screen simply has no

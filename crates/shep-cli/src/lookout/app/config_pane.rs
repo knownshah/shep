@@ -96,6 +96,9 @@ impl App {
     /// [`ConfigFor::SheepPane`] reply to [`Self::sheep_pane_mut`] instead
     /// without repeating its guard or its error arms.
     fn open_or_refresh_config_pane(&mut self, view: SheepConfigView) {
+        if self.refresh_sheep_dog_pane(&view) {
+            return;
+        }
         let carried = self.config_pane().map(|pane| pane.view().clone());
         // An env row's own cursor is carried by key, not index: a
         // set re-reads the whole config, and a removal shortens the
@@ -109,6 +112,9 @@ impl App {
             .config_pane()
             .and_then(ConfigPane::list)
             .map(|list| (list.key().to_owned(), list.view().clone()));
+        // The dogs sub-screen rides across too, rebuilt from the new
+        // tables with its probe answers, so a removal shows at once.
+        let carried_dogs = self.config_pane().and_then(ConfigPane::dogs).cloned();
         // The pending set survives the rebuild: the values are
         // the shepherd's and the edits are the operator's. An open
         // editor is dropped. See `ConfigPane::adopt_edits`.
@@ -126,6 +132,9 @@ impl App {
         }
         if let Some((key, carried)) = carried_list {
             pane.adopt_list_view(&key, carried);
+        }
+        if let Some(dogs) = carried_dogs {
+            pane.adopt_dogs(&dogs);
         }
         self.body = Body::ConfigPane(pane);
         // The rebuilt pane carries no editor, so the keyboard must not
@@ -194,6 +203,9 @@ impl App {
         }
         if self.config_pane().is_some_and(|pane| pane.list().is_some()) {
             return self.on_list_key(key);
+        }
+        if self.config_pane().is_some_and(|pane| pane.dogs().is_some()) {
+            return self.on_dogs_key(key);
         }
         if key == KeyPress::Quit {
             return Effect::Quit;
@@ -342,7 +354,9 @@ impl App {
         };
         let name = pane.target().name().to_owned();
         match pane.target() {
-            PaneTarget::Sheep { .. } => Effect::Send(Sent::SheepConfig { name }),
+            PaneTarget::Sheep { .. } | PaneTarget::SheepDog { .. } => {
+                Effect::Send(Sent::SheepConfig { name })
+            }
             PaneTarget::Dog { .. } => Effect::Send(Sent::DogSection { name }),
         }
     }
@@ -369,6 +383,10 @@ impl App {
         self.config_target = None;
         self.config_for = None;
         self.dog_target = None;
+        // A dogs probe still out belongs to this pane. Retired here, not on
+        // a refresh, so a pane reopened on the same sheep does not open the
+        // list for an Enter it never saw.
+        self.sheep_dogs_ask += 1;
         self.release_text_mode_if_unowned();
     }
 
@@ -397,6 +415,7 @@ impl App {
             Lock::NoWidget => {
                 format!("{key} has no editor in this pane; a Flockfile still sets it")
             }
+            Lock::SubScreen => format!("{key} opens its own screen: press enter"),
         }
     }
 

@@ -47,9 +47,17 @@ export const BUDGETS: Record<string, number> = {
   // 4042, so almost none of the stated headroom was real, and the new
   // section (DogSheepSettings, parse_sheep_settings, config.sheep.<dog>)
   // is required content, not prose to trim back out.
-  "writing-a-dog": 4200, // 4190
+  //
+  // Raised again from 4200 the same day for "Publishing a per-sheep
+  // schema": probe_with_sheep is the write side of that same feature, and
+  // it needed its own section rather than a sentence borrowed from
+  // somebody else's.
+  "writing-a-dog": 4340, // 4325
   overrides: 3380, // 3250
-  "lookout-config": 3240, // 3085
+  // Raised from 3240 on 2026-09-27 for "A sheep's dogs row": the sub-screen
+  // and the per-sheep table pane are new operator-facing surface, not
+  // prose to trim back out.
+  "lookout-config": 3290, // 3261
   // Raised from 2930 on 2026-09-14 for the host line, which `shep flock`
   // began printing on a one-shot listing and not only under `--follow`. It
   // shows above every table on this page, so four transcripts gained a line

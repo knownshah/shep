@@ -79,6 +79,8 @@ pub(super) fn field_line(
         // Shown only. A Flockfile still writes it, and the cost cell beside
         // it reports what doing so would cost.
         Some(Lock::NoWidget) => '~',
+        // Enter opens a screen of its own for this row.
+        Some(Lock::SubScreen) => '\u{203a}',
         None => ' ',
     };
     let mut rest = String::from(lock);
@@ -383,10 +385,12 @@ mod tests {
         assert_eq!(glyphed('='), ["instances", "name"]);
         assert_eq!(
             glyphed('~'),
-            ["level_rules", "dogs", "liveness_probe", "readiness_probe"]
+            ["level_rules", "liveness_probe", "readiness_probe"]
         );
+        // `dogs` opens a screen of its own, so it is neither of the two.
+        assert_eq!(glyphed('\u{203a}'), ["dogs"]);
         // 42, not 43: `env` no longer draws its own field row.
-        assert_eq!(glyphed(' ').len(), 42 - 2 - 4);
+        assert_eq!(glyphed(' ').len(), 42 - 2 - 3 - 1);
     }
 
     /// `kill_timeout` and `exp_backoff_restart_delay` default to 1600ms

@@ -1,20 +1,31 @@
 use super::super::*;
 
 impl App {
-    /// The operator's `Enter` on the config pane. Three meanings, picked in
+    /// The operator's `Enter` on the config pane. Four meanings, picked in
     /// this order:
     ///
+    /// - The cursor is on a sheep's `dogs` row: probes the dogs for the
+    ///   sub-screen that lists them. A read, so no gate.
     /// - The cursor is on an env row or `+ add a key`: opens the env
     ///   editor, in place, on the same row.
     /// - The cursor is on an array field: opens the list sub-screen.
     /// - The cursor is on a typed field: opens the editor and switches
     ///   [`InputMode::Text`] on.
     ///
-    /// All three go through [`Self::authorize_write`], the editor included,
+    /// The other three go through [`Self::authorize_write`], the editor included,
     /// for the reason [`Self::confirm_setting`]'s own doc gives: the gate
     /// is checked on the keystroke that would file an edit, not on the
     /// close that writes them.
     pub(in crate::lookout::app) fn confirm_field(&mut self) -> Effect {
+        if let Some(probe) = self.dogs_row_effect() {
+            // Each adopted dog's binary answers in its own time, up to
+            // `VERSION_BUDGET` apiece, so the wait says what it is.
+            self.notice = Some(Notice {
+                text: "asking each dog for its per-sheep schema".to_owned(),
+                grave: false,
+            });
+            return probe;
+        }
         let Some(pane) = self.config_pane() else {
             return Effect::None;
         };
