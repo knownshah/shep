@@ -114,6 +114,14 @@ mod tests {
         assert_eq!(sheep["$defs"]["Other"], json!({}));
     }
 
+    #[test]
+    fn a_shep_toml_that_does_not_parse_lists_no_dog() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = dir.path().join("shep.toml");
+        std::fs::write(&config, "[daemon\n").unwrap();
+        assert!(probe_sheep_dogs(&config, dir.path(), Duration::from_secs(1)).is_empty());
+    }
+
     /// An adopted dog is its own binary, asked with the schema flag. The
     /// built-ins publish no sheep schema, so they list with none.
     #[cfg(unix)]

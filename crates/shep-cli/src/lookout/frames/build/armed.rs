@@ -611,6 +611,7 @@ mod tests {
             "no table value leaks: {dogs_row:?}"
         );
         assert!(!row_scene.contains(TOKEN), "{row_scene:?}");
+        assert!(!row_scene.contains(LEGACY_CREDENTIAL), "{row_scene:?}");
 
         // SheepDogsList: one row per state, key names only for the ones
         // that carry a table.
@@ -641,6 +642,7 @@ mod tests {
             "{remove:?}"
         );
         assert!(!remove.contains(TOKEN), "{remove:?}");
+        assert!(!remove.contains(LEGACY_CREDENTIAL), "{remove:?}");
 
         // SheepDogTable: every leaf `jobs_schema` declares is its own
         // dotted row, and the one it marks secret draws `<set>` alone.
@@ -660,6 +662,7 @@ mod tests {
             .expect("the secret's own row");
         assert!(token_row.contains("<set>"), "{token_row:?}");
         assert!(!table.contains(TOKEN), "{table:?}");
+        assert!(!table.contains(LEGACY_CREDENTIAL), "{table:?}");
     }
 
     /// Each close-dialog scene draws the border its width allows, and the

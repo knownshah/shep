@@ -438,18 +438,20 @@ mod tests {
 
     #[test]
     fn enter_or_e_on_the_dogs_row_probes_and_the_answer_opens_the_list() {
-        let mut app = app_in_web(Control::ReadOnly);
-        let ask = ask_dogs(&mut app, KeyPress::Edit);
-        assert!(
-            app.config_pane().unwrap().dogs().is_none(),
-            "not on the key"
-        );
-        let waiting = app.notice().expect("the probe's wait is said");
-        assert!(!waiting.grave, "{waiting:?}");
-        answer(&mut app, "web", ask);
-        let names: Vec<&str> = dogs(&app).rows().iter().map(|row| row.name()).collect();
-        assert_eq!(names, ["deploy", "jobs", "legacy"]);
-        assert!(app.notice().is_none(), "the list replaces the wait");
+        for key in [KeyPress::Confirm, KeyPress::Edit] {
+            let mut app = app_in_web(Control::ReadOnly);
+            let ask = ask_dogs(&mut app, key);
+            assert!(
+                app.config_pane().unwrap().dogs().is_none(),
+                "not on the key"
+            );
+            let waiting = app.notice().expect("the probe's wait is said");
+            assert!(!waiting.grave, "{waiting:?}");
+            answer(&mut app, "web", ask);
+            let names: Vec<&str> = dogs(&app).rows().iter().map(|row| row.name()).collect();
+            assert_eq!(names, ["deploy", "jobs", "legacy"], "{key:?}");
+            assert!(app.notice().is_none(), "the list replaces the wait");
+        }
     }
 
     #[test]

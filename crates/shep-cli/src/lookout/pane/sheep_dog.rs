@@ -323,6 +323,26 @@ mod tests {
         );
     }
 
+    /// A set through a step the sheep holds as a scalar replaces it with a
+    /// table: the schema says a table lives there, and the edit is the
+    /// operator's.
+    #[test]
+    fn a_set_through_a_scalar_replaces_it_with_a_table() {
+        let stored = json!({ "concurrency": 2, "models": "gpt" });
+        let pane = ConfigPane::sheep_dog(
+            "web".into(),
+            "jobs".into(),
+            None,
+            &jobs_schema(),
+            stored.as_object().cloned().expect("a table"),
+        );
+        let table = pane.edited_table_with(&edits_of(&[("models.worker.model", json!("large"))]));
+        assert_eq!(
+            Value::Object(table),
+            json!({ "concurrency": 2, "models": { "worker": { "model": "large" } } })
+        );
+    }
+
     #[test]
     fn no_edit_gives_back_the_table_as_it_came() {
         assert_eq!(

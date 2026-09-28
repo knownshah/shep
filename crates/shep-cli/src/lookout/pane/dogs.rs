@@ -445,6 +445,17 @@ mod tests {
     }
 
     #[test]
+    fn an_empty_list_moves_nowhere_and_arms_nothing() {
+        let mut dogs = DogsPane::new(&Map::new(), Vec::new());
+        dogs.move_by(1);
+        dogs.move_to_last();
+        dogs.move_by(-1);
+        assert_eq!(dogs.view().cursor(), 0);
+        assert!(dogs.cursor_row().is_none());
+        assert!(!dogs.arm_removal());
+    }
+
+    #[test]
     fn arming_a_removal_on_an_unset_row_does_nothing() {
         let mut dogs = DogsPane::new(&tables(), vec![probe("deploy", true)]);
         assert_eq!(dogs.cursor_row().map(DogRow::name), Some("deploy"));

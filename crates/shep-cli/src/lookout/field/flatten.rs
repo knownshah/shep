@@ -522,5 +522,13 @@ mod tests {
             Some(&Value::Null),
             "a path the table does not carry reads as null, not a fault"
         );
+
+        let scalar = props(json!({ "models": "gpt" }));
+        let values = flatten_values(&scalar, &flat.paths);
+        assert_eq!(
+            values.get("models.worker.model"),
+            Some(&Value::Null),
+            "a scalar where a table belongs reads as unset below it"
+        );
     }
 }
