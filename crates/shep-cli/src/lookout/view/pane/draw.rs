@@ -189,7 +189,9 @@ pub(super) fn merge_beside_panel(
 /// The trailing "shep publishes..." line a dog-target render reserves out
 /// of its own budget before the body claims what is left: `None` for a
 /// sheep, which owns its own reload rather than handing that decision to a
-/// dog's own binary, and for a dog with no budget left to spend on it.
+/// dog's own binary, and for a dog with no budget left to spend on it. A
+/// dog's table on a sheep gets the line too, naming the dog, since the dog
+/// is what reloads.
 ///
 /// Text only; the caller decides whether reserving it costs one line of
 /// `body_budget`, since [`pane_lines`]'s plain branch and
