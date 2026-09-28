@@ -23,10 +23,12 @@ before it touches a daemon, and names whatever is missing:
 - macOS. It reads BSD `stat` and `sysctl`, and its socket root is under
   `/private/tmp`.
 - A release build of shep at `$VERSUS_SCRATCH/wt-bench/target/release/shep`,
-  or wherever `SHEP_BIN` says, with every other `[[bin]]` the package
-  declares beside it: the footprint sizes all of them. A worktree keeps the
-  build off your checkout, and with no `CARGO_TARGET_DIR` set the binaries
-  land inside it, which is how the run finds the commit it records:
+  or wherever `SHEP_BIN` says, with every other `[[bin]]` the package declares
+  beside it: the footprint sizes all of them. The `[[bin]]` list is read from
+  the checkout `SHEP_BIN` sits in, or from this one when it sits in none. A
+  worktree keeps the build off your checkout, and with no `CARGO_TARGET_DIR`
+  set the binaries land inside it, which is how the run finds the commit it
+  records:
 
   ```sh
   git worktree add /tmp/shep-versus-pm2/wt-bench <rev>

@@ -414,6 +414,18 @@ m_start() { # tool tag
 
 # ------------------------------------------------------ metric 5: footprint --
 
+# The manifest of the checkout SHEP_BIN was built in, found the way
+# m_versions finds its commit: a SHEP_BIN pointed elsewhere otherwise has
+# its binaries counted against wt-bench's [[bin]] list, at whatever revision
+# wt-bench holds. A SHEP_BIN under no checkout gets this script's own, the
+# one checkout a run is sure to have.
+shep_manifest() {
+  local top
+  top=$(git -C "$(dirname "$SHEP_BIN")" rev-parse --show-toplevel 2>/dev/null) \
+    || top=$(cd "$HERE/../.." && pwd)
+  echo "$top/crates/shep-cli/Cargo.toml"
+}
+
 # Every [[bin]] the shep package declares: what `cargo install shep`, the
 # .deb and the release archives all put on disk. Read from the manifest, so
 # a new [[bin]] is counted too.
@@ -421,7 +433,7 @@ shep_bin_names() {
   awk '/^\[\[bin\]\]/ { inbin = 1; next }
        /^\[/         { inbin = 0 }
        inbin && /^name = / { gsub(/"/, "", $3); print $3 }' \
-    "$SCRATCH/wt-bench/crates/shep-cli/Cargo.toml"
+    "$(shep_manifest)"
 }
 
 bytes_of() { wc -c < "$1" | tr -d ' '; }
@@ -497,7 +509,7 @@ preflight() {
   # a --record then refuses to write anything.
   names=$(shep_bin_names 2>/dev/null)
   [ -n "$names" ] || {
-    echo "no [[bin]] names in $SCRATCH/wt-bench/crates/shep-cli/Cargo.toml for the footprint" >&2; ok=1; }
+    echo "no [[bin]] names in $(shep_manifest) for the footprint" >&2; ok=1; }
   for name in $names; do
     [ -f "$(dirname "$SHEP_BIN")/$name" ] || {
       echo "no $name beside $SHEP_BIN: the footprint sizes every [[bin]]" >&2; ok=1; }
