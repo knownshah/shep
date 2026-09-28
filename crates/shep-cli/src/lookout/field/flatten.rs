@@ -58,6 +58,7 @@ pub(crate) fn flattened(schema: &Value) -> Flattened {
         &properties,
         &defs,
         &[],
+        marked(schema) || marked(root),
         &mut vec![root],
         &mut fields,
         &mut paths,
@@ -101,10 +102,15 @@ fn segment(key: &str) -> String {
 /// `open` holds the nested tables on the current path, by identity: a
 /// schema is finite, so only a `$ref` back to one of them can loop, and
 /// that table is shown as one read-only leaf rather than walked again.
+///
+/// `inherited` is whether a table on the current path is marked secret.
+/// `#[shep(secret)]` on a struct field sits beside its `$ref`, not on the
+/// struct's own fields, so every row the table flattens into carries it.
 fn walk<'a>(
     properties: &'a Map<String, Value>,
     defs: &'a Map<String, Value>,
     prefix: &[String],
+    inherited: bool,
     open: &mut Vec<&'a Value>,
     fields: &mut Vec<Field>,
     paths: &mut BTreeMap<String, Vec<String>>,
@@ -119,8 +125,9 @@ fn walk<'a>(
             && is_nested_table(resolved)
             && let Some(nested) = resolved.get("properties").and_then(Value::as_object)
         {
+            let secret = inherited || marked(property_schema) || marked(resolved);
             open.push(resolved);
-            walk(nested, defs, &path, open, fields, paths);
+            walk(nested, defs, &path, secret, open, fields, paths);
             open.pop();
             continue;
         }
@@ -138,10 +145,18 @@ fn walk<'a>(
         }
         // A read-only row draws its whole value, so a secret anywhere
         // beneath it, or on the `$ref` it names, masks the row.
-        field.secret |= holds_secret(property_schema, defs, &mut Vec::new());
+        field.secret |= inherited || holds_secret(property_schema, defs, &mut Vec::new());
         fields.push(field);
         paths.insert(dotted, path);
     }
+}
+
+/// Whether `schema` itself carries the secret marker.
+fn marked(schema: &Value) -> bool {
+    schema
+        .get(shep_core::dogs::SECRET_KEY)
+        .and_then(Value::as_bool)
+        == Some(true)
 }
 
 /// Whether `schema` or anything it reaches, through a `$ref` or any nested
@@ -154,11 +169,7 @@ fn holds_secret<'a>(
 ) -> bool {
     match schema {
         Value::Object(map) => {
-            if map
-                .get(shep_core::dogs::SECRET_KEY)
-                .and_then(Value::as_bool)
-                == Some(true)
-            {
+            if marked(schema) {
                 return true;
             }
             let target = map
@@ -415,6 +426,49 @@ mod tests {
             .map(|f| f.key.as_str())
             .collect();
         assert_eq!(keys, ["tree.child", "tree.name"]);
+    }
+
+    /// `#[shep(secret)]` on a struct field puts the marker beside the
+    /// field's `$ref` (or its `anyOf`, for an `Option`), and none on the
+    /// struct's own fields, so each row the table flattens into is masked
+    /// by the table's mark, however deep.
+    #[test]
+    fn a_secret_table_masks_every_row_it_flattens_into() {
+        let flat = flattened(&json!({
+            "type": "object",
+            "properties": {
+                "creds": { "$ref": "#/$defs/Creds", "x-shep-secret": true },
+                "backup": {
+                    "anyOf": [{ "$ref": "#/$defs/Creds" }, { "type": "null" }],
+                    "x-shep-secret": true,
+                },
+                "plain": { "$ref": "#/$defs/Creds" },
+            },
+            "$defs": {
+                "Creds": {
+                    "type": "object",
+                    "properties": {
+                        "user": { "type": "string" },
+                        "tls": { "$ref": "#/$defs/Tls" },
+                    },
+                },
+                "Tls": {
+                    "type": "object",
+                    "properties": { "key": { "type": "string" } },
+                },
+            },
+        }));
+        for key in [
+            "creds.user",
+            "creds.tls.key",
+            "backup.user",
+            "backup.tls.key",
+        ] {
+            assert!(flat.fields.by_key(key).expect(key).secret, "{key}");
+        }
+        for key in ["plain.user", "plain.tls.key"] {
+            assert!(!flat.fields.by_key(key).expect(key).secret, "{key}");
+        }
     }
 
     /// A read-only row draws its value as JSON, so a secret inside it has
