@@ -15,7 +15,10 @@ impl App {
         let PaneRow::Field(index) = pane.cursor()? else {
             return None;
         };
-        let sheep = (pane.fields().fields().get(index)?.key == "dogs").then(|| name.clone())?;
+        if pane.fields().fields().get(index)?.key != "dogs" {
+            return None;
+        }
+        let sheep = name.clone();
         self.sheep_dogs_ask += 1;
         Some(Effect::LoadSheepDogs {
             sheep,
