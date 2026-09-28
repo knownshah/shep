@@ -11,8 +11,9 @@
 //! `Request::ApplyConfig`.
 //!
 //! `config` holds the pane and everything it answers; `edit`, `env` and
-//! `list` hold what it does when a key lands; `types` and `fields` hold what
-//! all four read and write.
+//! `list` hold what it does when a key lands; `dogs` holds a sheep's dogs
+//! sub-screen and `sheep_dog` the pane over one dog's table on it; `types`
+//! and `fields` hold what the rest read and write.
 
 mod config;
 mod dogs;
