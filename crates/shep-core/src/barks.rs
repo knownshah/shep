@@ -212,18 +212,24 @@ pub fn read_last(path: &Path, limit: usize) -> Result<Vec<Bark>, BarkError> {
 }
 
 /// The parseable records in the last `window` bytes of the file, oldest
-/// first. A window that starts mid-file starts mid-record, so everything
-/// up to the first newline is that record's tail and is dropped rather
-/// than offered to the parser as a fragment.
+/// first. A window that starts mid-file may start mid-record, so
+/// everything up to the first newline is that record's tail and is
+/// dropped rather than offered to the parser as a fragment.
 fn read_window(file: &mut File, len: u64, window: u64) -> Result<Vec<Bark>, BarkError> {
+    let start = len - window;
+    // Reads from one byte before the window when there is one. A window
+    // starting exactly on a record boundary then finds the previous
+    // record's newline first and drops only that byte, not its own first
+    // record.
+    let probe = u64::from(start > 0);
     // Every iteration seeks, including the first and including a grown
     // window that now covers the whole file: the previous read left the
     // position at the end, and a `read_to_end` from there would see
     // nothing.
-    file.seek(SeekFrom::Start(len - window))?;
+    file.seek(SeekFrom::Start(start - probe))?;
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes)?;
-    let text = if window < len {
+    let text = if start > 0 {
         match bytes.iter().position(|&b| b == b'\n') {
             Some(newline) => String::from_utf8_lossy(&bytes[newline + 1..]),
             None => return Ok(Vec::new()),
@@ -369,6 +375,28 @@ mod tests {
     fn no_file_yet_is_no_barks_rather_than_a_failure() {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(read(&dir.path().join("nothing.jsonl")).unwrap(), vec![]);
+    }
+
+    /// A window that begins exactly at a record boundary holds that record
+    /// whole, so the scan that drops a partial record's tail must not eat
+    /// it.
+    #[test]
+    fn a_window_starting_on_a_boundary_keeps_its_first_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("barks.jsonl");
+        for i in 0..3u64 {
+            append(&path, &bark_for(&format!("s{i}"), i), DEFAULT_MAX_BYTES).unwrap();
+        }
+        let bytes = std::fs::read(&path).unwrap();
+        let len = bytes.len() as u64;
+        let first = bytes.iter().position(|&b| b == b'\n').unwrap() as u64;
+        let window = len - (first + 1);
+        let mut file = File::open(&path).unwrap();
+        let barks = read_window(&mut file, len, window).unwrap();
+        assert_eq!(
+            barks.iter().map(|b| b.subject.as_str()).collect::<Vec<_>>(),
+            ["s1", "s2"]
+        );
     }
 
     #[test]
