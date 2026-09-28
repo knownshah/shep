@@ -625,16 +625,20 @@ main() {
   cleanup_all
   echo; echo "=== metrics.jsonl ==="; cat "$METRICS"
 
-  local rc=0
+  local rc=0 again
   case "$MODE" in
     check)
       echo; echo "=== against $BASELINE ==="
       python3 "$HERE/compare.py" check "$METRICS" --baseline "$BASELINE" "$@"
       rc=$?
       # The raw samples outlive the run, so a second opinion, or the same
-      # one with a threshold moved, never needs another run.
+      # one with a threshold moved, never needs another run. Printed with
+      # the baseline and options this verdict used, quoted, so pasting it
+      # back gives this verdict and editing one option changes only that.
+      again=$(printf ' %q' python3 "$HERE/compare.py" check "$METRICS" \
+        --baseline "$BASELINE" "$@")
       echo; echo "judge this run again without re-running it:"
-      echo "  python3 $HERE/compare.py check $METRICS"
+      echo " $again"
       ;;
     record)
       echo
