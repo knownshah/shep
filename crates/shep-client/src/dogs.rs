@@ -27,11 +27,19 @@
 //! Answering is optional: with the `schema` feature off, [`probe`] still
 //! answers the version flag, and the schema flag exits without printing,
 //! which shep reads as a dog with no schema and refuses nothing for.
+//!
+//! [`parse_sheep_settings`] answers a different question: a dog that acts
+//! per sheep reads its `[app.dogs.<dog>]` table off
+//! `Request::DogSheepSettings` and parses one sheep's table at a time, so a
+//! table that does not fit its type never hides the rest.
 
+use core::fmt;
 use std::io::Write as _;
 
-pub use shep_core::dogs::SECRET_KEY;
+use serde::de::DeserializeOwned;
+use shep_core::config::DogTable;
 use shep_core::dogs::{SCHEMA_FLAG, SHEP_PROTOCOL_KEY, VERSION_FLAG};
+pub use shep_core::dogs::{SECRET_KEY, SHEEP_SCHEMA_KEY};
 /// The attribute that implements [`DogConfig`], re-exported so a dog takes
 /// one dependency rather than two.
 ///
@@ -57,6 +65,28 @@ pub fn config_schema<T: DogConfig + schemars::JsonSchema>() -> schemars::Schema 
     schemars::SchemaGenerator::default().into_root_schema_for::<T>()
 }
 
+/// [`config_schema`], plus [`SHEEP_SCHEMA_KEY`] holding `S`'s schema: what a
+/// dog that acts per sheep answers the schema flag with.
+///
+/// One [`schemars::SchemaGenerator`] produces both halves, so `S`'s
+/// definitions land in `T`'s own `$defs` and the key's `$ref` resolves the
+/// way every other one in the document does. Every `#[shep(secret)]` field
+/// of `S` carries [`SECRET_KEY`] exactly as one of `T`'s does.
+#[cfg(feature = "schema")]
+pub fn config_schema_with_sheep<T, S>() -> schemars::Schema
+where
+    T: DogConfig + schemars::JsonSchema,
+    S: DogConfig + schemars::JsonSchema,
+{
+    let mut generator = schemars::SchemaGenerator::default();
+    // Registers `S` in the generator's definitions before `T` is consumed,
+    // so `into_root_schema_for` carries both into the same `$defs`.
+    let sheep = generator.subschema_for::<S>();
+    let mut schema = generator.into_root_schema_for::<T>();
+    schema.insert(SHEEP_SCHEMA_KEY.to_owned(), sheep.to_value());
+    schema
+}
+
 /// Answers shep's probes, and returns when this run is not a probe, so a
 /// dog calls it as the first line of `main`.
 ///
@@ -69,9 +99,52 @@ pub fn config_schema<T: DogConfig + schemars::JsonSchema>() -> schemars::Schema 
 /// before `main` opens anything.
 #[cfg(feature = "schema")]
 pub fn probe<T: DogConfig + schemars::JsonSchema>(name: &str, version: &str) {
+    probe_answering(name, version, schema_answer::<T>);
+}
+
+/// [`probe`], for a dog that also publishes a schema for its per-sheep
+/// `[app.dogs.<name>]` table: the schema flag answers with
+/// [`config_schema_with_sheep::<T, S>`](config_schema_with_sheep) instead of
+/// [`config_schema::<T>`](config_schema).
+///
+/// # Exits
+///
+/// Ends the process with [`process::exit`](std::process::exit), status 0,
+/// before `main` opens anything.
+///
+/// # Examples
+///
+/// ```no_run
+/// # #[shep_client::dogs::dog_config]
+/// # #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+/// # struct MyDogConfig {}
+/// # #[shep_client::dogs::dog_config]
+/// # #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+/// # struct MySheepSettings {}
+/// fn main() {
+///     shep_client::dogs::probe_with_sheep::<MyDogConfig, MySheepSettings>(
+///         env!("CARGO_PKG_NAME"),
+///         env!("CARGO_PKG_VERSION"),
+///     );
+///     // ...normal startup, reached only when this run is not a probe.
+/// }
+/// ```
+#[cfg(feature = "schema")]
+pub fn probe_with_sheep<T, S>(name: &str, version: &str)
+where
+    T: DogConfig + schemars::JsonSchema,
+    S: DogConfig + schemars::JsonSchema,
+{
+    probe_answering(name, version, schema_answer_with_sheep::<T, S>);
+}
+
+/// The body both probes share: answers the version or the schema flag,
+/// the schema rendered by `schema` only when it is asked for.
+#[cfg(feature = "schema")]
+fn probe_answering(name: &str, version: &str, schema: fn() -> String) {
     match first_argument().as_deref() {
         Some(VERSION_FLAG) => answer(&version_answer(name, version)),
-        Some(SCHEMA_FLAG) => answer(&schema_answer::<T>()),
+        Some(SCHEMA_FLAG) => answer(&schema()),
         _ => (),
     }
 }
@@ -95,6 +168,19 @@ pub fn probe<T: DogConfig>(name: &str, version: &str) {
         Some(SCHEMA_FLAG) => std::process::exit(0),
         _ => (),
     }
+}
+
+/// [`probe_with_sheep`] with the `schema` feature off: behaves exactly like
+/// [`probe`] does without the feature, since there is no schema to answer
+/// with either way.
+///
+/// # Exits
+///
+/// Ends the process with [`process::exit`](std::process::exit), status 0,
+/// before `main` opens anything.
+#[cfg(not(feature = "schema"))]
+pub fn probe_with_sheep<T: DogConfig, S: DogConfig>(name: &str, version: &str) {
+    probe::<T>(name, version);
 }
 
 /// The argument shep spawns a probe with, which is the only one it passes.
@@ -132,12 +218,109 @@ fn version_answer(name: &str, version: &str) -> String {
 /// The `--schema` answer, whole, ending in a newline.
 #[cfg(feature = "schema")]
 fn schema_answer<T: DogConfig + schemars::JsonSchema>() -> String {
-    let schema = config_schema::<T>();
+    rendered(&config_schema::<T>())
+}
+
+/// `schema` as the schema flag prints it: pretty JSON and a newline.
+#[cfg(feature = "schema")]
+fn rendered(schema: &schemars::Schema) -> String {
     // The same expectation shep-core's own schema printer holds: a schemars
     // `Schema` is a `serde_json::Value` already, so serializing it cannot
     // meet a type serde_json has no representation for.
-    let json = serde_json::to_string_pretty(&schema).expect("a schemars Schema always serializes");
+    let json = serde_json::to_string_pretty(schema).expect("a schemars Schema always serializes");
     format!("{json}\n")
+}
+
+/// The `--schema` answer for [`probe_with_sheep`], whole, ending in a
+/// newline.
+#[cfg(feature = "schema")]
+fn schema_answer_with_sheep<T, S>() -> String
+where
+    T: DogConfig + schemars::JsonSchema,
+    S: DogConfig + schemars::JsonSchema,
+{
+    rendered(&config_schema_with_sheep::<T, S>())
+}
+
+/// One sheep's `[app.dogs.<dog>]` table did not fit `dog`'s own settings
+/// type.
+///
+/// Carries no parser message and no table value: a field of the wrong
+/// type, or an unknown key under `deny_unknown_fields`, can hold a
+/// credential, and quoting either would print exactly what [`DogTable`]'s
+/// own `Debug` refuses to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SheepSettingsError {
+    dog: String,
+    sheep: String,
+}
+
+impl fmt::Display for SheepSettingsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "the [app.dogs.{}] table on {} does not fit this dog's settings",
+            self.dog, self.sheep
+        )
+    }
+}
+
+impl core::error::Error for SheepSettingsError {}
+
+/// Parses one sheep's `[app.dogs.<dog>]` table into `dog`'s own settings
+/// type.
+///
+/// Call this once per sheep in a `Request::DogSheepSettings` answer's map,
+/// so a table that does not fit `S` never hides the rest of the sheep.
+/// `dog` and `sheep` name the table in the refusal; neither is read from
+/// `table` itself.
+///
+/// # Errors
+///
+/// [`SheepSettingsError`] when `table` does not fit `S`. It never carries
+/// the parser's own message, which can quote a value the table held.
+///
+/// # Examples
+///
+/// ```no_run
+/// use shep_client::Client;
+/// use shep_client::dogs::parse_sheep_settings;
+/// use shep_client::shep_core::protocol::{Request, Response};
+///
+/// #[derive(serde::Deserialize, Default)]
+/// struct JobsSettings {
+///     #[serde(default)]
+///     concurrency: u32,
+/// }
+///
+/// # async fn read(client: &Client) -> Result<(), Box<dyn core::error::Error>> {
+/// let Response::DogSheepSettings { tables } = client
+///     .request(Request::DogSheepSettings {
+///         dog: "jobs".to_string(),
+///     })
+///     .await?
+/// else {
+///     return Err("the shepherd answered with something else".into());
+/// };
+/// for (sheep, table) in &tables {
+///     let settings: JobsSettings = parse_sheep_settings("jobs", sheep, table)?;
+///     println!("{sheep}: concurrency {}", settings.concurrency);
+/// }
+/// # Ok(())
+/// # }
+/// # let _ = read;
+/// ```
+pub fn parse_sheep_settings<S: DeserializeOwned>(
+    dog: &str,
+    sheep: &str,
+    table: &DogTable,
+) -> Result<S, SheepSettingsError> {
+    serde_json::from_value(serde_json::Value::Object(table.as_map().clone())).map_err(|_| {
+        SheepSettingsError {
+            dog: dog.to_string(),
+            sheep: sheep.to_string(),
+        }
+    })
 }
 
 #[cfg(test)]
@@ -155,6 +338,61 @@ mod tests {
 
         assert_eq!(parsed.version, "0.1.3");
         assert_eq!(parsed.protocol, Some(crate::PROTOCOL_VERSION));
+    }
+
+    #[derive(Debug, Default, PartialEq, serde::Deserialize)]
+    #[serde(deny_unknown_fields, default)]
+    struct JobsSettings {
+        concurrency: u32,
+    }
+
+    fn table(pairs: impl IntoIterator<Item = (&'static str, serde_json::Value)>) -> DogTable {
+        DogTable::from(
+            pairs
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect::<serde_json::Map<String, serde_json::Value>>(),
+        )
+    }
+
+    #[test]
+    fn a_table_that_fits_parses() {
+        let table = table([("concurrency", serde_json::json!(2))]);
+        let settings: JobsSettings = parse_sheep_settings("jobs", "web", &table).unwrap();
+        assert_eq!(settings, JobsSettings { concurrency: 2 });
+    }
+
+    /// A credential written into a field whose type refuses it: the
+    /// refusal names the dog and the sheep and quotes neither.
+    #[test]
+    fn a_wrongly_typed_field_is_refused_and_never_quotes_the_value() {
+        let table = table([("concurrency", serde_json::json!("hunter2"))]);
+        let err = parse_sheep_settings::<JobsSettings>("jobs", "web", &table).unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "the [app.dogs.jobs] table on web does not fit this dog's settings"
+        );
+        assert!(!err.to_string().contains("hunter2"));
+        assert!(!format!("{err:?}").contains("hunter2"));
+    }
+
+    /// A credential under a key `JobsSettings` never declared: refused by
+    /// `deny_unknown_fields`, quoting nothing.
+    #[test]
+    fn an_unknown_key_is_refused_and_never_quotes_the_value() {
+        let table = table([
+            ("concurrency", serde_json::json!(2)),
+            ("token", serde_json::json!("hunter2")),
+        ]);
+        let err = parse_sheep_settings::<JobsSettings>("jobs", "web", &table).unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "the [app.dogs.jobs] table on web does not fit this dog's settings"
+        );
+        assert!(!err.to_string().contains("hunter2"));
+        assert!(!format!("{err:?}").contains("hunter2"));
     }
 
     /// Everything the `schema` feature gates, gated the same way: with the
@@ -379,6 +617,110 @@ mod tests {
                 schema.pointer("/$defs/Inner/properties/token/x-shep-secret"),
                 None,
                 "a stranger that shares the name is not the marked field"
+            );
+        }
+
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
+        struct JobsConfig {
+            channel: String,
+        }
+
+        /// A dog's per-sheep `[app.dogs.jobs]` table: a plain field, a
+        /// credential, and a nested table two levels deep.
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
+        struct JobsSheepSettings {
+            concurrency: u32,
+            #[shep(secret)]
+            api_key: String,
+            hours: WorkingHours,
+        }
+
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
+        struct WorkingHours {
+            start: String,
+        }
+
+        /// The `$ref`'s own definition name, read off the sheep key without
+        /// assuming it is the type's Rust name: `schemars` is free to
+        /// rename it.
+        fn sheep_def_name(schema: &serde_json::Value) -> &str {
+            schema
+                .pointer(&format!("/{SHEEP_SCHEMA_KEY}/$ref"))
+                .and_then(serde_json::Value::as_str)
+                .and_then(|r| r.strip_prefix("#/$defs/"))
+                .expect("the sheep key holds a $ref into $defs")
+        }
+
+        #[test]
+        fn the_combined_schema_carries_a_sheep_ref_that_resolves_in_root_defs() {
+            let schema = config_schema_with_sheep::<JobsConfig, JobsSheepSettings>();
+            let schema = schema.as_value();
+
+            let def_name = sheep_def_name(schema);
+            assert!(
+                schema.pointer(&format!("/$defs/{def_name}")).is_some(),
+                "the sheep key's $ref names a definition in the root's own $defs"
+            );
+        }
+
+        #[test]
+        fn a_secret_field_of_the_sheep_type_is_marked_in_the_resolved_schema() {
+            let schema = config_schema_with_sheep::<JobsConfig, JobsSheepSettings>();
+            let schema = schema.as_value();
+            let def_name = sheep_def_name(schema);
+
+            assert_eq!(
+                schema.pointer(&format!(
+                    "/$defs/{def_name}/properties/api_key/{SECRET_KEY}"
+                )),
+                Some(&serde_json::Value::Bool(true)),
+                "the sheep type's marked field carries the marker, exactly as a root field does"
+            );
+            assert_eq!(
+                schema.pointer(&format!(
+                    "/$defs/{def_name}/properties/concurrency/{SECRET_KEY}"
+                )),
+                None,
+                "its plain neighbour carries nothing"
+            );
+        }
+
+        #[test]
+        fn a_struct_nested_inside_the_sheep_type_resolves_in_root_defs_too() {
+            let schema = config_schema_with_sheep::<JobsConfig, JobsSheepSettings>();
+            let schema = schema.as_value();
+            let def_name = sheep_def_name(schema);
+            let hours = schema
+                .pointer(&format!("/$defs/{def_name}/properties/hours/$ref"))
+                .and_then(serde_json::Value::as_str)
+                .and_then(|r| r.strip_prefix("#/$defs/"))
+                .expect("the nested field holds a $ref into $defs");
+
+            assert!(
+                schema
+                    .pointer(&format!("/$defs/{hours}/properties/start"))
+                    .is_some(),
+                "a type nested inside the sheep type is hoisted into the same $defs, \
+                 so lookout can flatten it"
+            );
+        }
+
+        #[test]
+        fn the_plain_schema_carries_no_sheep_key() {
+            let with_sheep = config_schema_with_sheep::<JobsConfig, JobsSheepSettings>();
+            let plain = config_schema::<JobsConfig>();
+
+            assert!(with_sheep.as_value().get(SHEEP_SCHEMA_KEY).is_some());
+            assert_eq!(
+                plain.as_value().get(SHEEP_SCHEMA_KEY),
+                None,
+                "config_schema stays exactly what it was: no sheep key"
             );
         }
     }

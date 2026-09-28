@@ -98,6 +98,59 @@ the store is 0600: anyone who can reveal can also delete a log.
 the system clipboard is readable by every process on the desktop.
 set in production · length 18 bytes · named by 1 of the flock                           named in env, args, out_file or err_file
 esc/S close   ←/→ tab   z collapse   v reveal for 10s   ↵ set a value   D delete   y copy   q quit                                               control enabled`;
+
+const sheepDogsRow = `shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
+
+ ██ api  (sheep config)
+   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab next group   1…8 jump
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  FIELD                       VALUE                                           LANDS
+   args                       ["--port","8080"]                               respawn    FOCUSED  dogs  opaque
+   channel                    false                                           respawn     Settings for one dog on this sheep alone, opaque to shep
+>› dogs                       jobs, legacy                                    now
+   environment                (unset)                                         respawn     now     jobs, legacy
+   stdin                      false                                           respawn     default {}
+                                                                                          example (none)
+  env
+   DATABASE_URL               (set)                                                       ● now  the running sheep picks it up without stopping
+   NODE_ENV                   (set)                                                                                      pick the timing when you close the pane
+   + add a key
+                                                                                          ──────────────────────────────────────────────────────────────────────
+                                                                                          VALIDATION
+                                                                                          █ a table of dog name to a table of settings
+                                                                                          █ a dog name shep does not know about yet
+                                                                                          █ refused: a value that is not a table
+                                                                                          █ refused: an empty dog name
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  = read-only, set it in the Flockfile   ~ no widget for this shape   ! parked, awaits a respawn   * yours   -> changed by you, not yet written
+
+esc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d back to default   u undo   h help   * yours   ! parked   q quit   control enabled`;
+
+const sheepDogsList = `shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
+
+  api › dogs
+  deploy            -          (no table)
+> jobs              set        concurrency, hours, merge, models
+  legacy            read-only  url  (publishes no sheep schema)
+
+esc back   j/k select   g/G first/last   r refresh   enter open   d remove   q quit                                                              control enabled`;
+
+const sheepDogTable = `shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
+
+  api › jobs  (dog table)
+>  concurrency                2                                                          FOCUSED  concurrency  integer
+   hours.end                  17:00                                                       concurrency
+   hours.start                09:00
+   merge                      ask                                                         now     2
+   models.worker.model        small                                                       default (none)
+   models.worker.token        <set>                                                       example (none)
+
+                                                                                          ──────────────────────────────────────────────────────────────────────
+                                                                                          VALIDATION
+                                                                                          █ a whole number
+  shep publishes the change; jobs decides what to reload
+
+esc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d back to default   u undo   h help   * yours   ! parked   q quit   control enabled`;
 ---
 
 <DocsLayout
@@ -351,6 +404,10 @@ esc/S close   ←/→ tab   z collapse   v reveal for 10s   ↵ set a value   D 
         Two fields: <code>liveness_probe</code> and{" "}
         <code>readiness_probe</code>.
       </li>
+      <li>
+        <code>›</code> Enter opens a screen, not a value. Only{" "}
+        <code>dogs</code> uses it today.
+      </li>
     </ul>
     <p class="fine">
       Both are glyphs rather than a colour on purpose. The narrowest terminal
@@ -512,6 +569,36 @@ esc/S close   ←/→ tab   z collapse   v reveal for 10s   ↵ set a value   D 
       shares one stored spec, so the pane is about the app rather than about
       whichever instance the cursor was over.
     </p>
+
+    <h2 id="a-sheeps-dogs-row">A sheep's dogs row</h2>
+    <p>
+      <code>dogs</code> names its dogs, <code>jobs, legacy</code>, or{" "}
+      <code>none</code>, never a value. Enter or <code>e</code> probes
+      every adopted dog and opens a sub-screen.
+    </p>
+    <CodeBlock label="160×48, cursor on the dogs row">{sheepDogsRow}</CodeBlock>
+    <p>
+      A row is set, unset, or read-only. Read-only means no dog published a
+      schema for that table, so it names keys only, same as{" "}
+      <code>dogs</code> above it. <code>d</code> arms removing a table.
+      Enter confirms, any other key cancels.
+    </p>
+    <CodeBlock label="jobs set, deploy unset, legacy read-only">{sheepDogsList}</CodeBlock>
+    <p>
+      Enter or <code>e</code> on a set or unset row opens that dog's table
+      over the sheep. It refuses while the sheep pane holds unwritten
+      edits: <code>Esc</code> goes back to the sheep pane, where{" "}
+      <code>u</code> undoes them one at a time and a second{" "}
+      <code>Esc</code> writes them.
+    </p>
+    <p>
+      A nested struct in the schema becomes dotted rows here,{" "}
+      <code>models.worker.model</code> for a <code>models</code> field
+      holding a <code>worker</code> holding a <code>model</code>. A secret
+      reads <code>&lt;set&gt;</code>. <code>Esc</code> writes the whole
+      table and lands on the dashboard, not back on the sub-screen.
+    </p>
+    <CodeBlock label="jobs's table on api">{sheepDogTable}</CodeBlock>
 
     <h2 id="the-dog-config-pane">The dog config pane</h2>
     <p>

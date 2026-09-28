@@ -1,5 +1,6 @@
 ---
 source: crates/shep-core/src/protocol/events.rs
+assertion_line: 400
 expression: events
 ---
 [
@@ -321,6 +322,13 @@ expression: events
     "event": "dog_config_changed",
     "data": {
       "dog": "bark"
+    }
+  },
+  {
+    "event": "dog_sheep_settings_changed",
+    "data": {
+      "dog": "jobs",
+      "sheep": "web"
     }
   }
 ]

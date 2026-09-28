@@ -10,16 +10,18 @@
 mod bounds;
 #[cfg(test)]
 mod fixtures;
+mod flatten;
 mod init;
 mod schema;
 
 pub use bounds::Bounds;
+pub(crate) use flatten::{Flattened, flatten_values, flattened};
 
 use serde_json::{Map, Value};
 
 use bounds::bounds_of;
 use init::{neighbours, strings, suggestions};
-use schema::{kind_of, render_default, value_kind_of};
+use schema::{holds_secret, kind_of, render_default, value_kind_of};
 
 /// What the widget for one field is.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -278,10 +280,10 @@ fn field_from(key: &str, schema: &Value, defs: &Map<String, Value>) -> Field {
             .get("default")
             .filter(|value| !value.is_null())
             .cloned(),
-        secret: schema
-            .get(shep_core::dogs::SECRET_KEY)
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
+        // The mark can sit on the property, on a `$ref` target, or on a
+        // field inside the value, and a row drawn whole as JSON shows all
+        // of it.
+        secret: holds_secret(schema, defs),
         editable,
         example,
         accepts: strings(init, "accepts"),
@@ -385,10 +387,38 @@ mod tests {
         assert!(!set.by_key("path").unwrap().secret);
     }
 
+    /// A row drawn whole as JSON shows every field inside its value, so a
+    /// mark anywhere in it masks the row: a nested struct's field, a leaf's
+    /// `$ref` target, an array's items (#630).
     #[test]
-    fn the_real_flockfile_schema_yields_forty_two_fields_in_eight_groups() {
+    fn a_secret_anywhere_in_a_value_masks_its_row() {
+        let defs = props(json!({
+            "Db": {
+                "type": "object",
+                "properties": {
+                    "host": { "type": "string" },
+                    "password": { "type": "string", "x-shep-secret": true },
+                },
+            },
+            "Token": { "type": "string", "x-shep-secret": true },
+        }));
+        let p = props(json!({
+            "db": { "$ref": "#/$defs/Db" },
+            "token": { "$ref": "#/$defs/Token" },
+            "replicas": { "type": "array", "items": { "$ref": "#/$defs/Db" } },
+            "name": { "type": "string" },
+        }));
+        let set = FieldSet::from_properties(&p, &defs, &[]);
+        for key in ["db", "token", "replicas"] {
+            assert!(set.by_key(key).unwrap().secret, "{key}");
+        }
+        assert!(!set.by_key("name").unwrap().secret);
+    }
+
+    #[test]
+    fn the_real_flockfile_schema_yields_forty_three_fields_in_eight_groups() {
         let set = real_field_set();
-        assert_eq!(set.len(), 42);
+        assert_eq!(set.len(), 43);
         assert_eq!(
             groups_of(&set),
             [

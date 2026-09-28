@@ -142,6 +142,12 @@ pub(super) const fn pane_hint(control: Control, screen: PaneScreen) -> &'static 
         (Control::Allowed, PaneScreen::List) => {
             "esc back   j/k select   g/G first/last   r refresh   e edit   d remove   K/J move   u undo   q quit"
         }
+        (Control::ReadOnly, PaneScreen::Dogs) => {
+            "esc back   j/k select   g/G first/last   r refresh   enter open   q quit"
+        }
+        (Control::Allowed, PaneScreen::Dogs) => {
+            "esc back   j/k select   g/G first/last   r refresh   enter open   d remove   q quit"
+        }
     }
 }
 
@@ -162,7 +168,7 @@ pub(super) const fn sheep_pane_hint(control: Control) -> &'static str {
     }
 }
 
-/// Which of the pane's two screens is up.
+/// Which of the pane's three screens is up.
 ///
 /// `Debug` is derived (IR-41): a bare variant name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -171,12 +177,16 @@ pub(super) enum PaneScreen {
     Fields,
     /// The list sub-screen.
     List,
+    /// The dogs sub-screen under a sheep's `dogs` row.
+    Dogs,
 }
 
 /// Which screen `pane` is showing.
 pub(super) fn pane_screen(pane: &ConfigPane) -> PaneScreen {
     if pane.list().is_some() {
         PaneScreen::List
+    } else if pane.dogs().is_some() {
+        PaneScreen::Dogs
     } else {
         PaneScreen::Fields
     }

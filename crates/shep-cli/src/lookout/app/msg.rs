@@ -310,6 +310,17 @@ pub enum Msg {
         /// The dog's schema, or why there is no pane for it.
         result: Result<serde_json::Value, String>,
     },
+    /// An [`Effect::LoadSheepDogs`] probe has answered: every dog this
+    /// shepherd knows, with its per-sheep schema where it publishes one.
+    /// Dropped unless the pane that asked is still up on that sheep.
+    SheepDogs {
+        /// The sheep whose `dogs` row asked.
+        sheep: String,
+        /// The [`Effect::LoadSheepDogs`] this answers.
+        ask: u64,
+        /// One entry per dog probed, in no particular order.
+        dogs: Vec<SheepDogEntry>,
+    },
     /// An [`Effect::WriteDog`] has landed. `Ok` carries the [`DogSource`] the
     /// write resolved, which [`Sent::Dog`] then rides to the shepherd, so the
     /// request cannot disagree with the file.
@@ -470,6 +481,19 @@ pub enum Effect {
         name: String,
         /// The adopted binary, or [`None`] for a built-in.
         adopted_path: Option<PathBuf>,
+    },
+    /// Probe every dog this shepherd knows for its per-sheep schema; the
+    /// answer lands as [`Msg::SheepDogs`]. Raised by `Enter` on a sheep
+    /// pane's `dogs` row.
+    ///
+    /// `spawn_blocking`, for [`Self::LoadDogPane`]'s reason, and every
+    /// adopted dog is asked at once, so the wait is the slowest one's. Asked
+    /// fresh each time and never stored, like a dog's own schema.
+    LoadSheepDogs {
+        /// The sheep whose `dogs` row asked.
+        sheep: String,
+        /// Which ask this is, carried back on the answer.
+        ask: u64,
     },
     /// Apply one dog's file half; the result lands as [`Msg::DogWritten`].
     ///

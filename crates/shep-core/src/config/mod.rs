@@ -16,7 +16,7 @@ pub mod probe;
 pub mod scaffold;
 pub mod template;
 
-pub use app::{AppConfig, ProbeConfig, ProbeKind};
+pub use app::{AppConfig, DogTable, ProbeConfig, ProbeKind};
 pub use apply::{ApplyGroup, ResetDepth, apply_group, reaches_running};
 pub use cron::{CronParseError, CronSchedule, CronScheduleError};
 pub use daemon::{DaemonConfig, DaemonConfigError, DaemonOverrides, LogLevel, parse_daemon_bool};

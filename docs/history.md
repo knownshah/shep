@@ -440,5 +440,19 @@ retype under the constant's own rule, not an addition, so it bumps on the
 same terms as the 4-to-5 move rather than skating past it. Restart the
 shepherd after upgrading to this one too.
 
+**A sheep carries a settings table per dog.** `AppConfig` gained `dogs`, one
+`[app.dogs.<name>]` table per dog, which shep stores and hands to that dog
+without reading it. A dog reads its tables with `DogSheepSettings` and hears a
+change on `config.sheep.<dog>`. `PROTOCOL_VERSION` moved to 10 and
+`MIN_SUPPORTED` stayed at 8, so no peer is refused.
+
+**Lookout can now edit a sheep's own dog table.** A dog publishes a schema
+for its `[app.dogs.<name>]` table with `probe_with_sheep`, under the
+`x-shep-sheep` key of its ordinary `--schema` answer. The sheep pane's
+`dogs` row opens a sub-screen listing every table by dog name, set, unset
+or read-only, and Enter on a set or unset one opens a pane over it, a
+nested table flattened into dotted rows and a secret drawn `<set>`. No
+wire change: `PROTOCOL_VERSION` stays at 10.
+
 Project memory (cross-session state) tracks decisions; docs above are the
 source of truth.

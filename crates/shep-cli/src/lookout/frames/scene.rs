@@ -166,6 +166,19 @@ pub enum Scene {
     /// The fresh pane at 88 columns: the panel is gone, so `LANDS` is
     /// back, since nothing else on screen carries cost.
     EditPaneNarrow,
+    /// A sheep config pane's `dogs` row, cursor parked on it: dog names only,
+    /// `jobs, legacy`, and the `\u{203a}` lock glyph, not yet opened.
+    SheepDogsRow,
+    /// `Enter` on the `dogs` row, probed and opened: `jobs` set, `deploy`
+    /// unset, `legacy` read-only, cursor on `jobs`.
+    SheepDogsList,
+    /// The same sub-screen with `jobs`'s table removal armed: the title
+    /// asks the question instead of naming the sheep.
+    SheepDogsRemove,
+    /// `Enter` on `jobs`: its table pane, dotted rows for the nested
+    /// `hours` and `models.worker` tables, `models.worker.token` drawn
+    /// `<set>`.
+    SheepDogTable,
     /// The close dialog at the design size: two edits filed, one field
     /// already parked, the box centred over the dimmed editing pane.
     CloseDialog,
@@ -254,6 +267,10 @@ impl Scene {
             Self::EditPaneEdited => "edit_pane_edited",
             Self::EditPaneSqueezed => "edit_pane_squeezed",
             Self::EditPaneNarrow => "edit_pane_narrow",
+            Self::SheepDogsRow => "sheep_dogs_row",
+            Self::SheepDogsList => "sheep_dogs_list",
+            Self::SheepDogsRemove => "sheep_dogs_remove",
+            Self::SheepDogTable => "sheep_dog_table",
             Self::CloseDialog => "close_dialog",
             Self::CloseDialogFloor => "close_dialog_floor",
             Self::CloseDialogNarrow => "close_dialog_narrow",
@@ -415,6 +432,18 @@ impl Scene {
             Self::EditPaneNarrow => {
                 "The same fresh pane at 88 columns: narrow enough that the explanation panel is gone, so LANDS is back, since nothing else on screen carries cost."
             }
+            Self::SheepDogsRow => {
+                "api's editing pane, cursor on its dogs row: jobs, legacy names the tables the sheep already carries, and the \u{203a} glyph is the only thing on the row saying Enter opens a screen rather than a value."
+            }
+            Self::SheepDogsList => {
+                "Enter on the dogs row, probed and opened: jobs carries a schema and a table (set), deploy carries a schema and no table (unset), and legacy carries a table no schema describes (read-only), so it names key names alone. The cursor is parked on jobs, the row this frame exists to show set."
+            }
+            Self::SheepDogsRemove => {
+                "The same sub-screen with jobs's table removal armed by d: the title asks remove api's jobs table? instead of naming the sheep, and any key but enter would cancel it."
+            }
+            Self::SheepDogTable => {
+                "Enter on jobs opens its table pane: dotted rows for the nested hours and models.worker tables, and models.worker.token, the one field jobs's schema marks secret, drawn <set> with no value on screen anywhere in the frame."
+            }
             Self::CloseDialog => {
                 "esc pressed with cwd and err_file edited and listen_timeout already parked from before: the close dialog names both counts, boxed and centred at 160x48 over the dimmed editing pane."
             }
@@ -575,6 +604,14 @@ impl Scene {
             // 88: short of `panel_width`'s `LEFT_MIN` floor (`88 - 50 <
             // 40`), so the panel does not draw at all and `LANDS` returns.
             Self::EditPaneNarrow => (88, 48),
+            // The editing pane's own design target: the dogs row, its
+            // sub-screen and the per-sheep table pane all sit inside that
+            // same pane, so they share its size rather than earning a
+            // narrower one of their own.
+            Self::SheepDogsRow
+            | Self::SheepDogsList
+            | Self::SheepDogsRemove
+            | Self::SheepDogTable => (160, 48),
             // 160: the design target. The box is 86 interior plus a border
             // cell each side, so (160 - 88) / 2 = 36 dimmed columns each
             // side of it.
@@ -677,6 +714,10 @@ impl Scene {
             | Self::EditPaneEdited
             | Self::EditPaneSqueezed
             | Self::EditPaneNarrow
+            | Self::SheepDogsRow
+            | Self::SheepDogsList
+            | Self::SheepDogsRemove
+            | Self::SheepDogTable
             | Self::CloseDialog
             | Self::CloseDialogFloor
             | Self::CloseDialogNarrow
@@ -705,7 +746,7 @@ mod tests {
     /// which is the form a reader sees.
     #[test]
     fn the_gallery_preamble_counts_the_scenes_it_has() {
-        const NUMBERS: [(usize, &str); 25] = [
+        const NUMBERS: [(usize, &str); 29] = [
             (34, "thirty-four"),
             (35, "thirty-five"),
             (36, "thirty-six"),
@@ -731,6 +772,10 @@ mod tests {
             (56, "fifty-six"),
             (57, "fifty-seven"),
             (58, "fifty-eight"),
+            (59, "fifty-nine"),
+            (60, "sixty"),
+            (61, "sixty-one"),
+            (62, "sixty-two"),
         ];
         let spelled = NUMBERS
             .iter()
@@ -839,7 +884,11 @@ mod tests {
             Scene::EditPane => Some(Scene::EditPaneEdited),
             Scene::EditPaneEdited => Some(Scene::EditPaneSqueezed),
             Scene::EditPaneSqueezed => Some(Scene::EditPaneNarrow),
-            Scene::EditPaneNarrow => Some(Scene::CloseDialog),
+            Scene::EditPaneNarrow => Some(Scene::SheepDogsRow),
+            Scene::SheepDogsRow => Some(Scene::SheepDogsList),
+            Scene::SheepDogsList => Some(Scene::SheepDogsRemove),
+            Scene::SheepDogsRemove => Some(Scene::SheepDogTable),
+            Scene::SheepDogTable => Some(Scene::CloseDialog),
             Scene::CloseDialog => Some(Scene::CloseDialogFloor),
             Scene::CloseDialogFloor => Some(Scene::CloseDialogNarrow),
             Scene::CloseDialogNarrow => Some(Scene::CloseDialogParked),

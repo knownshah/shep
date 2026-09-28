@@ -118,11 +118,22 @@ pub(super) fn kind_of(schema: &Value, defs: &Map<String, Value>) -> FieldKind {
             Some("integer") => FieldKind::List(ListItem::Integer),
             _ => FieldKind::Opaque,
         },
+        // A map of scalars, like `env`, is `Map`; a map of tables, like
+        // `dogs`, is `additionalProperties` naming a schema with its own
+        // `object` type, direct or through a `$ref`, and stays read-only:
+        // `kind_of` has no editor for a value that is itself a table.
         Some("object")
             if schema.get("additionalProperties").is_some()
                 && schema.get("properties").is_none() =>
         {
-            FieldKind::Map
+            match schema
+                .get("additionalProperties")
+                .map(|additional| resolve(additional, defs))
+                .and_then(type_of)
+            {
+                Some("object") => FieldKind::Opaque,
+                _ => FieldKind::Map,
+            }
         }
         _ => FieldKind::Opaque,
     }
@@ -140,12 +151,98 @@ pub(super) fn render_default(value: Option<&Value>) -> Option<String> {
     }
 }
 
+/// Whether `schema` itself carries the secret marker.
+pub(super) fn marked(schema: &Value) -> bool {
+    schema
+        .get(shep_core::dogs::SECRET_KEY)
+        .and_then(Value::as_bool)
+        == Some(true)
+}
+
+/// Whether `schema` or anything it reaches, through a `$ref` or any nested
+/// keyword, carries the secret marker.
+pub(super) fn holds_secret(schema: &Value, defs: &Map<String, Value>) -> bool {
+    reaches_secret(schema, defs, &mut Vec::new())
+}
+
+/// [`holds_secret`]'s walk. `seen` holds the `$defs` names already
+/// followed, so a type that holds itself is read once.
+fn reaches_secret<'a>(
+    schema: &'a Value,
+    defs: &'a Map<String, Value>,
+    seen: &mut Vec<&'a str>,
+) -> bool {
+    match schema {
+        Value::Object(map) => {
+            if marked(schema) {
+                return true;
+            }
+            let target = map
+                .get("$ref")
+                .and_then(Value::as_str)
+                .and_then(|r| r.strip_prefix("#/$defs/"));
+            if let Some(name) = target
+                && !seen.contains(&name)
+            {
+                seen.push(name);
+                if defs
+                    .get(name)
+                    .is_some_and(|def| reaches_secret(def, defs, seen))
+                {
+                    return true;
+                }
+            }
+            map.values().any(|value| reaches_secret(value, defs, seen))
+        }
+        Value::Array(items) => items.iter().any(|item| reaches_secret(item, defs, seen)),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::FieldSet;
     use super::super::fixtures::{props, real_field_set};
     use super::*;
     use serde_json::json;
+
+    /// The mark is found on the property, through one `$ref` and two,
+    /// under an array's items, and not where there is none. A type that
+    /// holds itself, and a `$ref` to a missing definition, both end the
+    /// walk rather than recurse or fault.
+    #[test]
+    fn holds_secret_finds_the_mark_wherever_the_value_reaches() {
+        let defs = props(json!({
+            "Token": { "type": "string", "x-shep-secret": true },
+            "Creds": { "type": "object", "properties": { "token": { "$ref": "#/$defs/Token" } } },
+            "Node": { "type": "object", "properties": { "next": { "$ref": "#/$defs/Node" } } },
+            "Plain": { "type": "object" },
+        }));
+        let secret = |schema: Value| holds_secret(&schema, &defs);
+        assert!(secret(json!({ "type": "string", "x-shep-secret": true })));
+        assert!(
+            secret(json!({
+                "type": "object",
+                "properties": { "key": { "type": "string", "x-shep-secret": true } },
+            })),
+            "inline, no $ref"
+        );
+        assert!(secret(json!({ "$ref": "#/$defs/Token" })));
+        assert!(secret(json!({ "$ref": "#/$defs/Creds" })), "two hops");
+        assert!(
+            secret(json!({
+                "$ref": "#/$defs/Plain",
+                "properties": { "key": { "type": "string", "x-shep-secret": true } },
+            })),
+            "a plain $ref does not end the walk"
+        );
+        assert!(secret(
+            json!({ "type": "array", "items": { "$ref": "#/$defs/Creds" } })
+        ));
+        assert!(!secret(json!({ "type": "string" })));
+        assert!(!secret(json!({ "$ref": "#/$defs/Node" })), "a loop ends");
+        assert!(!secret(json!({ "$ref": "#/$defs/Missing" })));
+    }
 
     #[test]
     fn a_bool_an_integer_and_a_string_get_their_kinds() {
@@ -254,6 +351,26 @@ mod tests {
             FieldKind::Opaque
         );
         assert!(!set.by_key("liveness_probe").unwrap().editable);
+    }
+
+    /// A map whose values are themselves objects, like `dogs`, is not
+    /// `env`'s string-map editor: `additionalProperties` names a schema
+    /// with its own `type`, direct or through a `$ref`, rather than
+    /// `{type: string}` or `env`'s `anyOf` of scalars.
+    #[test]
+    fn a_map_of_tables_is_opaque_not_a_string_map() {
+        let p = props(json!({
+            "dogs": {
+                "type": "object",
+                "additionalProperties": { "$ref": "#/$defs/DogTable" },
+            },
+        }));
+        let d = props(json!({
+            "DogTable": { "type": "object", "additionalProperties": true },
+        }));
+        let set = FieldSet::from_properties(&p, &d, &[]);
+        assert_eq!(set.by_key("dogs").unwrap().kind, FieldKind::Opaque);
+        assert!(!set.by_key("dogs").unwrap().editable);
     }
 
     #[test]

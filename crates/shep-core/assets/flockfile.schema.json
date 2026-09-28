@@ -200,6 +200,31 @@
             "type": "string"
           }
         },
+        "dogs": {
+          "description": "One table per dog, keyed by dog name, for this sheep alone.\n\nshep stores this and hands it to the dog it names. It is never read\nor validated here. A dog name need not be one shep already knows:\nconfiguring a dog before installing it is the order an operator\nwants. Never read by the daemon at a spawn or a decision, so a write\ntakes effect the moment it lands.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/DogTable"
+          },
+          "default": {},
+          "init": {
+            "accepts": [
+              "a table of dog name to a table of settings",
+              "a dog name shep does not know about yet"
+            ],
+            "blurb": "Settings for one dog on this sheep alone, opaque to shep",
+            "example": {
+              "jobs": {
+                "concurrency": 2
+              }
+            },
+            "group": "inputs",
+            "refuses": [
+              "a value that is not a table",
+              "an empty dog name"
+            ]
+          }
+        },
         "env": {
           "description": "Environment for the sheep (merged over the daemon's filtered env).\n\nA value may arrive as a string, a bare boolean, or a bare whole\nnumber (`SOME_BOOL = true`, `PORT = 8080`), and leaves as a string\neither way, so this field stays `BTreeMap<String, String>` and the\nwire always carries strings. A float is refused: `1.10` would reach\nthe process as `1.1`. YAML resolves an unquoted `yes` to `\"true\"`\nand `0x1F` to `\"31\"`, so quote a value whose text must survive.",
           "type": "object",
@@ -839,6 +864,11 @@
         }
       },
       "additionalProperties": false
+    },
+    "DogTable": {
+      "description": "A dog's own settings for this sheep. shep stores it and never reads a key inside.",
+      "type": "object",
+      "additionalProperties": true
     },
     "LevelRule": {
       "description": "One rule: the lines this pattern matches carry this level.\n\nThe pattern is a regex, matched against the whole line, exactly as\nwritten: `(?i)` makes one case-insensitive, and nothing is anchored for\nyou.",

@@ -24,8 +24,10 @@ default = ["schema"]
 #
 # `shep-core/schema` carries the `JsonSchema` impls for `MemSize` and
 # `UpDuration`, which a dog's config type reaches through this crate's
-# `pub use shep_core` and cannot derive against without them.
-schema = ["dep:schemars", "dep:serde_json", "shep-core/schema"]
+# `pub use shep_core` and cannot derive against without them. `serde_json`
+# is not listed here: `dogs::parse_sheep_settings` needs it unconditionally,
+# not only under this feature.
+schema = ["dep:schemars", "shep-core/schema"]
 
 # Option: expose `testing` (the hand-rolled daemon fakes) to other crates'
 # tests. Off by default, since it is test scaffolding, not public API.
@@ -64,12 +66,16 @@ shep-core.workspace = true
 # dog author hand-types, and it writes the mark into the field's own
 # attributes rather than needing schemars itself.
 shep-macros.workspace = true
-# Both behind `schema`. `dogs::config_schema` generates a dog's schema, marks
+# `dogs::parse_sheep_settings` deserializes a `DogTable` into a dog's own
+# settings type, unconditionally: not folded into `schema`, which is only
+# schemars generation.
+serde.workspace = true
+serde_json.workspace = true
+# Behind `schema`. `dogs::config_schema` generates a dog's schema, marks
 # and all, since the attribute put them on the fields; `probe` prints the
 # result. schemars is workspace-pinned and already in the tree
 # through shep-core and whistle, so this adds an edge rather than a crate.
 schemars = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["net", "rt", "time", "sync", "macros"] }
 tokio-util.workspace = true
 tokio-stream.workspace = true   # wrappers::BroadcastStream, for the event-bus subscription stream

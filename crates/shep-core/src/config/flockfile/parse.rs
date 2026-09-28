@@ -102,6 +102,52 @@ mod tests {
         assert!(result.is_err(), "alias bomb must not produce a valid flock");
     }
 
+    /// A dog's per-sheep table parses in every format, nested tables
+    /// included, and lands on the app's own `dogs` field.
+    #[test]
+    fn a_dogs_table_parses_in_every_format() {
+        let cases: [(FlockFormat, &str); 4] = [
+            (
+                FlockFormat::Toml,
+                "[[app]]\nname = \"web\"\nscript = \"./srv\"\n\n[app.dogs.jobs]\nconcurrency = 2\n\n[app.dogs.jobs.hours]\nstart = \"09:00\"\n",
+            ),
+            (
+                FlockFormat::Yaml,
+                "app:\n  - name: web\n    script: ./srv\n    dogs:\n      jobs:\n        concurrency: 2\n        hours:\n          start: '09:00'\n",
+            ),
+            (
+                FlockFormat::Json,
+                r#"{"app":[{"name":"web","script":"./srv","dogs":{"jobs":{"concurrency":2,"hours":{"start":"09:00"}}}}]}"#,
+            ),
+            (
+                FlockFormat::Json5,
+                "{ app: [{ name: \"web\", script: \"./srv\", dogs: { jobs: { concurrency: 2, hours: { start: \"09:00\" } } } }] }",
+            ),
+        ];
+        for (format, text) in cases {
+            let flock = Flockfile::parse(text, format)
+                .unwrap_or_else(|e| panic!("{format:?} refused a dogs table: {e}"));
+            let table = flock.apps[0]
+                .dogs
+                .get("jobs")
+                .unwrap_or_else(|| panic!("{format:?}: no jobs table"));
+            assert_eq!(
+                table.as_map().get("concurrency"),
+                Some(&serde_json::json!(2)),
+                "{format:?}"
+            );
+            let hours = table
+                .as_map()
+                .get("hours")
+                .and_then(serde_json::Value::as_object);
+            assert_eq!(
+                hours.and_then(|h| h.get("start")),
+                Some(&serde_json::json!("09:00")),
+                "{format:?}"
+            );
+        }
+    }
+
     /// A raw boolean or number anywhere under `env` reads as its string form,
     /// in every format. This is the format-dispatch half of the coercion:
     /// the `deserialize_with` on `AppConfig::env` is the one code path, so a

@@ -316,10 +316,13 @@ impl ConfigPane {
     ///   own compiled default. Filing the schema default there instead
     ///   would hard-code it into the section rather than restoring it, so a
     ///   dog always gets [`Value::Null`], regardless of the field's default.
+    /// - A dog's table on a sheep is the same case: `null` removes the leaf
+    ///   from the table, and the dog applies its own default when it reads
+    ///   the table back.
     fn default_for(&self, field: &Field) -> Value {
         match &self.target {
             PaneTarget::Sheep { .. } => field.default_value.clone().unwrap_or(Value::Null),
-            PaneTarget::Dog { .. } => Value::Null,
+            PaneTarget::Dog { .. } | PaneTarget::SheepDog { .. } => Value::Null,
         }
     }
 
@@ -331,14 +334,17 @@ impl ConfigPane {
     /// cannot answer this for it; [`Self::is_overridden`] is the fact that
     /// can. A dog's `values` is the raw section text with no defaults
     /// merged in, so an absent or `null` key already means default there,
-    /// which is exactly what [`Self::stored_value_is`] checks.
+    /// which is exactly what [`Self::stored_value_is`] checks. A dog's table
+    /// on a sheep is read the same raw way.
     fn field_shows_default(&self, key: &str) -> bool {
         if self.edits.get(&EditKey::Field(key.to_owned())).is_some() {
             return false;
         }
         match &self.target {
             PaneTarget::Sheep { .. } => !self.is_overridden(key),
-            PaneTarget::Dog { .. } => self.stored_value_is(key, &Value::Null),
+            PaneTarget::Dog { .. } | PaneTarget::SheepDog { .. } => {
+                self.stored_value_is(key, &Value::Null)
+            }
         }
     }
 

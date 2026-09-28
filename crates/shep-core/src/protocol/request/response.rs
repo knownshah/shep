@@ -1,6 +1,10 @@
 //! [`Response`], one variant per request kind, and the host reading one of them carries.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
+
+use crate::config::DogTable;
 
 use super::{
     ActionReply, DogSectionToml, LineReply, ProcessInfo, SheepApplied, SheepConfigView, SheepDrift,
@@ -10,7 +14,7 @@ use super::{
 // Named by intra-doc links and by nothing rustc compiles, so the
 // import is behind `cfg(doc)` rather than flagged unused.
 #[cfg(doc)]
-use super::{Request, sort_flock};
+use super::{Request, RpcErrorCode, sort_flock};
 #[cfg(doc)]
 use crate::config::AppConfig;
 
@@ -189,6 +193,32 @@ pub enum Response {
         /// field existed, so `PROTOCOL_VERSION` does not move for it.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         warning: Option<String>,
+    },
+    /// Answer to `DogSheepSettings`: one dog's table from every sheep
+    /// carrying one.
+    ///
+    /// Empty rather than absent for a sheep naming no table, and empty
+    /// rather than [`RpcErrorCode::NotFound`] for a dog nobody names: a
+    /// dog asks this on its own name, which is never missing the way a
+    /// sheep selector can be.
+    ///
+    /// A table's values never print in a `{:?}` of this reply the way they
+    /// never print in [`AppConfig`]'s own (IR-41): [`DogTable`]'s manual
+    /// `Debug` carries that redaction wherever it rides.
+    DogSheepSettings {
+        /// Sheep name to that sheep's table for this dog.
+        tables: BTreeMap<String, DogTable>,
+    },
+    /// Answer to `SetSheepDogSettings`: which sheep and dog moved.
+    ///
+    /// Names only, like [`Self::SheepEnvSet`] and [`Self::DogConfigSet`]:
+    /// the table just written is the caller's own, so echoing it back
+    /// would put it on the wire a second time for no reader (IR-41).
+    SheepDogSettingsSet {
+        /// The sheep.
+        name: String,
+        /// The dog whose table moved.
+        dog: String,
     },
     /// Answer to `SetDogConfig`: the section was written and the topic
     /// published.
@@ -803,8 +833,43 @@ mod tests {
                 id: 42,
                 result: Ok(Response::HostUsage(None)),
             },
+            // Two sheep, one table each, so this row proves a dog reads
+            // more than one sheep's table from a single answer. The table
+            // itself repeats `SetSheepDogSettings`'s own two keys, one
+            // nested, so both rides through this enum agree on the shape.
+            Reply {
+                id: 43,
+                result: Ok(Response::DogSheepSettings {
+                    tables: BTreeMap::from([
+                        (
+                            "web".to_string(),
+                            DogTable::from(serde_json::Map::from_iter([
+                                ("concurrency".to_string(), serde_json::json!(2)),
+                                (
+                                    "hours".to_string(),
+                                    serde_json::json!({ "start": "09:00:00" }),
+                                ),
+                            ])),
+                        ),
+                        (
+                            "worker".to_string(),
+                            DogTable::from(serde_json::Map::from_iter([(
+                                "concurrency".to_string(),
+                                serde_json::json!(1),
+                            )])),
+                        ),
+                    ]),
+                }),
+            },
+            Reply {
+                id: 44,
+                result: Ok(Response::SheepDogSettingsSet {
+                    name: "web".to_string(),
+                    dog: "jobs".to_string(),
+                }),
+            },
         ];
-        insta::assert_json_snapshot!("reply_wire_v9", replies);
+        insta::assert_json_snapshot!("reply_wire_v10", replies);
     }
 
     /// The additive claim on `SheepFieldSet::warning` has three halves and

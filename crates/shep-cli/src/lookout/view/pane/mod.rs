@@ -13,12 +13,13 @@
 //! separators: sixteen lines of chrome before a marker is paid for.
 //!
 //! `layout` holds the width budget, `field_row` one row, and `chrome`,
-//! `env`, `list` and `panel` the regions around them. `body` decides which
-//! rows fit, `draw` assembles the pane, `close` is the dialog over it.
+//! `env`, `list`, `dogs` and `panel` the regions around them. `body` decides
+//! which rows fit, `draw` assembles the pane, `close` is the dialog over it.
 
 mod body;
 mod chrome;
 pub(super) mod close;
+mod dogs;
 mod draw;
 mod env;
 mod field_row;

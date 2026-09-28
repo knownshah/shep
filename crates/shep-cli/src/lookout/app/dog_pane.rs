@@ -4,6 +4,35 @@
 use super::*;
 
 impl App {
+    /// A dog's schema probe answered. `Ok` parks the schema and asks the
+    /// shepherd for the section; the pane is built once that lands. `Err`
+    /// gets no pane, and the refusal names the file to edit instead. The
+    /// settings screen stays open until then.
+    pub(super) fn on_dog_pane(
+        &mut self,
+        name: String,
+        adopted_path: Option<PathBuf>,
+        result: Result<serde_json::Value, String>,
+    ) -> Effect {
+        match result {
+            Ok(schema) => {
+                self.dog_target = Some(DogProbe {
+                    name: name.clone(),
+                    adopted_path,
+                    schema,
+                });
+                Effect::Send(Sent::DogSection { name })
+            }
+            Err(message) => {
+                self.notice = Some(Notice {
+                    text: message,
+                    grave: true,
+                });
+                Effect::None
+            }
+        }
+    }
+
     /// One `Request::DogConfig` reply: the dog's section, which is the
     /// second half of an open.
     ///

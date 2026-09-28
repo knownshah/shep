@@ -187,6 +187,15 @@ fn field_row_line(
 /// [`ConfigPane::display_value`](crate::lookout::pane::ConfigPane::display_value)
 /// draws for the same field.
 fn field_value_text(fields: &FieldSet, field: &Field, values: &Map<String, Value>) -> String {
+    // Names only: a table's secrets are marked by a schema this column
+    // never holds. No tables is still `(default)`, below.
+    let dogs = (field.key == "dogs").then(|| values.get("dogs")).flatten();
+    if dogs
+        .and_then(Value::as_object)
+        .is_some_and(|tables| !tables.is_empty())
+    {
+        return pane::dog_names(dogs);
+    }
     let raw = match values.get(&field.key) {
         None | Some(Value::Null) => return "(unset)".to_owned(),
         Some(Value::String(text)) => text.clone(),
@@ -579,6 +588,25 @@ mod tests {
         let mut values = Map::new();
         values.insert("webhook".to_owned(), Value::String("hunter2".to_owned()));
         assert_eq!(field_value_text(&fields, &field, &values), "<set>");
+    }
+
+    /// A dog's table can hold a credential, and only the dog's own schema
+    /// says which field, so the column names the dogs and stops there.
+    #[test]
+    fn the_dogs_row_names_the_dogs_and_never_a_value() {
+        let mut config = shep_core::config::AppConfig {
+            name: "web".into(),
+            ..Default::default()
+        };
+        let (fields, values) = pane::sheep_fields(&config);
+        let dogs = fields.by_key("dogs").expect("dogs is a field");
+        assert_eq!(field_value_text(&fields, dogs, &values), "(default)");
+        let table = serde_json::json!({ "token": "sk-live-51Hx9Qa" });
+        let table = table.as_object().cloned().expect("a table");
+        config.dogs.insert("jobs".into(), table.into());
+        let (fields, values) = pane::sheep_fields(&config);
+        let dogs = fields.by_key("dogs").expect("dogs is a field");
+        assert_eq!(field_value_text(&fields, dogs, &values), "jobs");
     }
 
     /// The regression Tasks 7 and 8 both shipped once each: a pane pinned to

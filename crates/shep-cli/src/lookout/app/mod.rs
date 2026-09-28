@@ -23,7 +23,7 @@
 //!   raises on its way out.
 //! - A screen apiece: [`settings`], [`secrets_pane`], [`config_pane`],
 //!   [`sheep_pane`], [`bleats`], [`dog_pane`], and the sub-screens in
-//!   [`pane_list`].
+//!   [`pane_list`] and [`pane_dogs`].
 
 use core::fmt;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
@@ -31,7 +31,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use shep_client::RequestError;
-use shep_core::config::LogLevel;
+use shep_core::config::{DogTable, LogLevel};
 use shep_core::protocol::{
     BusEvent, DogSectionToml, DogSource, EnvValue, Lamb, ProcessEventKind, ProcessInfo, Request,
     Response, SelectorSpec, SheepConfigView, SheepRefusal,
@@ -41,7 +41,10 @@ use shep_core::status::ProcStatus;
 
 use super::field::{FieldKind, FieldSet};
 use super::level::{Classifier, Level};
-use super::pane::{ConfigPane, FieldValue, Lock, PaneEdit, PaneRow, PaneTarget, ReloadKind};
+use super::pane::{
+    ConfigPane, DogTableState, DogsPane, FieldValue, Lock, PaneEdit, PaneRow, PaneTarget,
+    ReloadKind, SheepDogEntry,
+};
 use super::pane_bleats::BleatsPane;
 use super::pane_sheep::SheepPane;
 use super::secrets::{SecretRow, SecretsModel, Source};
@@ -61,6 +64,7 @@ mod dog_pane;
 mod keys;
 mod lambs;
 mod msg;
+mod pane_dogs;
 mod pane_list;
 mod read;
 mod rows;
@@ -145,6 +149,11 @@ pub struct App {
     /// settings screen's one edit. Monotonic and never reused, so a reply
     /// can only name the write it belongs to.
     next_write_ticket: u64,
+    /// The newest [`Effect::LoadSheepDogs`] asked. Only its own answer may
+    /// open the dogs sub-screen: two quick `Enter`s ask twice, and the
+    /// older answer landing after the list closed would reopen it. Closing
+    /// the pane moves it on too, so no answer outlives the pane that asked.
+    sheep_dogs_ask: u64,
     link: Link,
     notice: Option<Notice>,
     palette: Palette,

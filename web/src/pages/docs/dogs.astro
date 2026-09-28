@@ -203,6 +203,22 @@ boot_first_dogs = ["log-rotate"]`}</CodeBlock>
       re-reads it: a fresh process asking a fresh question.
     </Callout>
 
+    <h2 id="three-places-a-dogs-config-can-live">Three places a dog's config can live</h2>
+    <p>
+      <code>[&lt;name&gt;]</code> in <code>dogs.toml</code>, above, is the
+      dog's own settings. A sheep's Flockfile entry can also carry{" "}
+      <code>[app.dogs.&lt;name&gt;]</code>, one table per dog for that sheep
+      alone: shep stores it and hands it to the dog it names, reading
+      nothing inside. See <a href="/docs/writing-a-dog#reading-a-sheep-s-own-table">reading
+      a sheep's own table</a> for how a dog gets it.
+    </p>
+    <p>
+      A third place, <code>[dog.&lt;name&gt;]</code> at the top level of a
+      Flockfile, is read and discarded: shep parses it so the file still
+      loads, but keeps nothing from it. It exists for a dog that reads its
+      own Flockfile directly rather than asking shep for a section.
+    </p>
+
     <details>
       <summary>Live updates without a restart</summary>
     <p>

@@ -303,6 +303,54 @@ env = { DB_HOST = "", NODE_ENV = "production" }
         );
     }
 
+    /// `dogs` takes a table per dog, not a bare value: `[app.dogs]` naming
+    /// a dog with a non-table value must be refused. `DogTable`'s own
+    /// refusal is field-agnostic (it does not know it is ever named
+    /// `dogs`), so what this proves is that the backend surfaces the
+    /// refusal rather than swallowing it, quoting the offending line.
+    #[test]
+    fn a_dogs_entry_that_is_not_a_table_is_refused() {
+        let err = Flockfile::parse(
+            "[[app]]\nname = \"web\"\nscript = \"./srv\"\n[app.dogs]\njobs = 5\n",
+            FlockFormat::Toml,
+        )
+        .expect_err("a bare value under dogs must be refused");
+        let FlockfileError::Toml(message) = err else {
+            panic!("expected Toml, got {err:?}");
+        };
+        assert!(
+            message.contains("table"),
+            "the refusal must say why: {message}"
+        );
+        assert!(
+            message.contains("jobs = 5"),
+            "the refusal must quote the offending line: {message}"
+        );
+    }
+
+    /// The top-level `dogs` key does not exist: only `[app.dogs.<name>]`,
+    /// nested under an app, does. A top-level `[dogs.jobs]` must fail the
+    /// same way `[build]` already does.
+    ///
+    /// `RawFlockfile` refuses this through its own `deny_unknown_fields`,
+    /// which the backend's derived `Deserialize` enforces directly rather
+    /// than through the `serde_ignored` callback `UnknownKeys` collects
+    /// from: unlike a typo inside an app, this key is refused before
+    /// `RawFlockfile` is ever fully built, so the error is the backend's
+    /// own rather than `FlockfileError::UnknownKeys`.
+    #[test]
+    fn a_top_level_dogs_table_is_refused_naming_the_key() {
+        let err = Flockfile::parse(
+            "[dogs.jobs]\nconcurrency = 2\n\n[[app]]\nname = \"web\"\nscript = \"./srv\"\n",
+            FlockFormat::Toml,
+        )
+        .expect_err("a top-level dogs table is not app.dogs and must be refused");
+        assert!(
+            err.to_string().contains("dogs"),
+            "the refusal must name the key: {err}"
+        );
+    }
+
     /// The design goal is one refusal naming every typo, not one refusal
     /// per run. Two misspelled keys in one document must both show up in
     /// the single [`FlockfileError::UnknownKeys`] this produces.

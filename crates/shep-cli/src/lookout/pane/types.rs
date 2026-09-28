@@ -17,14 +17,14 @@ use super::ConfigPane;
 
 /// Which thing the pane is editing.
 ///
-/// Two things, and they are not the same shape of edit. A sheep's config is
-/// shep's own document, so shep knows what every field costs; a dog's
-/// section belongs to the dog, so shep publishes the change and the dog
+/// Three targets, two shapes of edit. A sheep's config is shep's own document, so shep
+/// knows what every field costs; a dog's section, and a dog's table on a
+/// sheep, belong to the dog, so shep publishes the change and the dog
 /// decides what to reload, which is what [`ConfigPane::cost`]'s [`Option`]
 /// is for.
 ///
-/// `Debug` is derived (IR-41): a name and a binary's path, neither of which
-/// is a value the pane withholds. A dog's section can carry a credential and
+/// `Debug` is derived (IR-41): names and a binary's path, none of them a
+/// value the pane withholds. A section or a table can carry a credential and
 /// is held on [`ConfigPane`] instead, behind that type's own redacted
 /// `Debug`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,23 +44,33 @@ pub enum PaneTarget {
         /// opened on.
         adopted_path: Option<PathBuf>,
     },
+    /// One dog's `[app.dogs.<dog>]` table on one sheep. The sheep owns the
+    /// table, so [`Self::name`] is the sheep's; the dog owns its schema.
+    SheepDog {
+        /// The sheep carrying the table.
+        sheep: String,
+        /// The dog the table is for.
+        dog: String,
+    },
 }
 
 impl PaneTarget {
-    /// The target's name.
+    /// The target's name: the sheep's, for a dog's table on a sheep.
     #[must_use]
     pub fn name(&self) -> &str {
         match self {
             Self::Sheep { name } | Self::Dog { name, .. } => name,
+            Self::SheepDog { sheep, .. } => sheep,
         }
     }
 }
 
-/// Why a row cannot be edited from the pane.
+/// Why a row cannot be edited in place.
 ///
-/// Two different facts, and an operator has to be able to tell them apart:
-/// one says the field is beyond editing anywhere, the other says only that
-/// this screen has no widget for its shape and a Flockfile still can.
+/// Three different facts, and an operator has to be able to tell them
+/// apart: one says the field is beyond editing anywhere, one says only
+/// that this screen has no widget for its shape and a Flockfile still can,
+/// and one says the row opens a screen of its own for the editing.
 /// Collapsing them into `Field::editable` alone is what made six rows claim
 /// the wrong one.
 ///
@@ -75,6 +85,9 @@ pub enum Lock {
     /// `shep start <Flockfile>` writes these perfectly well, and
     /// [`ConfigPane::cost`] still reports what doing so would cost.
     NoWidget,
+    /// The row opens a screen of its own rather than editing in place: a
+    /// sheep's `dogs` row, whose tables `enter` lists one dog at a time.
+    SubScreen,
 }
 
 /// One row of the pane.

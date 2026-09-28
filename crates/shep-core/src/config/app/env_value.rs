@@ -159,6 +159,11 @@ mod tests {
                     "EnvValue's Deserialize, before normalize sees the table",
                 ),
                 (
+                    "dogs",
+                    "a value that is not a table",
+                    "DogTable's Deserialize, before normalize sees the table",
+                ),
+                (
                     "group",
                     "a name with no group entry",
                     "shep-daemon's privilege::resolve, at spawn",

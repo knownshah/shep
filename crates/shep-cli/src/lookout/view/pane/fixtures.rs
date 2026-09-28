@@ -56,6 +56,31 @@ pub(super) fn secret_list_dog_pane() -> ConfigPane {
     pane.open_list();
     pane
 }
+/// A dog whose `db` table holds an `x-shep-secret` field one level down,
+/// cursor on `db`, so both the row and the panel beside it draw the table.
+pub(super) fn nested_secret_dog_pane() -> ConfigPane {
+    let schema = serde_json::json!({
+        "properties": { "db": { "$ref": "#/$defs/Db" } },
+        "$defs": {
+            "Db": {
+                "type": "object",
+                "properties": {
+                    "host": { "type": "string" },
+                    "password": { "type": "string", "x-shep-secret": true },
+                },
+            },
+        },
+    });
+    let mut pane = ConfigPane::dog(
+        "watch".into(),
+        None,
+        schema,
+        "[db]\nhost = \"h\"\npassword = \"ab12cd34\"\n".into(),
+    );
+    pane.move_to_key("db");
+    pane
+}
+
 /// A dog whose one string field is `x-shep-secret`, edited once. No
 /// Flockfile field is secret today, but a dog's schema can mark one,
 /// and the pending-edits section has to mask it the same way
