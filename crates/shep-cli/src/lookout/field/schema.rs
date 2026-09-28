@@ -219,6 +219,13 @@ mod tests {
         }));
         let secret = |schema: Value| holds_secret(&schema, &defs);
         assert!(secret(json!({ "type": "string", "x-shep-secret": true })));
+        assert!(
+            secret(json!({
+                "type": "object",
+                "properties": { "key": { "type": "string", "x-shep-secret": true } },
+            })),
+            "inline, no $ref"
+        );
         assert!(secret(json!({ "$ref": "#/$defs/Token" })));
         assert!(secret(json!({ "$ref": "#/$defs/Creds" })), "two hops");
         assert!(secret(
