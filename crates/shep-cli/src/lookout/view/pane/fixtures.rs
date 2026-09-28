@@ -56,7 +56,7 @@ pub(super) fn secret_list_dog_pane() -> ConfigPane {
     pane.open_list();
     pane
 }
-/// A dog whose `db` table holds a `x-shep-secret` field one level down,
+/// A dog whose `db` table holds an `x-shep-secret` field one level down,
 /// cursor on `db`, so both the row and the panel beside it draw the table.
 pub(super) fn nested_secret_dog_pane() -> ConfigPane {
     let schema = serde_json::json!({
