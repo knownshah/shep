@@ -99,11 +99,7 @@ where
 /// before `main` opens anything.
 #[cfg(feature = "schema")]
 pub fn probe<T: DogConfig + schemars::JsonSchema>(name: &str, version: &str) {
-    match first_argument().as_deref() {
-        Some(VERSION_FLAG) => answer(&version_answer(name, version)),
-        Some(SCHEMA_FLAG) => answer(&schema_answer::<T>()),
-        _ => (),
-    }
+    probe_answering(name, version, schema_answer::<T>);
 }
 
 /// [`probe`], for a dog that also publishes a schema for its per-sheep
@@ -139,9 +135,16 @@ where
     T: DogConfig + schemars::JsonSchema,
     S: DogConfig + schemars::JsonSchema,
 {
+    probe_answering(name, version, schema_answer_with_sheep::<T, S>);
+}
+
+/// The body both probes share: answers the version or the schema flag,
+/// the schema rendered by `schema` only when it is asked for.
+#[cfg(feature = "schema")]
+fn probe_answering(name: &str, version: &str, schema: fn() -> String) {
     match first_argument().as_deref() {
         Some(VERSION_FLAG) => answer(&version_answer(name, version)),
-        Some(SCHEMA_FLAG) => answer(&schema_answer_with_sheep::<T, S>()),
+        Some(SCHEMA_FLAG) => answer(&schema()),
         _ => (),
     }
 }
