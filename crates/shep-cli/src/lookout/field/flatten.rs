@@ -18,7 +18,8 @@ use super::{Field, FieldKind, FieldSet};
 
 /// A per-sheep schema flattened into dotted rows.
 pub(crate) struct Flattened {
-    /// One row per leaf, in schema order, no groups.
+    /// One row per leaf, each table's properties in key order, depth
+    /// first, no groups.
     pub(crate) fields: FieldSet,
     /// The dotted display key each row was built under, to the real path
     /// of property names it came from. A property literally named `a.b`

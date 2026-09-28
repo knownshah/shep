@@ -46,7 +46,7 @@ impl ConfigPane {
     ///
     /// `schema` is the dog's `x-shep-sheep` answer with the root's `$defs`
     /// attached; `table` is what the sheep carries for it, empty for none.
-    /// Flat, in schema order, with no group headers, like [`Self::dog`].
+    /// Flat, in key order, with no group headers, like [`Self::dog`].
     #[must_use]
     pub fn sheep_dog(
         sheep: String,
