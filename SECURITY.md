@@ -21,7 +21,17 @@ credentials (`SO_PEERCRED` / `getpeereid`), THEN:
   Opt-in flags (e.g. `--with-env`) exist to reveal them explicitly; the
   default is always redacted.
 - Tokens, webhook URLs, and other secret-carrying config values are never
-  written to logs, `Debug` output, or RPC responses in plaintext.
+  written to logs or `Debug` output in plaintext. Over the socket they go
+  as written: a dog reads its own config and its per-sheep
+  `[app.dogs.<name>]` tables through RPC, and shep cannot tell a secret in
+  either from any other value without the dog's own schema.
+- The socket is the boundary, not the request. Anything that gets past it
+  is already running as the daemon's user, and can read `$SHEP_HOME`
+  directly. So the dog a request names (`DogSheepSettings`, `PutSecrets`)
+  is bookkeeping rather than authorization: any client can read any dog's
+  config and every sheep's tables, as it could from the files. Lookout
+  drawing a secret-marked field as `<set>` is display hygiene for
+  screenshots and screen shares, not a boundary either.
 
 These properties hold only while the preconditions hold. A daemon started as
 root, a runtime directory created with looser permissions, or a socket
