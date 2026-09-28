@@ -160,9 +160,14 @@ pub(super) fn marked(schema: &Value) -> bool {
 }
 
 /// Whether `schema` or anything it reaches, through a `$ref` or any nested
-/// keyword, carries the secret marker. `seen` holds the `$defs` names
-/// already followed, so a type that holds itself is read once.
-pub(super) fn holds_secret<'a>(
+/// keyword, carries the secret marker.
+pub(super) fn holds_secret(schema: &Value, defs: &Map<String, Value>) -> bool {
+    reaches_secret(schema, defs, &mut Vec::new())
+}
+
+/// [`holds_secret`]'s walk. `seen` holds the `$defs` names already
+/// followed, so a type that holds itself is read once.
+fn reaches_secret<'a>(
     schema: &'a Value,
     defs: &'a Map<String, Value>,
     seen: &mut Vec<&'a str>,
@@ -182,14 +187,14 @@ pub(super) fn holds_secret<'a>(
                 seen.push(name);
                 if defs
                     .get(name)
-                    .is_some_and(|def| holds_secret(def, defs, seen))
+                    .is_some_and(|def| reaches_secret(def, defs, seen))
                 {
                     return true;
                 }
             }
-            map.values().any(|value| holds_secret(value, defs, seen))
+            map.values().any(|value| reaches_secret(value, defs, seen))
         }
-        Value::Array(items) => items.iter().any(|item| holds_secret(item, defs, seen)),
+        Value::Array(items) => items.iter().any(|item| reaches_secret(item, defs, seen)),
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => false,
     }
 }
@@ -200,6 +205,29 @@ mod tests {
     use super::super::fixtures::{props, real_field_set};
     use super::*;
     use serde_json::json;
+
+    /// The mark is found on the property, through one `$ref` and two,
+    /// under an array's items, and not where there is none. A type that
+    /// holds itself, and a `$ref` to a missing definition, both end the
+    /// walk rather than recurse or fault.
+    #[test]
+    fn holds_secret_finds_the_mark_wherever_the_value_reaches() {
+        let defs = props(json!({
+            "Token": { "type": "string", "x-shep-secret": true },
+            "Creds": { "type": "object", "properties": { "token": { "$ref": "#/$defs/Token" } } },
+            "Node": { "type": "object", "properties": { "next": { "$ref": "#/$defs/Node" } } },
+        }));
+        let secret = |schema: Value| holds_secret(&schema, &defs);
+        assert!(secret(json!({ "type": "string", "x-shep-secret": true })));
+        assert!(secret(json!({ "$ref": "#/$defs/Token" })));
+        assert!(secret(json!({ "$ref": "#/$defs/Creds" })), "two hops");
+        assert!(secret(
+            json!({ "type": "array", "items": { "$ref": "#/$defs/Creds" } })
+        ));
+        assert!(!secret(json!({ "type": "string" })));
+        assert!(!secret(json!({ "$ref": "#/$defs/Node" })), "a loop ends");
+        assert!(!secret(json!({ "$ref": "#/$defs/Missing" })));
+    }
 
     #[test]
     fn a_bool_an_integer_and_a_string_get_their_kinds() {

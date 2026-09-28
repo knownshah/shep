@@ -283,7 +283,7 @@ fn field_from(key: &str, schema: &Value, defs: &Map<String, Value>) -> Field {
         // The mark can sit on the property, on a `$ref` target, or on a
         // field inside the value, and a row drawn whole as JSON shows all
         // of it.
-        secret: holds_secret(schema, defs, &mut Vec::new()),
+        secret: holds_secret(schema, defs),
         editable,
         example,
         accepts: strings(init, "accepts"),
