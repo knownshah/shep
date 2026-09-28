@@ -25,7 +25,7 @@ sys.path.insert(0, str(HERE))
 
 import compare  # noqa: E402
 
-# The 2026-09-14 figures, which is also what baseline.json was seeded from.
+# The 2026-09-14 figures, which is what baseline.json was first seeded from.
 SHEP = {
     "rss_kb": 17828,
     "cputime_derived_pct": 0.138,

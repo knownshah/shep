@@ -60,10 +60,11 @@ python3 benches/versus-pm2/compare.py check /tmp/shep-versus-pm2/versus-pm2-raw/
 
 What the three verdicts mean, and why pm2 is the control rather than the
 denominator, is at the top of `compare.py`. Each metric's threshold and the
-reason for it is in its `METRICS` table. The committed file was transcribed
-from the docs page's 2026-09-14 table rather than recorded, since that run's
-samples were never kept. Its `notes` say what that costs, and the first
-`--record` replaces it.
+reason for it is in its `METRICS` table. The committed file was recorded on
+2026-09-28 on an M4 Pro, plugged in. It replaced a seed transcribed from the
+docs page's 2026-09-14 table, whose pm2 figures did not reproduce: two runs
+that day put pm2's log cost at 6.5 us against the seed's 4.1, so three of the
+five gated metrics could never be judged against it.
 
 ## What it measures, and why each is fair
 

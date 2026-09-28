@@ -289,9 +289,13 @@ is not one. Commit the `git diff` of `baseline.json` with the reason in the
 message. A baseline is one machine's: on a different machine, record at the
 baseline's shep version there first, then check the new build against that.
 
-The committed file was transcribed from `from-pm2.astro`'s 2026-09-14 table,
-not recorded, because that run's samples were never kept. Its `notes` field
-says what that costs. The first `--record` replaces it.
+The committed file was recorded on 2026-09-28. The first one was transcribed
+from `from-pm2.astro`'s 2026-09-14 table, because that run's samples were
+never kept, and its pm2 figures did not reproduce: two runs on the same
+machine put pm2 at least 25% away on log cost and both starts, so `--check`
+could only ever answer "cannot judge" for those three. That is the control
+doing its job, and the reason a transcribed baseline is no substitute for a
+recorded one.
 
 **What nothing measures yet**, so a green `--check` says nothing about it:
 daemon boot on its own rather than inside a cold start, a round trip over the
