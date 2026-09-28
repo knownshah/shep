@@ -314,8 +314,9 @@ impl ConfigPane {
     /// `dog`'s table on this sheep, or an empty one when it carries none.
     #[must_use]
     pub(in crate::lookout) fn sheep_table(&self, dog: &str) -> Map<String, Value> {
-        self.sheep_tables()
-            .get(dog)
+        self.values
+            .get("dogs")
+            .and_then(|dogs| dogs.get(dog))
             .and_then(Value::as_object)
             .cloned()
             .unwrap_or_default()

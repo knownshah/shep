@@ -119,9 +119,9 @@ impl ConfigPane {
 
 /// Sets `value` at `path` inside `table`, or removes that leaf for `null`.
 ///
-/// A step on the path that holds something other than a table is replaced
-/// by one: the schema says a table lives there, and the edit is the
-/// operator's.
+/// A set replaces a step on the path that holds something other than a
+/// table with one: the schema says a table lives there, and the edit is the
+/// operator's. A removal through a step that is not a table does nothing.
 fn write_at(table: &mut Map<String, Value>, path: &[String], value: &Value) {
     let Some((leaf, parents)) = path.split_last() else {
         return;
