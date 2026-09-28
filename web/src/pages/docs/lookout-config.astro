@@ -586,9 +586,10 @@ esc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d b
     <CodeBlock label="jobs set, deploy unset, legacy read-only">{sheepDogsList}</CodeBlock>
     <p>
       Enter or <code>e</code> on a set or unset row opens that dog's table
-      over the sheep, refusing first if the sheep pane holds edits and
-      naming <code>esc</code> to clear them. <code>Esc</code> on the
-      sub-screen goes back to the sheep pane.
+      over the sheep. It refuses while the sheep pane holds unwritten
+      edits: <code>Esc</code> goes back to the sheep pane, where{" "}
+      <code>u</code> undoes them one at a time and a second{" "}
+      <code>Esc</code> writes them.
     </p>
     <p>
       A nested struct in the schema becomes dotted rows here,{" "}

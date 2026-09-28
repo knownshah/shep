@@ -148,7 +148,9 @@ impl App {
         };
         if !pane.edits().is_empty() {
             self.notice = Some(Notice {
-                text: format!("{sheep} has unwritten edits; esc writes them before {dog} opens"),
+                text: format!(
+                    "{sheep} has unwritten edits: esc back to its pane to write or undo them before {dog} opens"
+                ),
                 grave: true,
             });
             return Effect::None;
@@ -512,7 +514,10 @@ mod tests {
         assert!(matches!(pane.target(), PaneTarget::Sheep { .. }));
         assert_eq!(pane.edits().len(), 1, "the edit is still filed");
         let notice = app.notice().expect("a refusal").to_string();
-        assert!(notice.contains("esc"), "{notice}");
+        assert_eq!(
+            notice,
+            "web has unwritten edits: esc back to its pane to write or undo them before jobs opens"
+        );
     }
 
     #[test]
