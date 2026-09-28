@@ -7,9 +7,9 @@ These are real frames, rendered headlessly through ratatui's TestBackend by
 
 Nothing here is a mockup.
 
-frames.ansi renders all fifty-eight scenes through the same coloured
+frames.ansi renders all sixty-two scenes through the same coloured
 palette the pinned `.snap` tests use; read it with `less -R`. frames.txt
-renders the same fifty-eight scenes through the flattened NO_COLOR palette
+renders the same sixty-two scenes through the flattened NO_COLOR palette
 instead, the one an operator with $NO_COLOR set or a 16-colour terminal
 actually gets. The two files are deliberately different pictures of the
 same dashboard, not one file with the colour removed.
@@ -37,6 +37,15 @@ row: fresh at the 160x48 design target, the same pane with two edits filed
 (one of them needing a respawn), and the same fresh pane at 120 and at 88
 columns, where the explanation panel and the LANDS column trade places as
 the width falls.
+
+Four more sit inside that same pane, on its `dogs` row: the row itself,
+naming `jobs, legacy` and no value. `Enter` on it, probed and opened, with
+`jobs` set, `deploy` unset and `legacy` read-only, since nothing names
+which of its values is a secret. The same sub-screen with `jobs`'s table
+removal armed. And `jobs`'s own table pane, its nested `hours` and
+`models.worker` tables flattened into dotted rows, with
+`models.worker.token` drawn `<set>` and no value from any of the four
+frames anywhere on screen.
 
 The last eight are the keymap overlay, `h` or `?` from any body. Boxed and
 centred at the 160x48 target, at 130 where the border only just fits,
@@ -1526,6 +1535,214 @@ shep lookout   /home/ada/.shep                                            6 in t
                                                                                         
                                                                                         
 esc close   j/k select   g/G first/last   r refresh   space cycle   e e… control enabled
+
+=== sheep_dogs_row  (160x48) ===
+api's editing pane, cursor on its dogs row: jobs, legacy names the tables the sheep already carries, and the › glyph is the only thing on the row saying Enter opens a screen rather than a value.
+
+shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
+                                                                                                                                                                
+ ██ api  (sheep config)                                                                                                                                         
+   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab next group   1…8 jump                                                     
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  FIELD                       VALUE                                           LANDS                                                                             
+   args                       ["--port","8080"]                               respawn    FOCUSED  dogs  opaque                                                  
+   channel                    false                                           respawn     Settings for one dog on this sheep alone, opaque to shep              
+>› dogs                       jobs, legacy                                    now                                                                               
+   environment                (unset)                                         respawn     now     jobs, legacy                                                  
+   stdin                      false                                           respawn     default {}                                                            
+                                                                                          example (none)                                                        
+  env                                                                                                                                                           
+   DATABASE_URL               (set)                                                       ● now  the running sheep picks it up without stopping                 
+   NODE_ENV                   (set)                                                                                      pick the timing when you close the pane
+   + add a key                                                                                                                                                  
+                                                                                          ──────────────────────────────────────────────────────────────────────
+                                                                                          VALIDATION                                                            
+                                                                                          █ a table of dog name to a table of settings                          
+                                                                                          █ a dog name shep does not know about yet                             
+                                                                                          █ refused: a value that is not a table                                
+                                                                                          █ refused: an empty dog name                                          
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  = read-only, set it in the Flockfile   ~ no widget for this shape   ! parked, awaits a respawn   * yours   -> changed by you, not yet written                 
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+esc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d back to default   u undo   h help   * yours   ! parked   q quit   control enabled
+
+=== sheep_dogs_list  (160x48) ===
+Enter on the dogs row, probed and opened: jobs carries a schema and a table (set), deploy carries a schema and no table (unset), and legacy carries a table no schema describes (read-only), so it names key names alone. The cursor is parked on jobs, the row this frame exists to show set.
+
+shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
+                                                                                                                                                                
+  api › dogs                                                                                                                                                    
+  deploy            -          (no table)                                                                                                                       
+> jobs              set        concurrency, hours, merge, models                                                                                                
+  legacy            read-only  url  (publishes no sheep schema)                                                                                                 
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+esc back   j/k select   g/G first/last   r refresh   enter open   d remove   q quit                                                              control enabled
+
+=== sheep_dogs_remove  (160x48) ===
+The same sub-screen with jobs's table removal armed by d: the title asks remove api's jobs table? instead of naming the sheep, and any key but enter would cancel it.
+
+shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
+                                                                                                                                                                
+  remove api's jobs table? enter confirms, any other key cancels                                                                                                
+  deploy            -          (no table)                                                                                                                       
+> jobs              set        concurrency, hours, merge, models                                                                                                
+  legacy            read-only  url  (publishes no sheep schema)                                                                                                 
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+esc back   j/k select   g/G first/last   r refresh   enter open   d remove   q quit                                                              control enabled
+
+=== sheep_dog_table  (160x48) ===
+Enter on jobs opens its table pane: dotted rows for the nested hours and models.worker tables, and models.worker.token, the one field jobs's schema marks secret, drawn <set> with no value on screen anywhere in the frame.
+
+shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
+                                                                                                                                                                
+  api › jobs  (dog table)                                                                                                                                       
+>  concurrency                2                                                          FOCUSED  concurrency  integer                                          
+   hours.end                  17:00                                                       concurrency                                                           
+   hours.start                09:00                                                                                                                             
+   merge                      ask                                                         now     2                                                             
+   models.worker.model        small                                                       default (none)                                                        
+   models.worker.token        <set>                                                       example (none)                                                        
+                                                                                                                                                                
+                                                                                          ──────────────────────────────────────────────────────────────────────
+                                                                                          VALIDATION                                                            
+                                                                                          █ a whole number                                                      
+  shep publishes the change; jobs decides what to reload                                                                                                        
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+esc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d back to default   u undo   h help   * yours   ! parked   q quit   control enabled
 
 === close_dialog  (160x48) ===
 esc pressed with cwd and err_file edited and listen_timeout already parked from before: the close dialog names both counts, boxed and centred at 160x48 over the dimmed editing pane.

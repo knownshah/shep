@@ -20,9 +20,9 @@ These are real frames, rendered headlessly through ratatui's TestBackend by
 
 Nothing here is a mockup.
 
-frames.ansi renders all fifty-eight scenes through the same coloured
+frames.ansi renders all sixty-two scenes through the same coloured
 palette the pinned `.snap` tests use; read it with `less -R`. frames.txt
-renders the same fifty-eight scenes through the flattened NO_COLOR palette
+renders the same sixty-two scenes through the flattened NO_COLOR palette
 instead, the one an operator with $NO_COLOR set or a 16-colour terminal
 actually gets. The two files are deliberately different pictures of the
 same dashboard, not one file with the colour removed.
@@ -50,6 +50,15 @@ row: fresh at the 160x48 design target, the same pane with two edits filed
 (one of them needing a respawn), and the same fresh pane at 120 and at 88
 columns, where the explanation panel and the LANDS column trade places as
 the width falls.
+
+Four more sit inside that same pane, on its `dogs` row: the row itself,
+naming `jobs, legacy` and no value. `Enter` on it, probed and opened, with
+`jobs` set, `deploy` unset and `legacy` read-only, since nothing names
+which of its values is a secret. The same sub-screen with `jobs`'s table
+removal armed. And `jobs`'s own table pane, its nested `hours` and
+`models.worker` tables flattened into dotted rows, with
+`models.worker.token` drawn `<set>` and no value from any of the four
+frames anywhere on screen.
 
 The last eight are the keymap overlay, `h` or `?` from any body. Boxed and
 centred at the 160x48 target, at 130 where the border only just fits,
