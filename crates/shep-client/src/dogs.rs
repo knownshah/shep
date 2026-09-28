@@ -38,8 +38,8 @@ use std::io::Write as _;
 
 use serde::de::DeserializeOwned;
 use shep_core::config::DogTable;
-pub use shep_core::dogs::SECRET_KEY;
 use shep_core::dogs::{SCHEMA_FLAG, SHEP_PROTOCOL_KEY, VERSION_FLAG};
+pub use shep_core::dogs::{SECRET_KEY, SHEEP_SCHEMA_KEY};
 /// The attribute that implements [`DogConfig`], re-exported so a dog takes
 /// one dependency rather than two.
 ///
@@ -65,6 +65,28 @@ pub fn config_schema<T: DogConfig + schemars::JsonSchema>() -> schemars::Schema 
     schemars::SchemaGenerator::default().into_root_schema_for::<T>()
 }
 
+/// [`config_schema`], plus [`SHEEP_SCHEMA_KEY`] holding `S`'s schema: what a
+/// dog that acts per sheep answers the schema flag with.
+///
+/// One [`schemars::SchemaGenerator`] produces both halves, so `S`'s
+/// definitions land in `T`'s own `$defs` and the key's `$ref` resolves the
+/// way every other one in the document does. Every `#[shep(secret)]` field
+/// of `S` carries [`SECRET_KEY`] exactly as one of `T`'s does.
+#[cfg(feature = "schema")]
+pub fn config_schema_with_sheep<T, S>() -> schemars::Schema
+where
+    T: DogConfig + schemars::JsonSchema,
+    S: DogConfig + schemars::JsonSchema,
+{
+    let mut generator = schemars::SchemaGenerator::default();
+    // Registers `S` in the generator's definitions before `T` is consumed,
+    // so `into_root_schema_for` carries both into the same `$defs`.
+    let sheep = generator.subschema_for::<S>();
+    let mut schema = generator.into_root_schema_for::<T>();
+    schema.insert(SHEEP_SCHEMA_KEY.to_owned(), sheep.to_value());
+    schema
+}
+
 /// Answers shep's probes, and returns when this run is not a probe, so a
 /// dog calls it as the first line of `main`.
 ///
@@ -84,6 +106,46 @@ pub fn probe<T: DogConfig + schemars::JsonSchema>(name: &str, version: &str) {
     }
 }
 
+/// [`probe`], for a dog that also publishes a schema for its per-sheep
+/// `[app.dogs.<name>]` table: the schema flag answers with
+/// [`config_schema_with_sheep::<T, S>`](config_schema_with_sheep) instead of
+/// [`config_schema::<T>`](config_schema).
+///
+/// # Exits
+///
+/// Ends the process with [`process::exit`](std::process::exit), status 0,
+/// before `main` opens anything.
+///
+/// # Examples
+///
+/// ```no_run
+/// # #[shep_client::dogs::dog_config]
+/// # #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+/// # struct MyDogConfig {}
+/// # #[shep_client::dogs::dog_config]
+/// # #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+/// # struct MySheepSettings {}
+/// fn main() {
+///     shep_client::dogs::probe_with_sheep::<MyDogConfig, MySheepSettings>(
+///         env!("CARGO_PKG_NAME"),
+///         env!("CARGO_PKG_VERSION"),
+///     );
+///     // ...normal startup, reached only when this run is not a probe.
+/// }
+/// ```
+#[cfg(feature = "schema")]
+pub fn probe_with_sheep<T, S>(name: &str, version: &str)
+where
+    T: DogConfig + schemars::JsonSchema,
+    S: DogConfig + schemars::JsonSchema,
+{
+    match first_argument().as_deref() {
+        Some(VERSION_FLAG) => answer(&version_answer(name, version)),
+        Some(SCHEMA_FLAG) => answer(&schema_answer_with_sheep::<T, S>()),
+        _ => (),
+    }
+}
+
 /// Answers shep's probes, and returns when this run is not a probe, so a
 /// dog calls it as the first line of `main`.
 ///
@@ -98,6 +160,23 @@ pub fn probe<T: DogConfig + schemars::JsonSchema>(name: &str, version: &str) {
 /// before `main` opens anything.
 #[cfg(not(feature = "schema"))]
 pub fn probe<T: DogConfig>(name: &str, version: &str) {
+    match first_argument().as_deref() {
+        Some(VERSION_FLAG) => answer(&version_answer(name, version)),
+        Some(SCHEMA_FLAG) => std::process::exit(0),
+        _ => (),
+    }
+}
+
+/// [`probe_with_sheep`] with the `schema` feature off: behaves exactly like
+/// [`probe`] does without the feature, since there is no schema to answer
+/// with either way.
+///
+/// # Exits
+///
+/// Ends the process with [`process::exit`](std::process::exit), status 0,
+/// before `main` opens anything.
+#[cfg(not(feature = "schema"))]
+pub fn probe_with_sheep<T: DogConfig, S: DogConfig>(name: &str, version: &str) {
     match first_argument().as_deref() {
         Some(VERSION_FLAG) => answer(&version_answer(name, version)),
         Some(SCHEMA_FLAG) => std::process::exit(0),
@@ -144,6 +223,19 @@ fn schema_answer<T: DogConfig + schemars::JsonSchema>() -> String {
     // The same expectation shep-core's own schema printer holds: a schemars
     // `Schema` is a `serde_json::Value` already, so serializing it cannot
     // meet a type serde_json has no representation for.
+    let json = serde_json::to_string_pretty(&schema).expect("a schemars Schema always serializes");
+    format!("{json}\n")
+}
+
+/// The `--schema` answer for [`probe_with_sheep`], whole, ending in a
+/// newline.
+#[cfg(feature = "schema")]
+fn schema_answer_with_sheep<T, S>() -> String
+where
+    T: DogConfig + schemars::JsonSchema,
+    S: DogConfig + schemars::JsonSchema,
+{
+    let schema = config_schema_with_sheep::<T, S>();
     let json = serde_json::to_string_pretty(&schema).expect("a schemars Schema always serializes");
     format!("{json}\n")
 }
@@ -523,6 +615,104 @@ mod tests {
                 schema.pointer("/$defs/Inner/properties/token/x-shep-secret"),
                 None,
                 "a stranger that shares the name is not the marked field"
+            );
+        }
+
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
+        struct JobsConfig {
+            channel: String,
+        }
+
+        /// A dog's per-sheep `[app.dogs.jobs]` table: a plain field, a
+        /// credential, and a nested table two levels deep.
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
+        struct JobsSheepSettings {
+            concurrency: u32,
+            #[shep(secret)]
+            api_key: String,
+            hours: WorkingHours,
+        }
+
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
+        struct WorkingHours {
+            start: String,
+        }
+
+        /// The `$ref`'s own definition name, read off the sheep key without
+        /// assuming it is the type's Rust name: `schemars` is free to
+        /// rename it.
+        fn sheep_def_name(schema: &serde_json::Value) -> &str {
+            schema
+                .pointer(&format!("/{SHEEP_SCHEMA_KEY}/$ref"))
+                .and_then(serde_json::Value::as_str)
+                .and_then(|r| r.strip_prefix("#/$defs/"))
+                .expect("the sheep key holds a $ref into $defs")
+        }
+
+        #[test]
+        fn the_combined_schema_carries_a_sheep_ref_that_resolves_in_root_defs() {
+            let schema = config_schema_with_sheep::<JobsConfig, JobsSheepSettings>();
+            let schema = schema.as_value();
+
+            let def_name = sheep_def_name(schema);
+            assert!(
+                schema.pointer(&format!("/$defs/{def_name}")).is_some(),
+                "the sheep key's $ref names a definition in the root's own $defs"
+            );
+        }
+
+        #[test]
+        fn a_secret_field_of_the_sheep_type_is_marked_in_the_resolved_schema() {
+            let schema = config_schema_with_sheep::<JobsConfig, JobsSheepSettings>();
+            let schema = schema.as_value();
+            let def_name = sheep_def_name(schema);
+
+            assert_eq!(
+                schema.pointer(&format!(
+                    "/$defs/{def_name}/properties/api_key/{SECRET_KEY}"
+                )),
+                Some(&serde_json::Value::Bool(true)),
+                "the sheep type's marked field carries the marker, exactly as a root field does"
+            );
+            assert_eq!(
+                schema.pointer(&format!(
+                    "/$defs/{def_name}/properties/concurrency/{SECRET_KEY}"
+                )),
+                None,
+                "its plain neighbour carries nothing"
+            );
+        }
+
+        #[test]
+        fn a_struct_nested_inside_the_sheep_type_resolves_in_root_defs_too() {
+            let schema = config_schema_with_sheep::<JobsConfig, JobsSheepSettings>();
+            let schema = schema.as_value();
+
+            assert!(
+                schema
+                    .pointer("/$defs/WorkingHours/properties/start")
+                    .is_some(),
+                "a type nested inside the sheep type is hoisted into the same $defs, \
+                 so lookout can flatten it"
+            );
+        }
+
+        #[test]
+        fn the_plain_schema_carries_no_sheep_key() {
+            let with_sheep = config_schema_with_sheep::<JobsConfig, JobsSheepSettings>();
+            let plain = config_schema::<JobsConfig>();
+
+            assert!(with_sheep.as_value().get(SHEEP_SCHEMA_KEY).is_some());
+            assert_eq!(
+                plain.as_value().get(SHEEP_SCHEMA_KEY),
+                None,
+                "config_schema stays exactly what it was: no sheep key"
             );
         }
     }

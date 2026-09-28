@@ -27,6 +27,15 @@ pub const SHEP_PROTOCOL_KEY: &str = "shep-protocol";
 /// render unredacted.
 pub const SECRET_KEY: &str = "x-shep-secret";
 
+/// The schemars extension key that holds the schema of a dog's per-sheep
+/// `[app.dogs.<name>]` table, inside its `--schema` answer.
+///
+/// A dog that acts per sheep publishes this alongside its own top-level
+/// properties, sharing the same `$defs`, so a `$ref` under this key
+/// resolves exactly as any other one in the document does. A dog that
+/// predates it simply has no such key.
+pub const SHEEP_SCHEMA_KEY: &str = "x-shep-sheep";
+
 /// What a dog answered [`VERSION_FLAG`] with, parsed by
 /// [`parse_version_answer`] from the format `docs/dogs.md` publishes.
 ///
