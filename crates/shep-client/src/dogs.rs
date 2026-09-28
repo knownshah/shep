@@ -8,8 +8,8 @@
 //! author:
 //!
 //! ```no_run
+//! # #[shep_client::dogs::dog_config]
 //! # #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-//! # #[derive(shep_client::dogs::DogConfig)]
 //! # struct MyDogConfig {}
 //! fn main() {
 //!     shep_client::dogs::probe::<MyDogConfig>(
@@ -27,158 +27,42 @@
 //! Answering is optional: with the `schema` feature off, [`probe`] still
 //! answers the version flag, and the schema flag exits without printing,
 //! which shep reads as a dog with no schema and refuses nothing for.
+//!
+//! [`parse_sheep_settings`] answers a different question: a dog that acts
+//! per sheep reads its `[app.dogs.<dog>]` table off
+//! `Request::DogSheepSettings` and parses one sheep's table at a time, so a
+//! table that does not fit its type never hides the rest.
 
+use core::fmt;
 use std::io::Write as _;
 
+use serde::de::DeserializeOwned;
+use shep_core::config::DogTable;
 pub use shep_core::dogs::SECRET_KEY;
 use shep_core::dogs::{SCHEMA_FLAG, SHEP_PROTOCOL_KEY, VERSION_FLAG};
-/// The derive that implements [`DogConfig`], re-exported so a dog takes one
-/// dependency rather than two.
+/// The attribute that implements [`DogConfig`], re-exported so a dog takes
+/// one dependency rather than two.
 ///
 /// Its own documentation carries the rules: which shapes accept
 /// `#[shep(secret)]`, which refuse it, and what the expansion looks like.
-pub use shep_macros::DogConfig;
+pub use shep_macros::dog_config;
 
-/// What a dog's config type tells shep about itself: which of its fields are
-/// credentials, and the schema extension key that says so.
+/// That a type's config schema has been through [`dog_config`], so every
+/// field marked `#[shep(secret)]` carries [`SECRET_KEY`] wherever `schemars`
+/// puts that field.
 ///
-/// Derive it, and mark each credential field with `#[shep(secret)]`; do not
-/// write this impl by hand, since a mistyped [`SECRET_KEY`] compiles,
-/// validates, marks nothing, and paints a credential on screen.
-pub trait DogConfig {
-    /// The schema extension key a marked field carries. Always
-    /// [`SECRET_KEY`]; it is an associated const so the derive can name it
-    /// through this crate rather than reaching into `shep_core`.
-    const SECRET_KEY: &'static str;
-
-    /// The Rust identifiers of the fields marked `#[shep(secret)]`, deduped.
-    /// A name repeated across the variants of an enum appears once, because
-    /// this is a list of names to look for rather than places to look.
-    const SECRET_FIELDS: &'static [&'static str];
-}
-
-/// A field marked `#[shep(secret)]` that names no property of the config
-/// type's own schema, so the marker had nothing to land on.
-///
-/// A like-named property under `$defs` does not count: it's a different
-/// type's field, and letting it answer for this one is how a renamed
-/// credential ships unmarked.
-///
-/// `Debug` is derived: the field it names is an identifier from the dog's
-/// own source, never a credential's value.
-#[cfg(feature = "schema")]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SecretFieldMissing {
-    /// The Rust identifier that was marked and could not be found.
-    pub field: &'static str,
-}
-
-#[cfg(feature = "schema")]
-impl core::fmt::Display for SecretFieldMissing {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "the field `{}` is marked `#[shep(secret)]` but this type's own \
-             schema has no property of that name, so the credential would go \
-             out unmarked. A `#[serde(rename)]` on the field, or a \
-             `rename_all_fields` on the type, renames the property and leaves \
-             the mark with nothing to land on.",
-            self.field
-        )
-    }
-}
-
-#[cfg(feature = "schema")]
-impl core::error::Error for SecretFieldMissing {}
+/// The bound on [`probe`]: a dog cannot answer shep's schema flag with a type
+/// nothing marked. Apply the attribute rather than writing the impl by hand,
+/// which claims the marking without doing it.
+pub trait DogConfig {}
 
 /// The JSON Schema a dog answers the schema flag with: what `schemars`
-/// generates for `T`, with every `#[shep(secret)]` field of `T` carrying
-/// [`SECRET_KEY`]. Public so a dog or test can render the marks without
-/// spawning itself.
-///
-/// # Errors
-///
-/// [`SecretFieldMissing`] when a marked name matches no property of `T`'s
-/// own representation.
+/// generates for `T`. Every `#[shep(secret)]` field carries [`SECRET_KEY`]
+/// already, because [`dog_config`] put the extension on the field itself.
+/// Public so a dog or test can read the marks without spawning itself.
 #[cfg(feature = "schema")]
-pub fn config_schema<T: DogConfig + schemars::JsonSchema>()
--> Result<schemars::Schema, SecretFieldMissing> {
-    let mut schema = schemars::SchemaGenerator::default().into_root_schema_for::<T>();
-    let mut found: Vec<&'static str> = Vec::new();
-    // `None` only for a schema that is the bare `true` or `false`, which has
-    // no property to mark and so leaves every marked name unfound below.
-    if let Some(root) = schema.as_object_mut() {
-        mark_secrets_in_object(root, T::SECRET_FIELDS, T::SECRET_KEY, &mut found);
-    }
-    for field in T::SECRET_FIELDS {
-        if !found.contains(field) {
-            return Err(SecretFieldMissing { field });
-        }
-    }
-    Ok(schema)
-}
-
-/// Where `schemars` puts the schema of every OTHER named type the root
-/// mentions, and the one keyword [`mark_secrets_in_object`] refuses to walk.
-#[cfg(feature = "schema")]
-const DEFS: &str = "$defs";
-
-/// Writes `key` into every property named in `secrets` that belongs to the
-/// root type's own representation, and records which names were reached.
-///
-/// Walks the whole node, not just `properties`: a tagged enum's variants
-/// live under `oneOf`/`anyOf`, or nested under a content property, so only
-/// a struct has properties at the top level. Stops at [`DEFS`], so a
-/// like-named property of another type is never marked or counted as found.
-/// A recursive root's `$ref: "#"` is a string, so the walk skips it as a leaf.
-///
-/// Marks by name, so two variants sharing a field name are both marked
-/// even if only one carried the attribute. A non-object property schema is
-/// left unmarked, surfacing as [`SecretFieldMissing`] rather than a silent miss.
-#[cfg(feature = "schema")]
-fn mark_secrets_in_object(
-    map: &mut serde_json::Map<String, serde_json::Value>,
-    secrets: &[&'static str],
-    key: &str,
-    found: &mut Vec<&'static str>,
-) {
-    if let Some(serde_json::Value::Object(properties)) = map.get_mut("properties") {
-        for name in secrets {
-            if let Some(serde_json::Value::Object(property)) = properties.get_mut(*name) {
-                property.insert(key.to_owned(), serde_json::Value::Bool(true));
-                if !found.contains(name) {
-                    found.push(name);
-                }
-            }
-        }
-    }
-    for (keyword, value) in map.iter_mut() {
-        if keyword == DEFS {
-            continue;
-        }
-        mark_secrets(value, secrets, key, found);
-    }
-}
-
-/// [`mark_secrets_in_object`] for a node that may be any JSON value: an
-/// object is marked, an array is descended (a `oneOf` is one), and anything
-/// else is a leaf.
-#[cfg(feature = "schema")]
-fn mark_secrets(
-    node: &mut serde_json::Value,
-    secrets: &[&'static str],
-    key: &str,
-    found: &mut Vec<&'static str>,
-) {
-    match node {
-        serde_json::Value::Object(map) => mark_secrets_in_object(map, secrets, key, found),
-        serde_json::Value::Array(items) => {
-            for item in items {
-                mark_secrets(item, secrets, key, found);
-            }
-        }
-        _ => {}
-    }
+pub fn config_schema<T: DogConfig + schemars::JsonSchema>() -> schemars::Schema {
+    schemars::SchemaGenerator::default().into_root_schema_for::<T>()
 }
 
 /// Answers shep's probes, and returns when this run is not a probe, so a
@@ -189,21 +73,13 @@ fn mark_secrets(
 ///
 /// # Exits
 ///
-/// Ends the process with [`process::exit`](std::process::exit) before
-/// `main` opens anything: status 0 for an answer given, 1 when
-/// [`SecretFieldMissing`] makes the schema unpublishable (printed to
-/// stderr first).
+/// Ends the process with [`process::exit`](std::process::exit), status 0,
+/// before `main` opens anything.
 #[cfg(feature = "schema")]
 pub fn probe<T: DogConfig + schemars::JsonSchema>(name: &str, version: &str) {
     match first_argument().as_deref() {
         Some(VERSION_FLAG) => answer(&version_answer(name, version)),
-        Some(SCHEMA_FLAG) => match schema_answer::<T>() {
-            Ok(json) => answer(&json),
-            Err(err) => {
-                eprintln!("{err}");
-                std::process::exit(1);
-            }
-        },
+        Some(SCHEMA_FLAG) => answer(&schema_answer::<T>()),
         _ => (),
     }
 }
@@ -262,18 +138,95 @@ fn version_answer(name: &str, version: &str) -> String {
 }
 
 /// The `--schema` answer, whole, ending in a newline.
-///
-/// # Errors
-///
-/// [`SecretFieldMissing`], straight from [`config_schema`].
 #[cfg(feature = "schema")]
-fn schema_answer<T: DogConfig + schemars::JsonSchema>() -> Result<String, SecretFieldMissing> {
-    let schema = config_schema::<T>()?;
+fn schema_answer<T: DogConfig + schemars::JsonSchema>() -> String {
+    let schema = config_schema::<T>();
     // The same expectation shep-core's own schema printer holds: a schemars
     // `Schema` is a `serde_json::Value` already, so serializing it cannot
     // meet a type serde_json has no representation for.
     let json = serde_json::to_string_pretty(&schema).expect("a schemars Schema always serializes");
-    Ok(format!("{json}\n"))
+    format!("{json}\n")
+}
+
+/// One sheep's `[app.dogs.<dog>]` table did not fit `dog`'s own settings
+/// type.
+///
+/// Carries no parser message and no table value: a field of the wrong
+/// type, or an unknown key under `deny_unknown_fields`, can hold a
+/// credential, and quoting either would print exactly what [`DogTable`]'s
+/// own `Debug` refuses to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SheepSettingsError {
+    dog: String,
+    sheep: String,
+}
+
+impl fmt::Display for SheepSettingsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "the [app.dogs.{}] table on {} does not fit this dog's settings",
+            self.dog, self.sheep
+        )
+    }
+}
+
+impl core::error::Error for SheepSettingsError {}
+
+/// Parses one sheep's `[app.dogs.<dog>]` table into `dog`'s own settings
+/// type.
+///
+/// Call this once per sheep in a `Request::DogSheepSettings` answer's map,
+/// so a table that does not fit `S` never hides the rest of the sheep.
+/// `dog` and `sheep` name the table in the refusal; neither is read from
+/// `table` itself.
+///
+/// # Errors
+///
+/// [`SheepSettingsError`] when `table` does not fit `S`. It never carries
+/// the parser's own message, which can quote a value the table held.
+///
+/// # Examples
+///
+/// ```no_run
+/// use shep_client::Client;
+/// use shep_client::dogs::parse_sheep_settings;
+/// use shep_client::shep_core::protocol::{Request, Response};
+///
+/// #[derive(serde::Deserialize, Default)]
+/// struct JobsSettings {
+///     #[serde(default)]
+///     concurrency: u32,
+/// }
+///
+/// # async fn read(client: &Client) -> Result<(), Box<dyn core::error::Error>> {
+/// let Response::DogSheepSettings { tables } = client
+///     .request(Request::DogSheepSettings {
+///         dog: "jobs".to_string(),
+///     })
+///     .await?
+/// else {
+///     return Err("the shepherd answered with something else".into());
+/// };
+/// for (sheep, table) in &tables {
+///     let settings: JobsSettings = parse_sheep_settings("jobs", sheep, table)?;
+///     println!("{sheep}: concurrency {}", settings.concurrency);
+/// }
+/// # Ok(())
+/// # }
+/// # let _ = read;
+/// ```
+pub fn parse_sheep_settings<S: DeserializeOwned>(
+    dog: &str,
+    sheep: &str,
+    table: &DogTable,
+) -> Result<S, SheepSettingsError> {
+    serde_json::from_value(serde_json::Value::Object(table.as_map().clone())).map_err(|_| {
+        SheepSettingsError {
+            dog: dog.to_string(),
+            sheep: sheep.to_string(),
+        }
+    })
 }
 
 #[cfg(test)]
@@ -293,13 +246,69 @@ mod tests {
         assert_eq!(parsed.protocol, Some(crate::PROTOCOL_VERSION));
     }
 
+    #[derive(Debug, Default, PartialEq, serde::Deserialize)]
+    #[serde(deny_unknown_fields, default)]
+    struct JobsSettings {
+        concurrency: u32,
+    }
+
+    fn table(pairs: impl IntoIterator<Item = (&'static str, serde_json::Value)>) -> DogTable {
+        DogTable::from(
+            pairs
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect::<serde_json::Map<String, serde_json::Value>>(),
+        )
+    }
+
+    #[test]
+    fn a_table_that_fits_parses() {
+        let table = table([("concurrency", serde_json::json!(2))]);
+        let settings: JobsSettings = parse_sheep_settings("jobs", "web", &table).unwrap();
+        assert_eq!(settings, JobsSettings { concurrency: 2 });
+    }
+
+    /// A credential written into a field whose type refuses it: the
+    /// refusal names the dog and the sheep and quotes neither.
+    #[test]
+    fn a_wrongly_typed_field_is_refused_and_never_quotes_the_value() {
+        let table = table([("concurrency", serde_json::json!("hunter2"))]);
+        let err = parse_sheep_settings::<JobsSettings>("jobs", "web", &table).unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "the [app.dogs.jobs] table on web does not fit this dog's settings"
+        );
+        assert!(!err.to_string().contains("hunter2"));
+        assert!(!format!("{err:?}").contains("hunter2"));
+    }
+
+    /// A credential under a key `JobsSettings` never declared: refused by
+    /// `deny_unknown_fields`, quoting nothing.
+    #[test]
+    fn an_unknown_key_is_refused_and_never_quotes_the_value() {
+        let table = table([
+            ("concurrency", serde_json::json!(2)),
+            ("token", serde_json::json!("hunter2")),
+        ]);
+        let err = parse_sheep_settings::<JobsSettings>("jobs", "web", &table).unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "the [app.dogs.jobs] table on web does not fit this dog's settings"
+        );
+        assert!(!err.to_string().contains("hunter2"));
+        assert!(!format!("{err:?}").contains("hunter2"));
+    }
+
     /// Everything the `schema` feature gates, gated the same way: with the
     /// feature off there is no `config_schema` to name here either.
     #[cfg(feature = "schema")]
     mod schema {
         use super::*;
 
-        #[derive(schemars::JsonSchema, DogConfig)]
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
         #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
         struct Webhook {
             #[shep(secret)]
@@ -307,7 +316,8 @@ mod tests {
             channel: String,
         }
 
-        #[derive(schemars::JsonSchema, DogConfig)]
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
         #[serde(tag = "kind", rename_all = "snake_case")]
         #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
         enum Sink {
@@ -322,7 +332,8 @@ mod tests {
             },
         }
 
-        #[derive(schemars::JsonSchema, DogConfig)]
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
         #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
         struct Renamed {
             #[shep(secret)]
@@ -330,16 +341,28 @@ mod tests {
             url: String,
         }
 
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
+        #[serde(tag = "kind", rename_all_fields = "SCREAMING-KEBAB-CASE")]
+        #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
+        enum RenamedFields {
+            One {
+                #[shep(secret)]
+                api_token: String,
+            },
+        }
+
         /// A type the root only mentions, so `schemars` hoists it into `$defs`.
         /// Its `token` is an ordinary string, and it is named to collide with
-        /// the credential the two roots below mark.
+        /// the credential [`Outer`] marks.
         #[derive(schemars::JsonSchema)]
         #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
         struct Inner {
             token: String,
         }
 
-        #[derive(schemars::JsonSchema, DogConfig)]
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
         #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
         struct Outer {
             #[shep(secret)]
@@ -347,20 +370,29 @@ mod tests {
             inner: Inner,
         }
 
-        #[derive(schemars::JsonSchema, DogConfig)]
+        /// A nested type that marks a credential of its own, reached by
+        /// [`Host`] through a map, which is bark's exact shape.
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
         #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
-        struct RenamedOuter {
+        struct NestedSink {
             #[shep(secret)]
-            #[serde(rename = "api_token")]
-            token: String,
-            inner: Inner,
+            url: String,
+            quiet: bool,
+        }
+
+        #[dog_config]
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code, reason = "read by the generated schema, not by Rust")]
+        struct Host {
+            sinks: std::collections::BTreeMap<String, NestedSink>,
         }
 
         /// Both halves in one test on purpose: an implementation that marked
         /// every property would pass a test that only checked the marked one.
         #[test]
         fn a_secret_field_carries_the_marker_and_a_plain_one_does_not() {
-            let schema = config_schema::<Webhook>().expect("`url` is a real property");
+            let schema = config_schema::<Webhook>();
             let props = schema
                 .as_value()
                 .get("properties")
@@ -378,13 +410,27 @@ mod tests {
             );
         }
 
-        /// A tagged enum has no top-level `properties` at all: it is a `oneOf` of
-        /// one object per variant. Marking code that reads only the top level
-        /// finds nothing, marks nothing, and says nothing.
+        /// The key the attribute writes is a literal, since `schemars` accepts
+        /// only a literal there. This is what fails if it drifts from the
+        /// constant shep itself reads marks with.
+        #[test]
+        fn the_extension_key_is_the_one_shep_core_publishes() {
+            let schema = config_schema::<Webhook>();
+            assert_eq!(
+                schema
+                    .as_value()
+                    .pointer(&format!("/properties/url/{SECRET_KEY}")),
+                Some(&serde_json::Value::Bool(true)),
+                "`shep-macros` writes `{SECRET_KEY}` verbatim and has no way to \
+                 name this constant"
+            );
+        }
+
+        /// A tagged enum has no top-level `properties` at all: it is a `oneOf`
+        /// of one object per variant, and the mark has to be in each.
         #[test]
         fn a_marker_reaches_every_variant_of_a_tagged_enum_and_no_plain_field() {
-            let schema =
-                config_schema::<Sink>().expect("`url` is a real property in both variants");
+            let schema = config_schema::<Sink>();
             let variants = schema
                 .as_value()
                 .get("oneOf")
@@ -399,7 +445,7 @@ mod tests {
                 assert_eq!(
                     props.get("url").and_then(|url| url.get(SECRET_KEY)),
                     Some(&serde_json::Value::Bool(true)),
-                    "every occurrence of the marked name is marked"
+                    "every marked occurrence is marked"
                 );
                 assert_eq!(
                     props.get("quiet").and_then(|it| it.get(SECRET_KEY)),
@@ -409,22 +455,63 @@ mod tests {
             }
         }
 
+        /// The marker rides the field, so a rename carries it along instead of
+        /// leaving it behind on a property name nothing has. Both spellings of
+        /// the rename, since a per-field one and a whole-type one reach the
+        /// property by different paths inside `schemars`.
         #[test]
-        fn a_renamed_secret_field_is_an_error_rather_than_a_silent_pass() {
+        fn a_rename_moves_the_marker_onto_the_renamed_property() {
+            let renamed = config_schema::<Renamed>();
+            let renamed = renamed.as_value();
             assert_eq!(
-                config_schema::<Renamed>(),
-                Err(SecretFieldMissing { field: "url" })
+                renamed.pointer("/properties/webhook_url/x-shep-secret"),
+                Some(&serde_json::Value::Bool(true)),
+                "`#[serde(rename)]` renames the property the mark is on"
+            );
+            assert_eq!(
+                renamed.pointer("/properties/url"),
+                None,
+                "nothing is left under the Rust identifier"
+            );
+
+            let fields = config_schema::<RenamedFields>();
+            assert_eq!(
+                fields
+                    .as_value()
+                    .pointer("/oneOf/0/properties/API-TOKEN/x-shep-secret"),
+                Some(&serde_json::Value::Bool(true)),
+                "`rename_all_fields` does the same to a variant's field"
             );
         }
 
-        /// A mark names a field of the type shep asked about, so a like-named
-        /// property of some other type the root merely mentions is not that
-        /// field and must come out plain. `Rule::sinks` is the live case: it
-        /// lists sink NAMES, one level under a `BarkConfig::sinks` that really
-        /// does hold credentials.
+        /// The marked field of a nested type reaches the schema of a config
+        /// that merely holds it, at whatever depth `schemars` puts it. This is
+        /// shep#280: the mark used to be dropped here, in silence, and bark
+        /// worked around it by marking its whole sinks map.
+        #[test]
+        fn a_nested_types_marked_field_is_marked_in_the_hosts_schema() {
+            let schema = config_schema::<Host>();
+            let schema = schema.as_value();
+
+            assert_eq!(
+                schema.pointer("/$defs/NestedSink/properties/url/x-shep-secret"),
+                Some(&serde_json::Value::Bool(true)),
+                "the nested credential carries the marker through the map"
+            );
+            assert_eq!(
+                schema.pointer("/$defs/NestedSink/properties/quiet/x-shep-secret"),
+                None,
+                "its plain neighbour carries nothing"
+            );
+        }
+
+        /// A mark belongs to the field that carries it, so a like-named
+        /// property of another type is not marked on its behalf.
+        /// `Rule::sinks` is the live case: it lists sink NAMES, one level
+        /// under a `BarkConfig::sinks` that really does hold credentials.
         #[test]
         fn a_like_named_property_of_a_nested_type_is_left_plain() {
-            let schema = config_schema::<Outer>().expect("`token` is a real property of the root");
+            let schema = config_schema::<Outer>();
             let schema = schema.as_value();
 
             assert_eq!(
@@ -436,17 +523,6 @@ mod tests {
                 schema.pointer("/$defs/Inner/properties/token/x-shep-secret"),
                 None,
                 "a stranger that shares the name is not the marked field"
-            );
-        }
-
-        /// The same reach, pointing the other way: a `$defs` entry that happens
-        /// to carry the pre-rename name would satisfy the missing-field check on
-        /// behalf of a credential that shipped unmarked.
-        #[test]
-        fn a_renamed_secret_field_is_an_error_even_when_a_nested_type_has_the_old_name() {
-            assert_eq!(
-                config_schema::<RenamedOuter>(),
-                Err(SecretFieldMissing { field: "token" })
             );
         }
     }

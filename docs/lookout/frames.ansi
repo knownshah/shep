@@ -1220,7 +1220,7 @@ The sheep pane on web, at its design size: 160 = 8 gutter + 140 body + 12 margin
 [0m[38;5;245minputs[0m                                                                      [0m[38;5;245m│[0m                                                                                   [0m
 [0m[38;5;245margs                      [0m  ["--port","8080"]                               [0m[38;5;245m│[0m                                                                                   [0m
 [0m[38;5;245mchannel                   [0m  [0m[38;5;245m(default)                                       │[0m                                                                                   [0m
-[0m[38;5;245menvironment               [0m  [0m[38;5;245m(unset)                                         │[0m                                                                                   [0m
+[0m[38;5;245mdogs                      [0m  [0m[38;5;245m(default)                                       │[0m                                                                                   [0m
                                                                                                                                                                 [0m
 [0m[38;5;221m[48;5;235mesc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log   / filter                                                     [0m[38;5;245m[48;5;235m control enabled[0m
 
@@ -1273,7 +1273,7 @@ rss 30.0M of 64.0M █████░░░░░                               
 [0m[38;5;245minputs[0m                                                                                                                                     [0m
 [0m[38;5;245margs                      [0m  ["--port","8080"]                                                                                              [0m
 [0m[38;5;245mchannel                   [0m  [0m[38;5;245m(default)                                       [0m                                                               [0m
-[0m[38;5;245menvironment               [0m  [0m[38;5;245m(unset)                                         [0m                                                               [0m
+[0m[38;5;245mdogs                      [0m  [0m[38;5;245m(default)                                       [0m                                                               [0m
                                                                                                                                            [0m
 [0m[38;5;221m[48;5;235mesc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log   / filter                                [0m[38;5;245m[48;5;235m control enabled[0m
 
@@ -1326,7 +1326,7 @@ rss 30.0M of 64.0M █████░░░░░                               
 [0m[38;5;245minputs[0m                                                                                             [0m
 [0m[38;5;245margs                      [0m  ["--port","8080"]                                                      [0m
 [0m[38;5;245mchannel                   [0m  [0m[38;5;245m(default)                                       [0m                       [0m
-[0m[38;5;245menvironment               [0m  [0m[38;5;245m(unset)                                         [0m                       [0m
+[0m[38;5;245mdogs                      [0m  [0m[38;5;245m(default)                                       [0m                       [0m
                                                                                                    [0m
 [0m[38;5;221m[48;5;235mesc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log  …[0m[38;5;245m[48;5;235m control enabled[0m
 
@@ -1437,9 +1437,9 @@ The same pane with two edits filed: cwd, which needs a respawn, and max_memory, 
 [0m[38;5;221m    max_memory  (unset) -> 256 B                                                      [0m  [0m[38;5;245m  VALIDATION[0m                                                            [0m
                                                                                         [0m[7m[38;5;29m  █ [0m512M, 2G                                                            [0m
 [0m[38;5;245m  env[0m                                                                                   [0m[7m[38;5;29m  █ [0ma bare number is bytes                                              [0m
-   DATABASE_URL               (set)                                                                                                                             [0m
-   NODE_ENV                   (set)                                                                                                                             [0m
- [0m[38;5;245m  + add a key              [0m                                                                                                                                    [0m
+   DATABASE_URL               (set)                                                     [0m[7m[38;5;166m  █ [0mrefused: a two-letter unit                                          [0m
+   NODE_ENV                   (set)                                                     [0m[7m[38;5;166m  █ [0mrefused: a lowercase unit                                           [0m
+ [0m[38;5;245m  + add a key              [0m                                                            [0m[7m[38;5;166m  █ [0mrefused: a fraction                                                 [0m
 [0m[38;5;238m  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
 [0m[38;5;245m  = read-only, set it in the Flockfile   ~ no widget for this shape   ! parked, awaits a respawn   * yours   -> changed by you, not yet written                 [0m
                                                                                                                                                                 [0m

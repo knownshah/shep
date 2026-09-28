@@ -503,6 +503,14 @@ async fn every_new_variant_reaches_an_arm_and_not_the_wildcard() {
             force: false,
             dry_run: true,
         },
+        Request::DogSheepSettings {
+            dog: "ghost".to_string(),
+        },
+        Request::SetSheepDogSettings {
+            name: "ghost".to_string(),
+            dog: "jobs".to_string(),
+            table: None,
+        },
     ];
     for (id, request) in requests.into_iter().enumerate() {
         let named = format!("{request:?}");

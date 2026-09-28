@@ -77,6 +77,7 @@ const fieldGroups: FieldGroup[] = [
       { name: "env", type: "map<string,string>", default: "{}", does: "Merged over the daemon's filtered environment; values support {{instance}}, {{name}}, {{SHEP_HOME}} and {{secret:...}}. A value may be a string, a bare boolean, or a bare whole number (SOME_BOOL = true, PORT = 8080), and is read as its string either way. A float is refused, since 1.10 would reach the process as 1.1. In YAML an unquoted yes reads as \"true\" and 0x1F as \"31\", so quote a value whose text must survive. SHEP_INSTANCE, SHEP_NAME and SHEP_ENVIRONMENT are always set and may not be set here." },
       { name: "environment", type: "string?", default: "[daemon] environment, \"production\" by default", does: "Which environment a {{secret:...}} reference resolves against on this sheep. May not be \"all\", the secrets store's own every-environment slot; see Secrets." },
       { name: "instances", type: "integer", default: "1", does: "How many separate copies of this app to run, each its own process; shep does not share a socket between them (see reuse_port if the app does that itself). SHEP_INSTANCE and SHEP_NAME are always set on every instance; other env values, args, out_file and err_file may use {{instance}}, {{name}} and {{SHEP_HOME}} templates." },
+      { name: "dogs", type: "map<string,table>", default: "{}", does: "One table per dog, keyed by dog name, for this sheep alone. shep stores it and hands it to the dog it names, without reading a key inside. The name picks a table and proves nothing: any client that can reach the shepherd's socket can read every dog's tables. A dog name need not be one shep knows about yet. Never read at a spawn or a decision, so a write takes effect the moment it lands. Lookout shows it but cannot edit it yet." },
     ],
   },
   {
@@ -199,7 +200,7 @@ script = "./server"`}</CodeBlock>
     </p>
     <p>
       <code>--all</code> writes every field the grammar has instead of the
-      handful worth meeting on day one, which is 88 lines of TOML against
+      handful worth meeting on day one, which is 90 lines of TOML against
       the 12 above. <code>--force</code> replaces a Flockfile that is
       already there, keeping <em>that</em> file's format rather than the
       default one, so forcing over a <code>.yaml</code> writes YAML instead
@@ -485,7 +486,7 @@ DB_PASSWORD = "{{secret:DB_PASSWORD}}"`}</CodeBlock>
       of its own: see <a href="/docs/boot-order">boot order</a>.
     </p>
     <p class="fine">
-      Every field below is also editable from <a href="/docs/lookout">lookout</a>:
+      Every field below but <code>dogs</code> is also editable from <a href="/docs/lookout">lookout</a>:
       its config pane builds its form straight off this same Flockfile JSON
       Schema, the way it builds one for a dog's own <code>--schema</code>{" "}
       answer.

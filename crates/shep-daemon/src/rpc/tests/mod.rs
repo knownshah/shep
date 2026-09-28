@@ -131,6 +131,8 @@ mod apply_config;
 mod dog_env;
 mod dog_fields;
 mod dog_lifecycle;
+mod dog_table_events;
+mod dog_tables;
 mod lambs_staleness;
 mod misc_verbs;
 mod push;

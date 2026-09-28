@@ -104,8 +104,8 @@ $ shep start ./Flockfile.toml
 └────┴────────┴──────────────┴───────┴──────────┴──────┴─────┴────────┴────────┴──────┴──────┘
 ```
 
-`shep save` writes that down, and `shep startup` installs the service that
-brings it back after a reboot.
+The shepherd writes that down on its own, and `shep startup` installs the
+service that brings it back after a reboot.
 
 ## Following output
 
@@ -192,6 +192,8 @@ A dog is a plugin process the shepherd supervises alongside your flock.
   and compresses bleat logs.
 - [shep-deploy](https://github.com/shep-pm/shep-deploy) redeploys a sheep
   when a watched git branch moves.
+- [shep-discord](https://github.com/shep-pm/shep-discord) streams a sheep's
+  output to Discord and drives the flock from slash commands.
 
 `shep dogs` lists them, `shep adopt` takes one on.
 

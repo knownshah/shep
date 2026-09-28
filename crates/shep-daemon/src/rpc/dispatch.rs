@@ -579,6 +579,30 @@ async fn run(id: u64, conn: ConnId, request: Request, ctx: &RpcContext) -> Outco
                 Err(err) => reply(Err(rpc_error(&err))),
             }
         }
+        Request::DogSheepSettings { dog } => match ctx.supervisor.dog_sheep_settings(dog).await {
+            Ok(tables) => reply(Ok(Response::DogSheepSettings { tables })),
+            Err(err) => reply(Err(rpc_error(&err))),
+        },
+        Request::SetSheepDogSettings { name, dog, table } => {
+            match ctx
+                .supervisor
+                .set_sheep_dog_settings(name.clone(), dog.clone(), table)
+                .await
+            {
+                // Recorded for `SetSheepField`'s reason: nothing on the
+                // restore path reads the override store.
+                Ok(Some(set)) => {
+                    ctx.registry.record(&[set.app]);
+                    reply(Ok(Response::SheepDogSettingsSet { name, dog }))
+                }
+                Ok(None) => reply(Err(RpcError {
+                    code: RpcErrorCode::NotFound,
+                    message: format!("no sheep named {name}"),
+                    daemon_version: None,
+                })),
+                Err(err) => reply(Err(rpc_error(&err))),
+            }
+        }
         // The inverse of every other config door's guard: `dogs.toml`
         // holds dogs' sections and nothing else, so what this one refuses
         // is a sheep's name, not merely a dog no one has heard of. Asked

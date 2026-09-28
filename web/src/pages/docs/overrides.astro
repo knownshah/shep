@@ -348,6 +348,12 @@ const store = `$ cat $SHEP_HOME/overrides.json
       <div class="row"><span><code>--reset=env</code></span><span>Puts back only <code>env</code> and touches nothing else, so a policy tuning survives it.</span></div>
       <div class="row"><span><code>--reset=all</code></span><span>Everything goes back to the file, <code>env</code> and the instance count included, and the sheep's override record is dropped.</span></div>
     </div>
+    <p class="fine">
+      <code>dogs</code> merges the same way: one field, established whole.
+      A changed <code>[app.dogs.&lt;dog&gt;]</code> table is left alone by a
+      plain load and by <code>--reset=env</code>. <code>--reset=file</code>,{" "}
+      <code>--reset=policy</code> or <code>--reset=all</code> puts it back.
+    </p>
     <p>
       <code>env</code> is the axis that splits data from policy.{" "}
       <code>env</code> is the one field holding something an operator

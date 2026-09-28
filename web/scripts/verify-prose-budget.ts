@@ -42,7 +42,12 @@ const pagesDir = fileURLToPath(new URL("../src/pages/docs", import.meta.url));
  * comment when you do it.
  */
 export const BUDGETS: Record<string, number> = {
-  "writing-a-dog": 4150, // 4042
+  // Raised from 4150 on 2026-09-27 for the per-sheep dog settings section:
+  // the page had already drifted to 4131 against a ceiling recorded at
+  // 4042, so almost none of the stated headroom was real, and the new
+  // section (DogSheepSettings, parse_sheep_settings, config.sheep.<dog>)
+  // is required content, not prose to trim back out.
+  "writing-a-dog": 4200, // 4190
   overrides: 3380, // 3250
   "lookout-config": 3240, // 3085
   // Raised from 2930 on 2026-09-14 for the host line, which `shep flock`
@@ -74,8 +79,13 @@ export const BUDGETS: Record<string, number> = {
   containers: 560, // 526
   upgrading: 560, // 526
   kv: 550, // 519
+  // Raised from 440 on 2026-09-21 for the prebuilt-binary download list,
+  // which is new content rather than a correction. The page was sitting at
+  // exactly 440, one word from failing the build, and the `// 413` beside
+  // the old number was 27 words stale: the figure in this comment is only
+  // as good as the run that wrote it.
+  "getting-started": 500, // 471
   serve: 480, // 448
-  "getting-started": 440, // 413
   cli: 380, // 356
   "community-dogs": 300, // 277
   terminology: 210, // 199

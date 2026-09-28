@@ -5,7 +5,6 @@
 
 use core::fmt::{self, Write as _};
 
-use shep_core::protocol::DogSource;
 use shep_core::status::ProcStatus;
 
 use super::Reading;
@@ -122,9 +121,13 @@ impl fmt::Display for StatusLabels<'_> {
 }
 
 /// `ProcStatus`'s label value, the same spelling [`ProcStatus`]'s own
-/// `Display` and wire form use. Kept beside [`dog_source_label`] so the two
-/// hand-listed label vocabularies sit together, and as a `&'static str` so
-/// the status loop pays no `to_string` for a spelling fixed at compile time.
+/// `Display` and wire form use. `ProcStatus` is `#[non_exhaustive]`, so a kind
+/// this client predates renders `unknown` rather than failing to build.
+///
+/// A `&'static str` so the status loop pays no `to_string` for a spelling
+/// fixed at compile time. The dog-source spelling lives in `shep-core`'s own
+/// `From<&DogSource> for &'static str`; the two hand-listed vocabularies sit
+/// where the type that owns them is defined.
 fn status_label(status: ProcStatus) -> &'static str {
     match status {
         ProcStatus::Starting => "starting",
@@ -133,16 +136,6 @@ fn status_label(status: ProcStatus) -> &'static str {
         ProcStatus::Stopped => "stopped",
         ProcStatus::Errored => "errored",
         ProcStatus::WaitingRestart => "waiting-restart",
-    }
-}
-
-/// `DogSource`'s label value. `DogSource` is `#[non_exhaustive]`, so a kind
-/// this client predates renders `unknown` rather than failing to build.
-fn dog_source_label(source: &DogSource) -> &'static str {
-    match source {
-        DogSource::BuiltIn => "built-in",
-        DogSource::Adopted { .. } => "adopted",
-        _ => "unknown",
     }
 }
 
@@ -221,7 +214,7 @@ pub fn render(reading: &Reading) -> String {
         if let Some(source) = &info.dog {
             let pairs = [
                 ("dog", info.name.as_str()),
-                ("source", dog_source_label(source)),
+                ("source", <&'static str>::from(source)),
             ];
             let up = i32::from(info.status == ProcStatus::Online);
             dog_up.push(labels(&pairs), up);

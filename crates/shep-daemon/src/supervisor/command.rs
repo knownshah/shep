@@ -201,6 +201,27 @@ pub(crate) enum Command {
         /// written.
         reply: oneshot::Sender<Result<Option<FieldSet>, SupervisorError>>,
     },
+    /// Reads one dog's table off every sheep carrying one. See
+    /// [`Actor::handle_dog_sheep_settings`].
+    DogSheepSettings {
+        /// The dog's own name, the config key.
+        dog: String,
+        /// Answers sheep name to table, empty when no sheep carries one.
+        reply: oneshot::Sender<BTreeMap<String, DogTable>>,
+    },
+    /// Sets or removes one dog's table on one sheep. See
+    /// [`Actor::handle_set_sheep_dog_settings`].
+    SetSheepDogSettings {
+        /// The sheep's name, not a selector, for [`Self::Scale`]'s reason.
+        name: String,
+        /// Which dog's table to write.
+        dog: String,
+        /// The new table, or `None` to remove it. [`DogTable`]'s own
+        /// `Debug` keeps its values out of this enum's (IR-41).
+        table: Option<DogTable>,
+        /// Answers as [`Self::SetSheepField`] does.
+        reply: oneshot::Sender<Result<Option<FieldSet>, SupervisorError>>,
+    },
     /// Attaches a marker to one sheep by name, or clears it.
     ///
     /// Last writer wins: `Some` overwrites whatever is there, including

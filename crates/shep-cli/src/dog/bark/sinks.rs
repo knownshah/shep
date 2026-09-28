@@ -15,7 +15,7 @@ use core::fmt;
 use std::time::Duration;
 
 use serde::Deserialize;
-use shep_client::dogs::DogConfig;
+use shep_client::dogs::dog_config;
 use shep_core::barks::Bark;
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
@@ -31,11 +31,11 @@ use crate::fetch::{self, Target};
 /// an error chain leaks it to whoever reads the log.
 ///
 /// `#[shep(secret)]` says the same thing to a schema that the `Debug` says
-/// to a log. It reaches a pane only for a dog whose whole config IS a sink,
-/// since the marks a schema carries are the ones the type shep asked about
-/// declared; bark's own section is asked as [`super::BarkConfig`], which
-/// marks the map instead and says why.
-#[derive(Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema, DogConfig)]
+/// to a log. The mark travels with the field, so it is in every schema that
+/// holds a sink: this type's own, and [`super::BarkConfig`]'s under
+/// `$defs/Sink`.
+#[dog_config]
+#[derive(Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Sink {
     /// A Discord webhook: `{"content": "..."}`.
@@ -434,10 +434,8 @@ fn parse_status_code(status_line: &str) -> Result<u16, SinkError> {
 
 #[cfg(test)]
 mod tests {
-    use tokio::sync::oneshot;
-
+    use super::super::testing::one_shot_sink;
     use super::*;
-    use crate::http::{HttpRequest, read_request, write_response};
 
     /// Every variant's `url` carries the credential marker; nothing else
     /// does. The key is spelled out here, not read from
@@ -445,8 +443,7 @@ mod tests {
     /// agreeing is the thing under test.
     #[test]
     fn every_sink_variant_marks_its_url_and_leaves_the_rest_plain() {
-        let schema = shep_client::dogs::config_schema::<Sink>()
-            .expect("`url` is a property of all three variants");
+        let schema = shep_client::dogs::config_schema::<Sink>();
         let variants = schema
             .as_value()
             .get("oneOf")
@@ -489,30 +486,6 @@ mod tests {
         Sink::Slack {
             url: "https://hooks.slack.com/services/T0/B0/super-secret-token".to_string(),
         }
-    }
-
-    /// Binds an ephemeral port, accepts one connection, answers
-    /// `status`/`body`, and hands the captured request back. Never a real
-    /// webhook.
-    async fn one_shot_sink(
-        status: u16,
-        body: &str,
-    ) -> (std::net::SocketAddr, oneshot::Receiver<HttpRequest>) {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        let (tx, rx) = oneshot::channel();
-        let body = body.to_string();
-        tokio::spawn(async move {
-            let (mut stream, _peer) = listener.accept().await.unwrap();
-            let req = read_request(&mut stream, Duration::from_secs(5))
-                .await
-                .unwrap();
-            write_response(&mut stream, status, "application/json", body.as_bytes())
-                .await
-                .unwrap();
-            let _ = tx.send(req);
-        });
-        (addr, rx)
     }
 
     #[test]
@@ -606,9 +579,13 @@ mod tests {
             url: format!("http://{addr}/hook"),
             body: None,
         };
-        deliver(&sink, &bark_for("web", "x"), Duration::from_secs(5))
-            .await
-            .unwrap();
+        tokio::time::timeout(
+            Duration::from_secs(30),
+            deliver(&sink, &bark_for("web", "x"), Duration::from_secs(5)),
+        )
+        .await
+        .expect("the delivery outlived its own sink timeout")
+        .unwrap();
         let req = tokio::time::timeout(Duration::from_secs(5), captured)
             .await
             .expect("the sink server must receive a request")
@@ -629,15 +606,19 @@ mod tests {
     #[tokio::test]
     async fn a_refused_delivery_is_a_failure_carrying_the_status() {
         let (addr, _captured) = one_shot_sink(429, "rate limited").await;
-        let err = deliver(
-            &Sink::Json {
-                url: format!("http://{addr}/"),
-                body: None,
-            },
-            &bark_for("web", "x"),
-            Duration::from_secs(5),
+        let err = tokio::time::timeout(
+            Duration::from_secs(30),
+            deliver(
+                &Sink::Json {
+                    url: format!("http://{addr}/"),
+                    body: None,
+                },
+                &bark_for("web", "x"),
+                Duration::from_secs(5),
+            ),
         )
         .await
+        .expect("the delivery outlived its own sink timeout")
         .unwrap_err();
         assert!(matches!(err, SinkError::Status { code: 429, .. }));
     }
