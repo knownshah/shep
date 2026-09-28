@@ -37,6 +37,7 @@ impl App {
             || pane.dogs().is_some();
         if asked && !busy {
             pane.open_dogs(dogs);
+            self.notice = None;
         }
         Effect::None
     }
@@ -411,13 +412,15 @@ mod tests {
             app.config_pane().unwrap().dogs().is_none(),
             "not on the key"
         );
-        assert!(app.notice().is_none(), "{:?}", app.notice());
+        let waiting = app.notice().expect("the probe's wait is said");
+        assert!(!waiting.grave, "{waiting:?}");
         let _ = app.update(Msg::SheepDogs {
             sheep: "web".into(),
             dogs: probe(),
         });
         let names: Vec<&str> = dogs(&app).rows().iter().map(|row| row.name()).collect();
         assert_eq!(names, ["deploy", "jobs", "legacy"]);
+        assert!(app.notice().is_none(), "the list replaces the wait");
     }
 
     #[test]

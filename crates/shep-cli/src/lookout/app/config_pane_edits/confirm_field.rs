@@ -18,6 +18,12 @@ impl App {
     /// close that writes them.
     pub(in crate::lookout::app) fn confirm_field(&mut self) -> Effect {
         if let Some(probe) = self.dogs_row_effect() {
+            // Each adopted dog's binary answers in its own time, up to
+            // `VERSION_BUDGET` apiece, so the wait says what it is.
+            self.notice = Some(Notice {
+                text: "asking each dog for its per-sheep schema".to_owned(),
+                grave: false,
+            });
             return probe;
         }
         let Some(pane) = self.config_pane() else {
