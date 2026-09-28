@@ -257,7 +257,9 @@ pub(super) fn impact_tag(group: ApplyGroup) -> (char, &'static str, &'static str
 
 #[cfg(test)]
 mod tests {
-    use super::super::fixtures::{secret_dog_pane_with_an_edit, text_of, web_pane};
+    use super::super::fixtures::{
+        nested_secret_dog_pane, secret_dog_pane_with_an_edit, text_of, web_pane,
+    };
     use super::super::pane_lines;
     use super::*;
     use crate::lookout::view::MIN_TERM_WIDTH;
@@ -499,6 +501,23 @@ mod tests {
         assert!(
             !text.join("\n").contains("ef56gh78"),
             "the new value leaked: {text:?}"
+        );
+    }
+
+    /// A table row is drawn whole as JSON, so a secret one level inside it
+    /// masks the row, and the panel's `now` line with it (#630).
+    #[test]
+    fn a_table_holding_a_secret_draws_masked_in_the_row_and_the_panel() {
+        let pane = nested_secret_dog_pane();
+        let text = text_of(&pane_lines(&pane, fixtures::plain(), 160, 0));
+        let row = text
+            .iter()
+            .find(|line| line.contains(" db "))
+            .expect("db is drawn at 160 columns");
+        assert!(row.contains("<set>"), "{row:?}");
+        assert!(
+            !text.join("\n").contains("ab12cd34"),
+            "the password leaked: {text:?}"
         );
     }
 

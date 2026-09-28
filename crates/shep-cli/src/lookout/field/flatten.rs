@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
 
+use super::schema::marked;
 use super::{Field, FieldKind, FieldSet};
 
 /// A per-sheep schema flattened into dotted rows.
@@ -144,54 +145,11 @@ fn walk<'a>(
             field.kind = FieldKind::Opaque;
             field.editable = false;
         }
-        // A read-only row draws its whole value, so a secret anywhere
-        // beneath it, or on the `$ref` it names, masks the row.
-        field.secret |= inherited || holds_secret(property_schema, defs, &mut Vec::new());
+        // `field_from` already masks a row with a secret anywhere beneath
+        // it; what it cannot see is a secret table above this one.
+        field.secret |= inherited;
         fields.push(field);
         paths.insert(dotted, path);
-    }
-}
-
-/// Whether `schema` itself carries the secret marker.
-fn marked(schema: &Value) -> bool {
-    schema
-        .get(shep_core::dogs::SECRET_KEY)
-        .and_then(Value::as_bool)
-        == Some(true)
-}
-
-/// Whether `schema` or anything it reaches, through a `$ref` or any nested
-/// keyword, carries the secret marker. `seen` holds the `$defs` names
-/// already followed, so a type that holds itself is read once.
-fn holds_secret<'a>(
-    schema: &'a Value,
-    defs: &'a Map<String, Value>,
-    seen: &mut Vec<&'a str>,
-) -> bool {
-    match schema {
-        Value::Object(map) => {
-            if marked(schema) {
-                return true;
-            }
-            let target = map
-                .get("$ref")
-                .and_then(Value::as_str)
-                .and_then(|r| r.strip_prefix("#/$defs/"));
-            if let Some(name) = target
-                && !seen.contains(&name)
-            {
-                seen.push(name);
-                if defs
-                    .get(name)
-                    .is_some_and(|def| holds_secret(def, defs, seen))
-                {
-                    return true;
-                }
-            }
-            map.values().any(|value| holds_secret(value, defs, seen))
-        }
-        Value::Array(items) => items.iter().any(|item| holds_secret(item, defs, seen)),
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => false,
     }
 }
 

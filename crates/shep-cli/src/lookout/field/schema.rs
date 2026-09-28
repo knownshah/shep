@@ -151,6 +151,49 @@ pub(super) fn render_default(value: Option<&Value>) -> Option<String> {
     }
 }
 
+/// Whether `schema` itself carries the secret marker.
+pub(super) fn marked(schema: &Value) -> bool {
+    schema
+        .get(shep_core::dogs::SECRET_KEY)
+        .and_then(Value::as_bool)
+        == Some(true)
+}
+
+/// Whether `schema` or anything it reaches, through a `$ref` or any nested
+/// keyword, carries the secret marker. `seen` holds the `$defs` names
+/// already followed, so a type that holds itself is read once.
+pub(super) fn holds_secret<'a>(
+    schema: &'a Value,
+    defs: &'a Map<String, Value>,
+    seen: &mut Vec<&'a str>,
+) -> bool {
+    match schema {
+        Value::Object(map) => {
+            if marked(schema) {
+                return true;
+            }
+            let target = map
+                .get("$ref")
+                .and_then(Value::as_str)
+                .and_then(|r| r.strip_prefix("#/$defs/"));
+            if let Some(name) = target
+                && !seen.contains(&name)
+            {
+                seen.push(name);
+                if defs
+                    .get(name)
+                    .is_some_and(|def| holds_secret(def, defs, seen))
+                {
+                    return true;
+                }
+            }
+            map.values().any(|value| holds_secret(value, defs, seen))
+        }
+        Value::Array(items) => items.iter().any(|item| holds_secret(item, defs, seen)),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::FieldSet;
