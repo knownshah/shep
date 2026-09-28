@@ -50,7 +50,7 @@ pub(super) fn dogs_lines(
         )),
     };
     let mut lines = vec![title];
-    let body_budget = budget - 1;
+    let body_budget = budget.saturating_sub(1);
     if body_budget == 0 {
         return lines;
     }

@@ -438,7 +438,8 @@ where
                 }));
                 dirty = true;
             }
-            // Off this task for `Effect::LoadDogPane`'s reason, once per dog.
+            // Off this task for `Effect::LoadDogPane`'s reason, with every
+            // dog asked once, all at the same time.
             // A probe that panicked lists no dog, which leaves every table
             // read-only rather than editable through a schema nobody read.
             Effect::LoadSheepDogs { sheep, ask } => {

@@ -12,7 +12,7 @@ impl App {
     /// - The cursor is on a typed field: opens the editor and switches
     ///   [`InputMode::Text`] on.
     ///
-    /// All three go through [`Self::authorize_write`], the editor included,
+    /// The other three go through [`Self::authorize_write`], the editor included,
     /// for the reason [`Self::confirm_setting`]'s own doc gives: the gate
     /// is checked on the keystroke that would file an edit, not on the
     /// close that writes them.
