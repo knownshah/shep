@@ -462,7 +462,11 @@ mod tests {
         assert!(!dogs.arm_removal());
         assert_eq!(dogs.armed(), None);
         dogs.move_by(1);
-        assert!(dogs.arm_removal(), "jobs carries a table");
+        assert_eq!(
+            dogs.cursor_row().map(DogRow::state),
+            Some(DogTableState::ReadOnly)
+        );
+        assert!(dogs.arm_removal(), "a read-only table can still be removed");
         assert_eq!(dogs.armed(), Some("jobs"));
         assert!(dogs.disarm());
         assert_eq!(dogs.armed(), None);

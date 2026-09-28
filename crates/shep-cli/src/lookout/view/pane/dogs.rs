@@ -267,6 +267,7 @@ mod tests {
         pane.dogs_mut().expect("open").move_to_last();
         let text = render_all(&pane_lines(&pane, plain(), 120, 3));
         assert!(text.contains("> legacy"), "{text}");
+        assert!(text.contains("... 2 above"), "{text}");
         assert_eq!(text.lines().count(), 3, "{text}");
     }
 }
