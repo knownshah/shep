@@ -141,13 +141,21 @@ mod tests {
             format!("#!/bin/sh\n[ \"$1\" = --schema ] && echo '{schema}'\nexit 0\n"),
         )
         .unwrap();
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let quiet = dir.path().join("shep-quiet");
+        std::fs::write(&quiet, "#!/bin/sh\nexit 0\n").unwrap();
+        let broken = dir.path().join("shep-broken");
+        std::fs::write(&broken, "#!/bin/sh\necho '{not json'\nexit 0\n").unwrap();
+        for bin in [&script, &quiet, &broken] {
+            std::fs::set_permissions(bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
         let config = dir.path().join("shep.toml");
         std::fs::write(
             &config,
             format!(
-                "[daemon.adopted_dogs]\njobs = {:?}\n",
-                script.display().to_string()
+                "[daemon.adopted_dogs]\njobs = {:?}\nquiet = {:?}\nbroken = {:?}\n",
+                script.display().to_string(),
+                quiet.display().to_string(),
+                broken.display().to_string()
             ),
         )
         .unwrap();
@@ -170,5 +178,9 @@ mod tests {
             .find(|dog| dog.name == "bark")
             .expect("a built-in");
         assert_eq!(bark.schema, None);
+        for silent in ["quiet", "broken"] {
+            let dog = dogs.iter().find(|dog| dog.name == silent).expect(silent);
+            assert_eq!(dog.schema, None, "{silent} answers no schema");
+        }
     }
 }
