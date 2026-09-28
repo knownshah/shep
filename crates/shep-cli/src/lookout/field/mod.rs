@@ -10,10 +10,16 @@
 mod bounds;
 #[cfg(test)]
 mod fixtures;
+mod flatten;
 mod init;
 mod schema;
 
 pub use bounds::Bounds;
+#[allow(
+    unused_imports,
+    reason = "read by the SheepDog pane task 3 of this plan adds"
+)]
+pub(crate) use flatten::{Flattened, flatten_values, flattened};
 
 use serde_json::{Map, Value};
 

@@ -1,0 +1,290 @@
+//! Flattens a per-sheep schema into dotted rows.
+//!
+//! A dog's per-sheep table can nest a table inside a table
+//! (`[app.dogs.jobs].hours = { start = ... }`), and the pane that edits it
+//! has no sub-screen for that: [`super::FieldKind::Opaque`] is read-only.
+//! [`flattened`] walks every nested table's own `properties` instead of
+//! treating it as one opaque leaf, so `hours.start` becomes its own row,
+//! built by the same [`super::field_from`] every other schema-driven pane
+//! uses. An array, an array of tables, and a map of scalars or tables stay
+//! one `Opaque` row: none of those has a shape [`flattened`] can walk back
+//! into a set of writes.
+
+use std::collections::BTreeMap;
+
+use serde_json::{Map, Value};
+
+use super::{Field, FieldKind, FieldSet};
+
+/// A per-sheep schema flattened into dotted rows.
+#[allow(
+    dead_code,
+    reason = "read by the SheepDog pane task 3 of this plan adds"
+)]
+pub(crate) struct Flattened {
+    /// One row per leaf, in schema order, no groups.
+    pub(crate) fields: FieldSet,
+    /// The dotted display key each row was built under, to the real path
+    /// of property names it came from. A property literally named `a.b`
+    /// keeps the one-element path `["a.b"]`.
+    pub(crate) paths: BTreeMap<String, Vec<String>>,
+}
+
+/// Flattens `schema`, the `x-shep-sheep` value with the root's own `$defs`
+/// attached, into [`Flattened`].
+///
+/// A property whose resolved schema is an object with `properties` is not
+/// a leaf: its own properties become rows instead, prefixed with this
+/// property's key, however many tables deep the schema nests. Every other
+/// property becomes one leaf row, built by [`super::field_from`] so its
+/// kind, help and secret mark come out exactly as they would in any other
+/// schema-driven pane. A leaf whose kind is [`FieldKind::Map`] or
+/// [`FieldKind::List`] is shown as [`FieldKind::Opaque`] instead: an array
+/// and a map of scalars or tables stay read-only here, since neither has a
+/// shape this flatten can write back into by path.
+#[must_use]
+#[allow(
+    dead_code,
+    reason = "called by the SheepDog pane task 3 of this plan adds"
+)]
+pub(crate) fn flattened(schema: &Value) -> Flattened {
+    let defs = schema
+        .get("$defs")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let root = super::schema::resolved(schema, &defs);
+    let properties = root
+        .get("properties")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+
+    let mut fields = Vec::new();
+    let mut paths = BTreeMap::new();
+    walk(&properties, &defs, &[], &mut fields, &mut paths);
+
+    Flattened {
+        fields: FieldSet::from_fields(fields, &[]),
+        paths,
+    }
+}
+
+/// Whether `schema` (already `$ref`- and `anyOf`-resolved) is a nested
+/// table rather than a leaf: an object schema that names its own
+/// properties, not a map of arbitrary keys.
+fn is_nested_table(schema: &Value) -> bool {
+    schema.get("type").and_then(Value::as_str) == Some("object")
+        && schema.get("properties").is_some()
+        && schema.get("additionalProperties").is_none()
+}
+
+fn walk(
+    properties: &Map<String, Value>,
+    defs: &Map<String, Value>,
+    prefix: &[String],
+    fields: &mut Vec<Field>,
+    paths: &mut BTreeMap<String, Vec<String>>,
+) {
+    for (key, property_schema) in properties {
+        let mut path = prefix.to_vec();
+        path.push(key.clone());
+
+        let resolved = super::schema::resolved(property_schema, defs);
+        if is_nested_table(resolved)
+            && let Some(nested) = resolved.get("properties").and_then(Value::as_object)
+        {
+            walk(nested, defs, &path, fields, paths);
+            continue;
+        }
+
+        let dotted = path.join(".");
+        let mut field = super::field_from(key, property_schema, defs);
+        field.key.clone_from(&dotted);
+        if matches!(field.kind, FieldKind::Map | FieldKind::List(_)) {
+            field.kind = FieldKind::Opaque;
+            field.editable = false;
+        }
+        fields.push(field);
+        paths.insert(dotted, path);
+    }
+}
+
+/// Reads `table`'s values at every path `paths` names, keyed by the same
+/// dotted keys [`flattened`] built its rows under.
+///
+/// A path `flattened` named that `table` does not carry, at any depth,
+/// reads as `Value::Null`: an unset leaf, not a fault.
+#[must_use]
+#[allow(
+    dead_code,
+    reason = "called by the SheepDog pane task 3 of this plan adds"
+)]
+pub(crate) fn flatten_values(
+    table: &Map<String, Value>,
+    paths: &BTreeMap<String, Vec<String>>,
+) -> Map<String, Value> {
+    paths
+        .iter()
+        .map(|(dotted, path)| (dotted.clone(), value_at(table, path)))
+        .collect()
+}
+
+fn value_at(table: &Map<String, Value>, path: &[String]) -> Value {
+    let Some((first, rest)) = path.split_first() else {
+        return Value::Null;
+    };
+    let Some(value) = table.get(first) else {
+        return Value::Null;
+    };
+    if rest.is_empty() {
+        return value.clone();
+    }
+    match value.as_object() {
+        Some(nested) => value_at(nested, rest),
+        None => Value::Null,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::super::fixtures::props;
+    use super::*;
+
+    /// A per-sheep schema three tables deep, through a `$ref` chain, the
+    /// way a dog's own `--schema` answer nests one: `models` names
+    /// `Models`, which names `Worker` through its own `$ref`. `merge` is a
+    /// closed choice, `tags` an array, `labels` a scalar map, and `a.b` is
+    /// a property literally named with a dot, to prove the join does not
+    /// re-split it.
+    fn sheep_schema() -> Value {
+        json!({
+            "$ref": "#/$defs/ProjectSettings",
+            "$defs": {
+                "ProjectSettings": {
+                    "type": "object",
+                    "properties": {
+                        "concurrency": { "type": "integer" },
+                        "merge": { "enum": ["ask", "auto"] },
+                        "tags": { "type": "array", "items": { "type": "string" } },
+                        "labels": {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" },
+                        },
+                        "a.b": { "type": "string" },
+                        "models": { "$ref": "#/$defs/Models" },
+                    },
+                },
+                "Models": {
+                    "type": "object",
+                    "properties": {
+                        "worker": { "$ref": "#/$defs/Worker" },
+                    },
+                },
+                "Worker": {
+                    "type": "object",
+                    "properties": {
+                        "model": { "type": "string" },
+                        "token": { "type": "string", "x-shep-secret": true },
+                    },
+                },
+            },
+        })
+    }
+
+    #[test]
+    fn a_nested_table_three_deep_through_a_ref_chain_becomes_dotted_rows() {
+        let flat = flattened(&sheep_schema());
+        assert!(flat.fields.by_key("models.worker.model").is_some());
+        assert!(flat.fields.by_key("models.worker.token").is_some());
+        assert_eq!(
+            flat.paths.get("models.worker.model").map(Vec::as_slice),
+            Some(["models", "worker", "model"].map(str::to_owned).as_slice())
+        );
+    }
+
+    #[test]
+    fn a_leaf_keeps_its_kind_and_its_secret_mark() {
+        let flat = flattened(&sheep_schema());
+        assert_eq!(
+            flat.fields.by_key("concurrency").unwrap().kind,
+            FieldKind::Integer
+        );
+        assert_eq!(
+            flat.fields.by_key("merge").unwrap().kind,
+            FieldKind::Choice(vec!["ask".to_owned(), "auto".to_owned()])
+        );
+        assert!(flat.fields.by_key("models.worker.token").unwrap().secret);
+        assert!(!flat.fields.by_key("models.worker.model").unwrap().secret);
+    }
+
+    #[test]
+    fn an_array_and_a_scalar_map_stay_one_opaque_row() {
+        let flat = flattened(&sheep_schema());
+        let tags = flat.fields.by_key("tags").unwrap();
+        assert_eq!(tags.kind, FieldKind::Opaque);
+        assert!(!tags.editable);
+
+        let labels = flat.fields.by_key("labels").unwrap();
+        assert_eq!(labels.kind, FieldKind::Opaque);
+        assert!(!labels.editable);
+    }
+
+    #[test]
+    fn an_array_of_tables_stays_one_opaque_row() {
+        let schema = json!({
+            "$ref": "#/$defs/Root",
+            "$defs": {
+                "Root": {
+                    "type": "object",
+                    "properties": {
+                        "hosts": {
+                            "type": "array",
+                            "items": { "$ref": "#/$defs/Host" },
+                        },
+                    },
+                },
+                "Host": {
+                    "type": "object",
+                    "properties": { "name": { "type": "string" } },
+                },
+            },
+        });
+        let flat = flattened(&schema);
+        assert_eq!(flat.fields.by_key("hosts").unwrap().kind, FieldKind::Opaque);
+        assert!(!flat.fields.by_key("hosts").unwrap().editable);
+    }
+
+    #[test]
+    fn a_property_literally_named_with_a_dot_keeps_a_one_element_path() {
+        let flat = flattened(&sheep_schema());
+        assert_eq!(
+            flat.paths.get("a.b").map(Vec::as_slice),
+            Some(["a.b"].map(str::to_owned).as_slice())
+        );
+        assert!(flat.fields.by_key("a.b").is_some());
+    }
+
+    #[test]
+    fn flatten_values_reads_a_table_by_the_same_dotted_keys() {
+        let flat = flattened(&sheep_schema());
+        let table = props(json!({
+            "concurrency": 2,
+            "models": { "worker": { "model": "gpt", "token": "hunter2" } },
+            "a.b": "literal",
+        }));
+
+        let values = flatten_values(&table, &flat.paths);
+        assert_eq!(values.get("concurrency"), Some(&json!(2)));
+        assert_eq!(values.get("models.worker.model"), Some(&json!("gpt")));
+        assert_eq!(values.get("models.worker.token"), Some(&json!("hunter2")));
+        assert_eq!(values.get("a.b"), Some(&json!("literal")));
+        assert_eq!(
+            values.get("merge"),
+            Some(&Value::Null),
+            "a path the table does not carry reads as null, not a fault"
+        );
+    }
+}
