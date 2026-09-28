@@ -198,8 +198,8 @@ impl TreeIndex {
         let mut bytes_by_pid: HashMap<u32, u64> = HashMap::with_capacity(table.len());
         let mut cpu_by_pid: HashMap<u32, u64> = HashMap::with_capacity(table.len());
         // Sized like the two maps above rather than from empty: at most one
-        // key per row, and growing from nothing rehashes its way up once
-        // per armed root per tick.
+        // key per row, and growing from nothing rehashes its way up on every
+        // build, which is once a tick.
         let mut children_of: HashMap<u32, Vec<u32>> = HashMap::with_capacity(table.len());
         for entry in table {
             bytes_by_pid.insert(entry.pid, entry.bytes);
