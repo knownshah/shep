@@ -449,31 +449,11 @@ impl App {
                     }
                 }
             }
-            // A dog's schema probe answered. `Ok` parks the schema and asks
-            // the shepherd for the section; the pane is built once that
-            // lands. `Err` gets no pane, and the refusal names the file to
-            // edit instead. The settings screen stays open until then.
             Msg::DogPane {
                 name,
                 adopted_path,
                 result,
-            } => match result {
-                Ok(schema) => {
-                    self.dog_target = Some(DogProbe {
-                        name: name.clone(),
-                        adopted_path,
-                        schema,
-                    });
-                    Effect::Send(Sent::DogSection { name })
-                }
-                Err(message) => {
-                    self.notice = Some(Notice {
-                        text: message,
-                        grave: true,
-                    });
-                    Effect::None
-                }
-            },
+            } => self.on_dog_pane(name, adopted_path, result),
             // `Ok` raises the daemon half: `Cycle` arms, `Confirm` writes the
             // file, this arm asks the shepherd. `Err` never reaches it, since
             // there is nothing for the daemon half to agree with.
