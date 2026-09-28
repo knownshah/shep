@@ -15,6 +15,7 @@ use super::super::edits::{EditKey, Edits};
 use super::super::field::{FieldKind, FieldSet};
 use super::super::viewport::Viewport;
 use super::fields::{render_json, resolved_display, sheep_fields};
+use super::sheep_dog::SheepDogTable;
 
 // Link-only (IR-32): the unit grammars a row's resolved display goes
 // through, and the field kind a locked row reports.
@@ -71,6 +72,9 @@ pub struct ConfigPane {
     /// throw away every comment the operator wrote. See
     /// [`Self::edited_section_with`].
     pub(super) section: Option<String>,
+    /// A dog's table on a sheep, whole, and where each dotted row lives in
+    /// it. [`None`] for every other target. See [`Self::sheep_dog`].
+    pub(super) dog_table: Option<SheepDogTable>,
 }
 
 impl core::fmt::Debug for ConfigPane {
@@ -110,6 +114,7 @@ impl ConfigPane {
             env_typing: None,
             list: None,
             section: None,
+            dog_table: None,
         }
     }
 
@@ -174,6 +179,7 @@ impl ConfigPane {
             env_typing: None,
             list: None,
             section: Some(section),
+            dog_table: None,
         }
     }
 
@@ -279,7 +285,7 @@ impl ConfigPane {
             PaneTarget::Sheep { .. } => Some(apply_group(key)),
             // The dog decides, not shep. Said once at the foot of the pane
             // rather than guessed per row.
-            PaneTarget::Dog { .. } => None,
+            PaneTarget::Dog { .. } | PaneTarget::SheepDog { .. } => None,
         }
     }
 

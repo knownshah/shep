@@ -90,6 +90,7 @@ impl App {
                 }
                 requests
             }
+            PaneTarget::SheepDog { .. } => Vec::new(),
         };
         // One ticket per request that goes out, and never reused: the
         // counter is what keeps two `Sent` values for the same field

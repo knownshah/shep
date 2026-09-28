@@ -342,7 +342,9 @@ impl App {
         };
         let name = pane.target().name().to_owned();
         match pane.target() {
-            PaneTarget::Sheep { .. } => Effect::Send(Sent::SheepConfig { name }),
+            PaneTarget::Sheep { .. } | PaneTarget::SheepDog { .. } => {
+                Effect::Send(Sent::SheepConfig { name })
+            }
             PaneTarget::Dog { .. } => Effect::Send(Sent::DogSection { name }),
         }
     }

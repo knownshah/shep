@@ -24,20 +24,20 @@ use crate::vocabulary::Role;
 /// Carries no control-dependent word: what the keys do belongs in the key
 /// hint (`view::status::pane_hint`), which already reads the gate.
 pub(super) fn title_line(pane: &ConfigPane, palette: Palette, width: u16) -> Line<'static> {
-    let kind = match pane.target() {
-        PaneTarget::Sheep { .. } => "sheep config",
-        PaneTarget::Dog { .. } => "dog config",
-    };
     Line::from(Span::styled(
-        format!(
-            "  {}",
-            fit(
-                &format!("{}  ({kind})", pane.target().name()),
-                body_width(width)
-            )
-        ),
+        format!("  {}", fit(&heading(pane), body_width(width))),
         palette.muted(),
     ))
+}
+
+/// What [`title_line`] and [`title_band_line`] name: the target, and which
+/// of the three kinds of config it is.
+fn heading(pane: &ConfigPane) -> String {
+    match pane.target() {
+        PaneTarget::Sheep { name } => format!("{name}  (sheep config)"),
+        PaneTarget::Dog { name, .. } => format!("{name}  (dog config)"),
+        PaneTarget::SheepDog { sheep, dog, .. } => format!("{sheep} \u{203a} {dog}  (dog table)"),
+    }
 }
 
 /// Whether `pane`'s own fields carry a group at all.
@@ -70,11 +70,7 @@ pub(super) fn has_groups(pane: &ConfigPane) -> bool {
 /// Nothing rather than a zero, the same rule `view::detail`'s `cfg` cell
 /// follows: an untouched pane names no count at all, not `0 edits`.
 pub(super) fn title_band_line(pane: &ConfigPane, palette: Palette, width: u16) -> Line<'static> {
-    let kind = match pane.target() {
-        PaneTarget::Sheep { .. } => "sheep config",
-        PaneTarget::Dog { .. } => "dog config",
-    };
-    let mut text = format!("{}  ({kind})", pane.target().name());
+    let mut text = heading(pane);
     let count = pane.edits().len();
     match count {
         0 => {}

@@ -1,0 +1,338 @@
+//! A pane over one dog's `[app.dogs.<dog>]` table on one sheep.
+//!
+//! The rows come from the dog's per-sheep schema, flattened so a nested
+//! table's fields are dotted rows of their own. The write carries the whole
+//! table: `Request::SetSheepDogSettings` replaces it, so every key no edit
+//! touched, the schema's or not, goes back exactly as it came.
+
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use serde_json::{Map, Value};
+
+use super::super::edits::{EditKey, Edits};
+use super::super::field::{Flattened, flatten_values, flattened};
+use super::super::viewport::Viewport;
+use super::{ConfigPane, PaneEdit, PaneTarget};
+
+/// The table a [`ConfigPane::sheep_dog`] pane edits, and where each of its
+/// dotted rows lives in it.
+///
+/// `Debug` is manual and redacted (IR-41): the table can hold a credential,
+/// so it prints how many rows and keys there are and nothing else.
+#[derive(Clone)]
+pub(in crate::lookout) struct SheepDogTable {
+    /// Dotted row key to the real key path. A row key is never split on its
+    /// dots, since a property can be named `a.b`.
+    paths: BTreeMap<String, Vec<String>>,
+    /// The table as the shepherd holds it, keys the schema does not name
+    /// included.
+    table: Map<String, Value>,
+}
+
+impl core::fmt::Debug for SheepDogTable {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "SheepDogTable {{ rows: {}, keys: {} }}",
+            self.paths.len(),
+            self.table.len()
+        )
+    }
+}
+
+impl ConfigPane {
+    /// A pane over `dog`'s table on `sheep`.
+    ///
+    /// `schema` is the dog's `x-shep-sheep` answer with the root's `$defs`
+    /// attached; `table` is what the sheep carries for it, empty for none.
+    /// Flat, in schema order, with no group headers, like [`Self::dog`].
+    #[must_use]
+    #[allow(
+        dead_code,
+        reason = "opened from the dogs sub-screen task 5 of this plan adds"
+    )]
+    pub fn sheep_dog(
+        sheep: String,
+        dog: String,
+        adopted_path: Option<PathBuf>,
+        schema: &Value,
+        table: Map<String, Value>,
+    ) -> Self {
+        let Flattened { fields, paths } = flattened(schema);
+        let values = flatten_values(&table, &paths);
+        Self {
+            target: PaneTarget::SheepDog {
+                sheep,
+                dog,
+                adopted_path,
+            },
+            fields,
+            values,
+            env_keys: Vec::new(),
+            overridden: Vec::new(),
+            pending: Vec::new(),
+            group: 0,
+            view: Viewport::new(),
+            typing: None,
+            edits: Edits::default(),
+            env_typing: None,
+            list: None,
+            section: None,
+            dog_table: Some(SheepDogTable { paths, table }),
+        }
+    }
+
+    /// The whole table with every field edit in `edits` applied at its own
+    /// path, ready for `Request::SetSheepDogSettings`.
+    ///
+    /// A `null` removes that leaf and nothing above it. A set creates any
+    /// table on its path the sheep does not carry yet. Every key no edit
+    /// names stays exactly as the shepherd sent it. Empty for any other
+    /// target.
+    #[must_use]
+    #[allow(dead_code, reason = "sent on close by task 6 of this plan")]
+    pub fn edited_table_with(&self, edits: &Edits) -> Map<String, Value> {
+        let Some(state) = &self.dog_table else {
+            return Map::new();
+        };
+        let mut table = state.table.clone();
+        for (key, edit) in edits.iter() {
+            let (EditKey::Field(row), PaneEdit::Set { value, .. }) = (key, edit.edit()) else {
+                continue;
+            };
+            if let Some(path) = state.paths.get(row) {
+                write_at(&mut table, path, value.as_value());
+            }
+        }
+        table
+    }
+}
+
+/// Sets `value` at `path` inside `table`, or removes that leaf for `null`.
+///
+/// A step on the path that holds something other than a table is replaced
+/// by one: the schema says a table lives there, and the edit is the
+/// operator's.
+fn write_at(table: &mut Map<String, Value>, path: &[String], value: &Value) {
+    let Some((leaf, parents)) = path.split_last() else {
+        return;
+    };
+    let mut here = table;
+    for step in parents {
+        if value.is_null() && !here.get(step).is_some_and(Value::is_object) {
+            return;
+        }
+        let slot = here
+            .entry(step.clone())
+            .or_insert_with(|| Value::Object(Map::new()));
+        if !slot.is_object() {
+            *slot = Value::Object(Map::new());
+        }
+        let Value::Object(next) = slot else {
+            return;
+        };
+        here = next;
+    }
+    if value.is_null() {
+        here.remove(leaf);
+    } else {
+        here.insert(leaf.clone(), value.clone());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::super::fixtures::field;
+    use super::*;
+    use crate::lookout::view::fixtures::{plain, render_all};
+    use crate::lookout::view::pane::pane_lines;
+
+    /// The `jobs` dog's per-sheep schema: a scalar, a closed choice, a
+    /// nested `hours` table, and `models.worker` two tables deep holding a
+    /// secret beside a plain field.
+    fn jobs_schema() -> Value {
+        json!({
+            "$ref": "#/$defs/ProjectSettings",
+            "$defs": {
+                "ProjectSettings": {
+                    "type": "object",
+                    "properties": {
+                        "concurrency": { "type": "integer" },
+                        "merge": { "enum": ["ask", "auto"] },
+                        "hours": { "$ref": "#/$defs/Hours" },
+                        "models": { "$ref": "#/$defs/Models" },
+                    },
+                },
+                "Hours": {
+                    "type": "object",
+                    "properties": {
+                        "start": { "type": "string" },
+                        "end": { "type": "string" },
+                    },
+                },
+                "Models": {
+                    "type": "object",
+                    "properties": { "worker": { "$ref": "#/$defs/Worker" } },
+                },
+                "Worker": {
+                    "type": "object",
+                    "properties": {
+                        "model": { "type": "string" },
+                        "token": { "type": "string", "x-shep-secret": true },
+                    },
+                },
+            },
+        })
+    }
+
+    /// `web`'s `jobs` table, with a credential in `models.worker.token` and
+    /// a `legacy` table the schema does not name.
+    fn jobs_table() -> Map<String, Value> {
+        json!({
+            "concurrency": 2,
+            "merge": "ask",
+            "hours": { "start": "09:00", "end": "17:00" },
+            "models": { "worker": { "model": "small", "token": "sk-live-51Hx9Qa" } },
+            "legacy": { "kept": true },
+        })
+        .as_object()
+        .cloned()
+        .expect("an object")
+    }
+
+    fn jobs_pane() -> ConfigPane {
+        ConfigPane::sheep_dog(
+            "web".into(),
+            "jobs".into(),
+            Some("/opt/jobs".into()),
+            &jobs_schema(),
+            jobs_table(),
+        )
+    }
+
+    fn edits_of(pairs: &[(&str, Value)]) -> Edits {
+        let mut edits = Edits::default();
+        for (key, value) in pairs {
+            edits.set(field(key, value.clone()), None);
+        }
+        edits
+    }
+
+    #[test]
+    fn a_nested_table_shows_as_dotted_rows_with_the_tables_values() {
+        let pane = jobs_pane();
+        let keys: Vec<&str> = pane
+            .fields()
+            .fields()
+            .iter()
+            .map(|f| f.key.as_str())
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                "concurrency",
+                "hours.end",
+                "hours.start",
+                "merge",
+                "models.worker.model",
+                "models.worker.token"
+            ]
+        );
+        assert_eq!(pane.value("hours.start"), "09:00");
+        assert_eq!(pane.value("models.worker.model"), "small");
+        assert_eq!(pane.value("concurrency"), "2");
+        assert_eq!(pane.target().name(), "web", "the sheep owns the table");
+        assert_eq!(pane.cost("concurrency"), None, "the dog decides");
+    }
+
+    #[test]
+    fn a_secret_draws_set_and_its_value_reaches_no_row() {
+        let pane = jobs_pane();
+        let text = render_all(&pane_lines(&pane, plain(), 160, 0));
+        assert!(!text.contains("sk-live-51Hx9Qa"), "{text}");
+        let token_row = text
+            .lines()
+            .find(|line| line.contains("models.worker.token"))
+            .expect("the secret has a row");
+        assert!(token_row.contains("<set>"), "{token_row}");
+    }
+
+    #[test]
+    fn the_title_names_the_sheep_and_the_dog() {
+        let text = render_all(&pane_lines(&jobs_pane(), plain(), 120, 0));
+        assert!(text.contains("web \u{203a} jobs"), "{text}");
+    }
+
+    #[test]
+    fn an_edit_sets_a_nested_leaf_and_keeps_every_other_key() {
+        let pane = jobs_pane();
+        let table = pane.edited_table_with(&edits_of(&[
+            ("hours.start", json!("10:00")),
+            ("merge", json!("auto")),
+        ]));
+        let mut want = jobs_table();
+        want["hours"]["start"] = json!("10:00");
+        want["merge"] = json!("auto");
+        assert_eq!(Value::Object(table), Value::Object(want));
+    }
+
+    #[test]
+    fn a_null_removes_only_its_leaf() {
+        let pane = jobs_pane();
+        let table = pane.edited_table_with(&edits_of(&[
+            ("concurrency", Value::Null),
+            ("hours.end", Value::Null),
+        ]));
+        assert!(!table.contains_key("concurrency"));
+        assert_eq!(table["hours"], json!({ "start": "09:00" }));
+        assert_eq!(table["models"], jobs_table()["models"], "a sibling table");
+        assert_eq!(
+            table["legacy"],
+            json!({ "kept": true }),
+            "a key no schema names"
+        );
+    }
+
+    #[test]
+    fn a_set_under_a_table_the_sheep_lacks_creates_it() {
+        let pane = ConfigPane::sheep_dog(
+            "web".into(),
+            "jobs".into(),
+            None,
+            &jobs_schema(),
+            Map::new(),
+        );
+        let table = pane.edited_table_with(&edits_of(&[
+            ("models.worker.model", json!("large")),
+            ("hours.end", Value::Null),
+        ]));
+        assert_eq!(
+            Value::Object(table),
+            json!({ "models": { "worker": { "model": "large" } } })
+        );
+    }
+
+    #[test]
+    fn no_edit_gives_back_the_table_as_it_came() {
+        assert_eq!(
+            jobs_pane().edited_table_with(&Edits::default()),
+            jobs_table()
+        );
+    }
+
+    /// The table carries a credential in `models.worker.token`, and a
+    /// derived `Debug` anywhere on the way would print it (IR-41).
+    #[test]
+    fn the_panes_debug_names_no_table_value() {
+        let pane = jobs_pane();
+        assert_eq!(
+            format!("{pane:?}"),
+            r#"ConfigPane { target: SheepDog { sheep: "web", dog: "jobs", adopted_path: Some("/opt/jobs") }, fields: 6, env_keys: 0, cursor: 0 }"#
+        );
+        let state = pane.dog_table.as_ref().expect("a table pane");
+        assert_eq!(format!("{state:?}"), "SheepDogTable { rows: 6, keys: 5 }");
+    }
+}

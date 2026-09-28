@@ -195,7 +195,8 @@ pub(super) fn merge_beside_panel(
 /// `ungrouped_pane_lines_with_panel` both need that decision made before
 /// this call, not after.
 pub(super) fn dog_footer_text(pane: &ConfigPane, body_budget: usize) -> Option<String> {
-    let PaneTarget::Dog { name, .. } = pane.target() else {
+    let (PaneTarget::Dog { name, .. } | PaneTarget::SheepDog { dog: name, .. }) = pane.target()
+    else {
         return None;
     };
     (body_budget > 0).then(|| format!("shep publishes the change; {name} decides what to reload"))

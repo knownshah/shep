@@ -21,6 +21,7 @@ mod fields;
 #[cfg(test)]
 mod fixtures;
 mod list;
+mod sheep_dog;
 mod types;
 
 pub use config::{ConfigPane, ReloadKind};

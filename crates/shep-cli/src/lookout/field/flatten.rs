@@ -17,10 +17,6 @@ use serde_json::{Map, Value};
 use super::{Field, FieldKind, FieldSet};
 
 /// A per-sheep schema flattened into dotted rows.
-#[allow(
-    dead_code,
-    reason = "read by the SheepDog pane task 3 of this plan adds"
-)]
 pub(crate) struct Flattened {
     /// One row per leaf, in schema order, no groups.
     pub(crate) fields: FieldSet,
@@ -43,10 +39,6 @@ pub(crate) struct Flattened {
 /// and a map of scalars or tables stay read-only here, since neither has a
 /// shape this flatten can write back into by path.
 #[must_use]
-#[allow(
-    dead_code,
-    reason = "called by the SheepDog pane task 3 of this plan adds"
-)]
 pub(crate) fn flattened(schema: &Value) -> Flattened {
     let defs = schema
         .get("$defs")
@@ -144,8 +136,50 @@ fn walk<'a>(
             field.kind = FieldKind::Opaque;
             field.editable = false;
         }
+        // A read-only row draws its whole value, so a secret anywhere
+        // beneath it, or on the `$ref` it names, masks the row.
+        field.secret |= holds_secret(property_schema, defs, &mut Vec::new());
         fields.push(field);
         paths.insert(dotted, path);
+    }
+}
+
+/// Whether `schema` or anything it reaches, through a `$ref` or any nested
+/// keyword, carries the secret marker. `seen` holds the `$defs` names
+/// already followed, so a type that holds itself is read once.
+fn holds_secret<'a>(
+    schema: &'a Value,
+    defs: &'a Map<String, Value>,
+    seen: &mut Vec<&'a str>,
+) -> bool {
+    match schema {
+        Value::Object(map) => {
+            if map
+                .get(shep_core::dogs::SECRET_KEY)
+                .and_then(Value::as_bool)
+                == Some(true)
+            {
+                return true;
+            }
+            let target = map
+                .get("$ref")
+                .and_then(Value::as_str)
+                .and_then(|r| r.strip_prefix("#/$defs/"));
+            if let Some(name) = target
+                && !seen.contains(&name)
+            {
+                seen.push(name);
+                if defs
+                    .get(name)
+                    .is_some_and(|def| holds_secret(def, defs, seen))
+                {
+                    return true;
+                }
+            }
+            map.values().any(|value| holds_secret(value, defs, seen))
+        }
+        Value::Array(items) => items.iter().any(|item| holds_secret(item, defs, seen)),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => false,
     }
 }
 
@@ -155,10 +189,6 @@ fn walk<'a>(
 /// A path `flattened` named that `table` does not carry, at any depth,
 /// reads as `Value::Null`: an unset leaf, not a fault.
 #[must_use]
-#[allow(
-    dead_code,
-    reason = "called by the SheepDog pane task 3 of this plan adds"
-)]
 pub(crate) fn flatten_values(
     table: &Map<String, Value>,
     paths: &BTreeMap<String, Vec<String>>,
@@ -385,6 +415,31 @@ mod tests {
             .map(|f| f.key.as_str())
             .collect();
         assert_eq!(keys, ["tree.child", "tree.name"]);
+    }
+
+    /// A read-only row draws its value as JSON, so a secret inside it has
+    /// to mask the whole row: the marker sits on an item's own field, or on
+    /// the `$defs` entry a property names, never on the row itself.
+    #[test]
+    fn a_row_that_reaches_a_secret_is_masked_whole() {
+        let flat = flattened(&json!({
+            "type": "object",
+            "properties": {
+                "hosts": { "type": "array", "items": { "$ref": "#/$defs/Host" } },
+                "token": { "$ref": "#/$defs/Token" },
+                "names": { "type": "array", "items": { "type": "string" } },
+            },
+            "$defs": {
+                "Host": {
+                    "type": "object",
+                    "properties": { "key": { "type": "string", "x-shep-secret": true } },
+                },
+                "Token": { "type": "string", "x-shep-secret": true },
+            },
+        }));
+        assert!(flat.fields.by_key("hosts").unwrap().secret);
+        assert!(flat.fields.by_key("token").unwrap().secret);
+        assert!(!flat.fields.by_key("names").unwrap().secret);
     }
 
     #[test]

@@ -17,14 +17,14 @@ use super::ConfigPane;
 
 /// Which thing the pane is editing.
 ///
-/// Two things, and they are not the same shape of edit. A sheep's config is
-/// shep's own document, so shep knows what every field costs; a dog's
-/// section belongs to the dog, so shep publishes the change and the dog
+/// Two shapes of edit. A sheep's config is shep's own document, so shep
+/// knows what every field costs; a dog's section, and a dog's table on a
+/// sheep, belong to the dog, so shep publishes the change and the dog
 /// decides what to reload, which is what [`ConfigPane::cost`]'s [`Option`]
 /// is for.
 ///
-/// `Debug` is derived (IR-41): a name and a binary's path, neither of which
-/// is a value the pane withholds. A dog's section can carry a credential and
+/// `Debug` is derived (IR-41): names and a binary's path, none of them a
+/// value the pane withholds. A section or a table can carry a credential and
 /// is held on [`ConfigPane`] instead, behind that type's own redacted
 /// `Debug`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,14 +44,26 @@ pub enum PaneTarget {
         /// opened on.
         adopted_path: Option<PathBuf>,
     },
+    /// One dog's `[app.dogs.<dog>]` table on one sheep. The sheep owns the
+    /// table, so [`Self::name`] is the sheep's; the dog owns its schema.
+    SheepDog {
+        /// The sheep carrying the table.
+        sheep: String,
+        /// The dog the table is for.
+        dog: String,
+        /// The binary the dog's schema was probed from, or [`None`] for a
+        /// built-in.
+        adopted_path: Option<PathBuf>,
+    },
 }
 
 impl PaneTarget {
-    /// The target's name.
+    /// The target's name: the sheep's, for a dog's table on a sheep.
     #[must_use]
     pub fn name(&self) -> &str {
         match self {
             Self::Sheep { name } | Self::Dog { name, .. } => name,
+            Self::SheepDog { sheep, .. } => sheep,
         }
     }
 }

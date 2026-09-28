@@ -319,7 +319,7 @@ impl ConfigPane {
     fn default_for(&self, field: &Field) -> Value {
         match &self.target {
             PaneTarget::Sheep { .. } => field.default_value.clone().unwrap_or(Value::Null),
-            PaneTarget::Dog { .. } => Value::Null,
+            PaneTarget::Dog { .. } | PaneTarget::SheepDog { .. } => Value::Null,
         }
     }
 
@@ -338,7 +338,9 @@ impl ConfigPane {
         }
         match &self.target {
             PaneTarget::Sheep { .. } => !self.is_overridden(key),
-            PaneTarget::Dog { .. } => self.stored_value_is(key, &Value::Null),
+            PaneTarget::Dog { .. } | PaneTarget::SheepDog { .. } => {
+                self.stored_value_is(key, &Value::Null)
+            }
         }
     }
 
