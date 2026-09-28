@@ -426,6 +426,7 @@ mod tests {
             "type": "object",
             "properties": {
                 "hosts": { "type": "array", "items": { "$ref": "#/$defs/Host" } },
+                "pools": { "type": "array", "items": { "$ref": "#/$defs/Pool" } },
                 "token": { "$ref": "#/$defs/Token" },
                 "names": { "type": "array", "items": { "type": "string" } },
             },
@@ -434,10 +435,15 @@ mod tests {
                     "type": "object",
                     "properties": { "key": { "type": "string", "x-shep-secret": true } },
                 },
+                "Pool": {
+                    "type": "object",
+                    "properties": { "primary": { "$ref": "#/$defs/Host" } },
+                },
                 "Token": { "type": "string", "x-shep-secret": true },
             },
         }));
         assert!(flat.fields.by_key("hosts").unwrap().secret);
+        assert!(flat.fields.by_key("pools").unwrap().secret, "two hops");
         assert!(flat.fields.by_key("token").unwrap().secret);
         assert!(!flat.fields.by_key("names").unwrap().secret);
     }

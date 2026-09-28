@@ -239,6 +239,28 @@ mod tests {
     }
 
     #[test]
+    fn no_dog_and_no_table_says_so_under_the_title() {
+        let mut pane = ConfigPane::sheep(SheepConfigView::new(
+            AppConfig {
+                name: "web".into(),
+                ..AppConfig::default()
+            },
+            Vec::new(),
+            Vec::new(),
+        ));
+        pane.open_dogs(Vec::new());
+        let text = render_all(&pane_lines(&pane, plain(), 120, 0));
+        assert_eq!(
+            text.lines().map(str::trim).collect::<Vec<_>>(),
+            [
+                "web \u{203a} dogs",
+                "no dog publishes a sheep schema, and this sheep carries no table",
+            ],
+            "{text}"
+        );
+    }
+
+    #[test]
     fn the_cursor_is_drawn_at_a_height_that_cannot_hold_every_row() {
         let mut pane = web_with_dogs_open();
         pane.dogs_mut().expect("open").move_to_last();
