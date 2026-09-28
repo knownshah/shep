@@ -79,11 +79,16 @@ pub(crate) fn flattened(schema: &Value) -> Flattened {
 
 /// Whether `schema` (already `$ref`- and `anyOf`-resolved) is a nested
 /// table rather than a leaf: an object schema that names its own
-/// properties, not a map of arbitrary keys.
+/// properties, not a map of arbitrary keys. `additionalProperties: false`
+/// is what `deny_unknown_fields` emits, and closes a table rather than
+/// making it a map.
 fn is_nested_table(schema: &Value) -> bool {
     schema.get("type").and_then(Value::as_str) == Some("object")
         && schema.get("properties").is_some()
-        && schema.get("additionalProperties").is_none()
+        && matches!(
+            schema.get("additionalProperties"),
+            None | Some(Value::Bool(false))
+        )
 }
 
 /// `key` as one segment of a dotted row key: bare when TOML would write it
@@ -336,6 +341,26 @@ mod tests {
         assert!(!child.editable);
         assert!(flat.fields.by_key("name").is_some());
         assert_eq!(flat.fields.len(), 2);
+    }
+
+    /// `deny_unknown_fields` on a nested settings struct emits
+    /// `additionalProperties: false`, which closes the table rather than
+    /// making it a map, so its fields still become rows.
+    #[test]
+    fn a_closed_nested_table_still_becomes_dotted_rows() {
+        let flat = flattened(&json!({
+            "type": "object",
+            "properties": {
+                "hours": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": { "start": { "type": "string" } },
+                },
+            },
+        }));
+        let start = flat.fields.by_key("hours.start").expect("a row per field");
+        assert!(start.editable);
+        assert!(flat.fields.by_key("hours").is_none());
     }
 
     #[test]
