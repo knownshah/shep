@@ -21,7 +21,8 @@ use super::sheep_dog::SheepDogTable;
 // through, and the field kind a locked row reports.
 #[cfg(doc)]
 use super::super::field::ValueKind;
-use super::{EnvTyping, ListPane, Lock, PaneEdit, PaneRow, PaneTarget, PaneTyping};
+use super::dogs::dog_names;
+use super::{DogsPane, EnvTyping, ListPane, Lock, PaneEdit, PaneRow, PaneTarget, PaneTyping};
 #[cfg(doc)]
 use shep_core::values::{MemSize, UpDuration};
 
@@ -63,6 +64,10 @@ pub struct ConfigPane {
     /// [`Self::env_typing`]: each opens on a row of its own kind, and
     /// `Escape` closes whichever is up before the pane.
     pub(super) list: Option<ListPane>,
+    /// The open dogs sub-screen, over a sheep's `dogs` row. Never open at
+    /// the same time as [`Self::list`] or an editor: it opens only on a
+    /// field list with nothing else up.
+    pub(super) dogs: Option<Box<DogsPane>>,
     /// The dog's `[<name>]` table as TOML text, and [`None`] for a sheep.
     ///
     /// Kept beside the parsed `values` rather than instead of them, because
@@ -74,7 +79,7 @@ pub struct ConfigPane {
     pub(super) section: Option<String>,
     /// A dog's table on a sheep, whole, and where each dotted row lives in
     /// it. [`None`] for every other target. See [`Self::sheep_dog`].
-    pub(super) dog_table: Option<SheepDogTable>,
+    pub(super) dog_table: Option<Box<SheepDogTable>>,
 }
 
 impl core::fmt::Debug for ConfigPane {
@@ -113,6 +118,7 @@ impl ConfigPane {
             edits: Edits::default(),
             env_typing: None,
             list: None,
+            dogs: None,
             section: None,
             dog_table: None,
         }
@@ -178,6 +184,7 @@ impl ConfigPane {
             edits: Edits::default(),
             env_typing: None,
             list: None,
+            dogs: None,
             section: Some(section),
             dog_table: None,
         }
@@ -226,7 +233,8 @@ impl ConfigPane {
     /// anything else shows compact JSON. A sheep's `env` is the one field
     /// whose value this pane never holds, since the shepherd strips it on
     /// the way out, so it shows its key count instead, and the sub-screen
-    /// shows the names.
+    /// shows the names. A sheep's `dogs` shows dog names and no value: a
+    /// table's secrets are marked only by a schema this pane does not hold.
     ///
     /// That special case is gated on the target, not on the key alone: a
     /// dog's schema is somebody else's, and one declaring a field named
@@ -244,6 +252,9 @@ impl ConfigPane {
                 1 => "1 key".to_owned(),
                 count => format!("{count} keys"),
             };
+        }
+        if key == "dogs" && matches!(self.target, PaneTarget::Sheep { .. }) {
+            return dog_names(self.values.get("dogs"));
         }
         self.values
             .get(key)

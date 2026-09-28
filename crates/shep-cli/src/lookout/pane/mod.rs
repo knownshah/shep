@@ -15,6 +15,8 @@
 //! all four read and write.
 
 mod config;
+#[allow(dead_code, reason = "wired to the keyboard by task 5 of this plan")]
+mod dogs;
 mod edit;
 mod env;
 mod fields;
@@ -25,6 +27,12 @@ mod sheep_dog;
 mod types;
 
 pub use config::{ConfigPane, ReloadKind};
+pub(crate) use dogs::dog_names;
+#[allow(
+    unused_imports,
+    reason = "read by the app wiring task 5 of this plan adds"
+)]
+pub use dogs::{DogRow, DogTableState, DogsPane, SheepDogEntry};
 pub use edit::PaneTyping;
 pub use env::EnvTyping;
 pub(crate) use fields::{resolved_display, sheep_fields};
