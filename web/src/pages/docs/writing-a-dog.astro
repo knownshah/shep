@@ -670,5 +670,31 @@ speaks protocol 9, accepts 8 and newer`}</CodeBlock>
       table and reads none of them itself. Subscribe to{" "}
       <code>config.sheep.&lt;dog&gt;</code> to hear one change.
     </p>
+
+    <h2 id="publishing-a-per-sheep-schema">Publishing a per-sheep schema</h2>
+    <p>
+      A dog whose per-sheep table deserves a form in{" "}
+      <code>shep lookout</code> calls{" "}
+      <code>probe_with_sheep::&lt;T, S&gt;(name, version)</code> instead of
+      {" "}<code>probe</code>. It answers <code>--schema</code> the same
+      way, with one more key: <code>x-shep-sheep</code>, holding{" "}
+      <code>S</code>'s schema in the same <code>$defs</code> as{" "}
+      <code>T</code>'s. A dog with one config type passes it for both.
+    </p>
+    <p>
+      <code>#[shep(secret)]</code> marks a field of <code>S</code> the way
+      it marks one of <code>T</code>: <code>&lt;set&gt;</code> in lookout,
+      never the value. A nested struct in <code>S</code> becomes dotted
+      rows there, <code>models.worker.model</code> for a{" "}
+      <code>models</code> field holding a <code>worker</code> field
+      holding a <code>model</code>. An array, or a map with more than a
+      fixed set of keys, stays one read-only row: neither has a shape the
+      pane can write back into.
+    </p>
+    <p class="fine">
+      Without the <code>schema</code> feature,{" "}
+      <code>probe_with_sheep::&lt;T, S&gt;</code> behaves like{" "}
+      <code>probe::&lt;T&gt;</code> alone.
+    </p>
   </article>
 </DocsLayout>
