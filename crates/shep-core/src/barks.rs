@@ -29,9 +29,12 @@ pub const DEFAULT_MAX_BYTES: u64 = 1024 * 1024;
 
 /// The first window [`read_last`] reads from the end of the ring, and the
 /// factor it grows by while the window holds fewer records than were
-/// asked for. A record is a few hundred bytes, so this covers a typical
-/// tail request in one read; the growth is for a caller that asked for
-/// more, or a ring of unusually large records.
+/// asked for. 64 KiB (65,536 bytes). Serialised records measure 149 to
+/// 173 bytes (a rule firing with one sink, delivered or failed; a
+/// shepherd-written restart-budget bark is 160), so one window holds
+/// roughly 375 records and covers a typical tail request in one read.
+/// It is 1/16 of a [`DEFAULT_MAX_BYTES`] ring: four doublings reach the
+/// whole of one.
 const TAIL_WINDOW_BYTES: u64 = 64 * 1024;
 
 /// One fired alert, as it lands in `$SHEP_HOME/barks.jsonl`.
