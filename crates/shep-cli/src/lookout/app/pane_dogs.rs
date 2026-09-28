@@ -686,8 +686,8 @@ mod tests {
         pane_to(app, "concurrency");
         let _ = app.update(Msg::Key(KeyPress::Confirm));
         let _ = app.update(Msg::Key(KeyPress::TextBackspace));
-        for typed in typed.chars() {
-            let _ = app.update(Msg::Key(KeyPress::TextChar(typed)));
+        for c in typed.chars() {
+            let _ = app.update(Msg::Key(KeyPress::TextChar(c)));
         }
         let _ = app.update(Msg::Key(KeyPress::TextApply));
     }
