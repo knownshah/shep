@@ -316,6 +316,9 @@ impl ConfigPane {
     ///   own compiled default. Filing the schema default there instead
     ///   would hard-code it into the section rather than restoring it, so a
     ///   dog always gets [`Value::Null`], regardless of the field's default.
+    /// - A dog's table on a sheep is the same case: `null` removes the leaf
+    ///   from the table, and the dog applies its own default when it reads
+    ///   the table back.
     fn default_for(&self, field: &Field) -> Value {
         match &self.target {
             PaneTarget::Sheep { .. } => field.default_value.clone().unwrap_or(Value::Null),
