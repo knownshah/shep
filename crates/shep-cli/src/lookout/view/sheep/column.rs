@@ -189,9 +189,12 @@ fn field_row_line(
 fn field_value_text(fields: &FieldSet, field: &Field, values: &Map<String, Value>) -> String {
     // Names only: a table's secrets are marked by a schema this column
     // never holds. No tables is still `(default)`, below.
-    let tables = values.get("dogs").and_then(Value::as_object);
-    if field.key == "dogs" && tables.is_some_and(|tables| !tables.is_empty()) {
-        return pane::dog_names(values.get("dogs"));
+    let dogs = (field.key == "dogs").then(|| values.get("dogs")).flatten();
+    if dogs
+        .and_then(Value::as_object)
+        .is_some_and(|tables| !tables.is_empty())
+    {
+        return pane::dog_names(dogs);
     }
     let raw = match values.get(&field.key) {
         None | Some(Value::Null) => return "(unset)".to_owned(),

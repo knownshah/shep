@@ -93,12 +93,13 @@ fn dog_line(
     let name_w = NAME_W.min(body);
     let state_w = STATE_W.min(body.saturating_sub(name_w + 2));
     let rest_w = body.saturating_sub(name_w + state_w + 4);
-    let (state, rest) = match row.state() {
-        DogTableState::Set => ("set", row.keys().join(", ")),
-        DogTableState::Unset => ("-", "(no table)".to_owned()),
+    let (state, rest, muted) = match row.state() {
+        DogTableState::Set => ("set", row.keys().join(", "), false),
+        DogTableState::Unset => ("-", "(no table)".to_owned(), true),
         DogTableState::ReadOnly => (
             "read-only",
             format!("{}  (publishes no sheep schema)", row.keys().join(", ")),
+            true,
         ),
     };
     let mut text = format!("{} ", mark(selected));
@@ -111,10 +112,10 @@ fn dog_line(
         text.push_str("  ");
         text.push_str(&fit(&rest, rest_w));
     }
-    if row.state() == DogTableState::Set {
-        Line::from(Span::raw(text))
-    } else {
+    if muted {
         Line::from(Span::styled(text, palette.muted()))
+    } else {
+        Line::from(Span::raw(text))
     }
 }
 
