@@ -1,5 +1,8 @@
 //! Fixtures more than one of `app`'s test modules leans on.
 
+use serde_json::json;
+use shep_core::config::AppConfig;
+
 use super::*;
 pub(super) use crate::lookout::edits::EditKey;
 pub(super) use crate::lookout::view::fixtures;
@@ -208,4 +211,137 @@ pub(super) fn filed_value(app: &App, key: &str) -> serde_json::Value {
         PaneEdit::Set { value, .. } => value.as_value().clone(),
         other => panic!("expected a field set, got {other:?}"),
     }
+}
+
+/// A secret the `jobs` table holds, and one the schema-less `legacy`
+/// table holds. Neither may reach a notice, a `Debug` or a row.
+pub(super) const TOKEN: &str = "sk-live-51Hx9Qa";
+pub(super) const PASSWORD: &str = "hunter2-legacy";
+
+pub(super) fn web_view(with_jobs: bool) -> SheepConfigView {
+    let mut config = AppConfig {
+        name: "web".into(),
+        ..AppConfig::default()
+    };
+    let table = |value: serde_json::Value| value.as_object().cloned().expect("a table");
+    if with_jobs {
+        config.dogs.insert(
+            "jobs".into(),
+            table(json!({ "concurrency": 2, "token": TOKEN })).into(),
+        );
+    }
+    config.dogs.insert(
+        "legacy".into(),
+        table(json!({ "url": format!("https://ops:{PASSWORD}@example.test") })).into(),
+    );
+    SheepConfigView::new(config, Vec::new(), Vec::new())
+}
+
+pub(super) fn app_in_web(control: Control) -> App {
+    let mut app = fixtures::with_selection(
+        ProcessInfo::builder(9, "web", ProcStatus::Online)
+            .pid(Some(48_000))
+            .build(),
+    );
+    app.set_control_for_tests(control);
+    let _ = app.update(Msg::Key(KeyPress::Edit));
+    let _ = app.update(Msg::Replied {
+        sent: Sent::SheepConfig { name: "web".into() },
+        result: Ok(Response::SheepConfig(Box::new(web_view(true)))),
+    });
+    pane_to(&mut app, "dogs");
+    app
+}
+
+pub(super) fn jobs_schema() -> serde_json::Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "concurrency": { "type": "integer" },
+            "token": { "type": "string", "x-shep-secret": true },
+        },
+    })
+}
+
+pub(super) fn probe() -> Vec<SheepDogEntry> {
+    vec![
+        SheepDogEntry {
+            name: "jobs".into(),
+            adopted_path: Some("/opt/jobs".into()),
+            schema: Some(jobs_schema()),
+        },
+        SheepDogEntry {
+            name: "deploy".into(),
+            adopted_path: Some("/opt/deploy".into()),
+            schema: Some(json!({ "type": "object", "properties": {} })),
+        },
+        SheepDogEntry {
+            name: "legacy".into(),
+            adopted_path: None,
+            schema: None,
+        },
+    ]
+}
+
+/// `key` on `web`'s dogs row, and the ask the probe it raised carries.
+pub(super) fn ask_dogs(app: &mut App, key: KeyPress) -> u64 {
+    match app.update(Msg::Key(key)) {
+        Effect::LoadSheepDogs { sheep, ask } if sheep == "web" => ask,
+        other => panic!("no probe for web: {other:?}"),
+    }
+}
+
+/// The probe's answer for `sheep`, as ask `ask`.
+pub(super) fn answer(app: &mut App, sheep: &str, ask: u64) {
+    let _ = app.update(Msg::SheepDogs {
+        sheep: sheep.into(),
+        ask,
+        dogs: probe(),
+    });
+}
+
+/// `app_in_web`, with the probe answered and the sub-screen up. Rows
+/// sort by name: `deploy`, `jobs`, `legacy`.
+pub(super) fn app_in_dogs(control: Control) -> App {
+    let mut app = app_in_web(control);
+    let ask = ask_dogs(&mut app, KeyPress::Confirm);
+    answer(&mut app, "web", ask);
+    app
+}
+
+pub(super) fn dogs(app: &App) -> &DogsPane {
+    app.config_pane()
+        .and_then(ConfigPane::dogs)
+        .expect("the sub-screen is up")
+}
+
+pub(super) fn cursor_on(app: &mut App, dog: &str) {
+    let _ = app.update(Msg::Key(KeyPress::SelectFirst));
+    while dogs(app).cursor_row().map(|row| row.name()) != Some(dog) {
+        let before = dogs(app).view().cursor();
+        let _ = app.update(Msg::Key(KeyPress::SelectDown));
+        assert_ne!(dogs(app).view().cursor(), before, "{dog} is not listed");
+    }
+}
+
+/// `app_in_dogs`, with `jobs`'s table pane open over `web`.
+pub(super) fn app_in_jobs_table() -> App {
+    let mut app = app_in_dogs(Control::Allowed);
+    cursor_on(&mut app, "jobs");
+    let _ = app.update(Msg::Key(KeyPress::Confirm));
+    assert!(matches!(
+        app.config_pane().map(ConfigPane::target),
+        Some(PaneTarget::SheepDog { .. })
+    ));
+    app
+}
+
+pub(super) fn type_concurrency(app: &mut App, typed: &str) {
+    pane_to(app, "concurrency");
+    let _ = app.update(Msg::Key(KeyPress::Confirm));
+    let _ = app.update(Msg::Key(KeyPress::TextBackspace));
+    for c in typed.chars() {
+        let _ = app.update(Msg::Key(KeyPress::TextChar(c)));
+    }
+    let _ = app.update(Msg::Key(KeyPress::TextApply));
 }
