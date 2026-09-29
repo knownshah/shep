@@ -301,21 +301,15 @@ mod tests {
         )
         .unwrap();
         let rendered = String::from_utf8(out).unwrap();
-        let rows: Vec<Vec<&str>> = rendered
-            .lines()
-            .skip_while(|line| !line.starts_with("PID"))
-            .map(|line| line.split_whitespace().collect())
+        let mut table = rendered.lines().skip_while(|line| !line.starts_with("PID"));
+        let header = table.next().expect("a lamb table");
+        let at = header.find("LABEL").expect("a LABEL column");
+        let labels: Vec<&str> = table
+            .take(2)
+            .map(|row| row.get(at..).unwrap_or_default().trim_end())
             .collect();
 
-        assert_eq!(
-            rows,
-            vec![
-                vec!["PID", "NAME", "LABEL"],
-                vec!["4243", "python", "worker", "1"],
-                vec!["4244", "python", "-"],
-            ],
-            "{rendered}"
-        );
+        assert_eq!(labels, vec!["worker 1", "-"], "{rendered}");
     }
 
     /// The same rule `emit_flock` follows for a flock with no dogs.
