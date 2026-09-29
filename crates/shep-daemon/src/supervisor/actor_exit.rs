@@ -488,6 +488,23 @@ impl<R: ProcessRunner> Actor<R> {
     /// Delegates to `begin_manual`, not `respawn`, which keeps the kill ladder
     /// and the budget reset; it goes in as [`CommandOrigin::Automatic`], so an
     /// operator's `stop` can take the sheep back off a restart mid-ladder.
+    ///
+    /// The status guard is [`reload_eligible`], not a bare `== Online` check:
+    /// a `ready_failed` sheep (an abandoned reload's replacement, left
+    /// `Starting` with nothing to fall back to, see
+    /// [`Actor::reload_ready_result`] and [`Actor::handle_reload_verified`])
+    /// is armed the same extras an `Online` sheep is, and must be reachable
+    /// here or nothing ever restarts it. Both reports still guard on the pid
+    /// too, so a fresh respawn under the same id (which always clears
+    /// `ready_failed`, see [`SheepSlot::ready_failed`]) cannot be reached by a
+    /// report addressed to the process it replaced. `begin_manual`'s own
+    /// `in_an_uncommitted_swap` check is already false here: both
+    /// abandonment sites remove the job from `self.reloads` before setting
+    /// `ready_failed`, so this can race neither a drainee (never
+    /// `ready_failed`, so [`reload_eligible`] still rejects its `Stopping`
+    /// status) nor an operator's own stop of the replacement (claims the
+    /// `manual` marker first; `begin_manual` then rides that command's
+    /// outcome instead of restarting).
     pub(super) fn handle_extra_restart(
         &mut self,
         id: u32,
@@ -512,7 +529,7 @@ impl<R: ProcessRunner> Actor<R> {
             );
             return;
         }
-        if slot.entry.status != ProcStatus::Online {
+        if !reload_eligible(slot) {
             tracing::debug!(
                 id,
                 pid,

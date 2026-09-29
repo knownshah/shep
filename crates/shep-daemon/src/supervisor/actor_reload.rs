@@ -448,7 +448,10 @@ impl<R: ProcessRunner> Actor<R> {
             // With nothing to fall back to, the reload ends here. The
             // replacement is left running and `Starting`, never `Online`: a
             // deploy tool reads `Online` as "the new release is serving". That
-            // costs it the extras `went_online` arms.
+            // costs it the extras `went_online` arms. Armed here instead, so a
+            // `liveness_probe` or `max_memory` this app configures still
+            // watches it: `handle_extra_restart`'s guard admits a
+            // `ready_failed` sheep precisely so this arming is not a dead end.
             tracing::warn!(
                 name,
                 new_id,
@@ -462,6 +465,7 @@ impl<R: ProcessRunner> Actor<R> {
                 let info = to_info(&slot.entry, &self.smits);
                 self.emit(ProcessEventKind::ReloadAbandoned, info, true);
             }
+            self.arm_extras(new_id);
             return;
         }
 

@@ -41,7 +41,10 @@ impl<R: ProcessRunner> Actor<R> {
         // Demoted out of `Online`: that status was written on a probe the
         // now-reaped instance may have answered. The process is not killed,
         // since a replacement that is up but not answering is more than none,
-        // and nothing will restart it on its own.
+        // and nothing will restart it on its own but the extras armed below:
+        // `handle_extra_restart`'s guard admits a `ready_failed` sheep so a
+        // `liveness_probe` or `max_memory` this app configures still watches
+        // it, same as `reload_ready_result`'s own abandonment.
         tracing::warn!(
             name,
             new_id,
@@ -54,6 +57,7 @@ impl<R: ProcessRunner> Actor<R> {
             slot.ready_failed = true;
         }
         self.emit(ProcessEventKind::ReloadAbandoned, info, true);
+        self.arm_extras(new_id);
     }
 
     /// Abandons `name`'s reload: the instance it was replacing goes back to
