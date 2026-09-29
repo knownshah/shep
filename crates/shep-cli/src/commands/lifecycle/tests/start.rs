@@ -264,6 +264,7 @@ async fn no_log_timestamps_reaches_the_sheep_a_script_or_a_flockfile_registers()
 
         match next_start(&mut envelopes).await.body {
             Request::Start { apps } => {
+                assert_eq!(apps.len(), 1, "{target:?} registers one app");
                 assert_eq!(
                     apps[0].log_timestamps, want,
                     "{target:?} with the flag {flag}"
