@@ -1,9 +1,10 @@
-//! `ProcessInfo`-shaped listing rows for a sheep: `FlockRows`, `LambRows`
-//! and `FlushedRows`. Dog-specific rows live in [`super::dogs`]; the
-//! paint/cell toolkit both render through lives in [`super::toolkit`].
+//! `ProcessInfo`-shaped listing rows for a sheep: `FlockRows` and
+//! `FlushedRows`. Lamb trees live in [`super::lambs`], dog-specific rows in
+//! [`super::dogs`]; the paint/cell toolkit both render through lives in
+//! [`super::toolkit`].
 
 use serde::Serialize;
-use shep_core::protocol::{Lamb, ProcessInfo};
+use shep_core::protocol::ProcessInfo;
 
 use crate::output::Render;
 use crate::style::Presentation;
@@ -151,46 +152,6 @@ impl Render for FlockRows {
     // with EXIT at `6` and yields first: `render_boxed_ex`'s `max_by_key`
     // takes the last of an equal pair, and CFG sits later in `headers()`.
     const PRIORITIES: &'static [u8] = &[0, 0, 0, 2, 4, 6, 6, 5, 3, 1, 7, 8];
-}
-/// One sheep's lamb tree, as `describe`'s second table.
-///
-/// Not `#[serde(transparent)]`: this type's JSON is never read, since
-/// `describe --format json` serializes the listing as [`FlockRows`] with its
-/// own `lambs`. It exists to reach
-/// [`render_table`](crate::output::render_table).
-#[derive(Debug, Serialize)]
-pub struct LambRows(pub Vec<Lamb>);
-
-/// No colour: both columns are identity, and a lamb has no status, reading or
-/// placeholder for one to carry.
-impl Render for LambRows {
-    fn headers() -> &'static [&'static str] {
-        &["PID", "NAME"]
-    }
-
-    fn rows(&self) -> Vec<Vec<String>> {
-        self.0
-            .iter()
-            .map(|lamb| vec![lamb.pid.to_string(), lamb.name.clone()])
-            .collect()
-    }
-
-    /// # Panics
-    /// If `header` is not one of `Self::headers()`'s own values.
-    #[track_caller]
-    fn json_key_for(header: &str) -> &'static str {
-        match header {
-            "PID" => "pid",
-            "NAME" => "name",
-            other => panic!("LambRows::headers() does not include {other:?}"),
-        }
-    }
-
-    const JSON_ONLY: &'static [&'static str] = &[];
-
-    // Parallel to `headers()`. Two columns, both identity, so this never
-    // narrows; spelled out so a later header does not inherit it by omission.
-    const PRIORITIES: &'static [u8] = &[0, 0];
 }
 
 /// `Response::Flushed(Vec<ProcessInfo>)`: the sheep a `shep flush` matched,
@@ -368,15 +329,6 @@ pub(crate) mod tests {
         #[cfg(not(unix))]
         assert_eq!(at(&rows[2], "EXIT"), "9");
         assert_eq!(at(&rows[3], "EXIT"), "-");
-    }
-
-    #[test]
-    fn lamb_rows_do_not_drift() {
-        assert_no_drift(
-            &LambRows(vec![Lamb::new(4243, "node"), Lamb::new(4244, "sh")]),
-            |j| &j[0],
-            &[],
-        );
     }
 
     /// A zero is a claim, "this sheep is using no CPU", and the daemon says
@@ -636,12 +588,6 @@ pub(crate) mod tests {
         );
         assert_eq!(rows[1][2], painted("-", Role::Ink3), "the placeholder does");
         assert_eq!(rows[1][3], painted("-", Role::Ink3));
-    }
-
-    #[test]
-    fn lamb_rows_carry_no_colour_at_all() {
-        let rows = LambRows(vec![Lamb::new(48_302, "node")]).rows_for(coloured(), true);
-        assert_eq!(rows[0], vec!["48302".to_string(), "node".to_string()]);
     }
 
     /// Through `rows_for`, since this is about which cells get touched rather

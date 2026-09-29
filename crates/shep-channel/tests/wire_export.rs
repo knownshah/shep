@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
-use shep_channel::{CHANNEL_VERSION, ChildMessage, ShepherdMessage};
+use shep_channel::{CHANNEL_VERSION, ChildMessage, LambLabel, ShepherdMessage};
 
 mod common;
 
@@ -52,6 +52,11 @@ fn child_kind(message: &ChildMessage) -> Kind {
             doc: "KindActionReply is the child's answer to one action.",
             wire: "action-reply",
         },
+        ChildMessage::LambLabel { .. } => Kind {
+            ident: "KindLambLabel",
+            doc: "KindLambLabel names one of the app's own child processes.",
+            wire: "lamb-label",
+        },
     }
 }
 
@@ -88,6 +93,10 @@ fn child_samples() -> Vec<ChildMessage> {
             body: "ok".into(),
             id: Some(7),
         },
+        ChildMessage::LambLabel {
+            pid: 4312,
+            label: LambLabel::new("worker 1").expect("a valid label"),
+        },
     ]
 }
 
@@ -107,12 +116,14 @@ fn shepherd_samples() -> Vec<ShepherdMessage> {
 /// metric of zero and an id of zero.
 #[rustfmt::skip]
 const CHILD_FIELDS: &[Field] = &[
-    Field { ident: "Kind",   ty: "string",   tag: "kind",             kinds: &["ready", "metric", "action-reply"] },
+    Field { ident: "Kind",   ty: "string",   tag: "kind",             kinds: &["ready", "metric", "action-reply", "lamb-label"] },
     Field { ident: "Name",   ty: "*string",  tag: "name,omitempty",   kinds: &["metric"] },
     Field { ident: "Value",  ty: "*float64", tag: "value,omitempty",  kinds: &["metric"] },
     Field { ident: "Action", ty: "*string",  tag: "action,omitempty", kinds: &["action-reply"] },
     Field { ident: "Body",   ty: "*string",  tag: "body,omitempty",   kinds: &["action-reply"] },
     Field { ident: "ID",     ty: "*uint64",  tag: "id,omitempty",     kinds: &["action-reply"] },
+    Field { ident: "PID",    ty: "*uint32",  tag: "pid,omitempty",    kinds: &["lamb-label"] },
+    Field { ident: "Label",  ty: "*string",  tag: "label,omitempty",  kinds: &["lamb-label"] },
 ];
 
 /// `Params` is a pointer because an absent one and an empty one are
@@ -129,7 +140,8 @@ const CHILD_DOC: &str = "\
 // ChildMessage is one line the app writes to the shepherd.
 //
 // Kind selects which other fields carry meaning. Each of those is a
-// pointer. Dropping a zero would lose a metric of 0.
+// pointer. Dropping a zero would lose a metric of 0 or an empty label,
+// which clears one.
 ";
 
 const SHEPHERD_DOC: &str = "\
@@ -218,7 +230,7 @@ fn json_name(field: &Field) -> &'static str {
 fn declared_json_kind(ty: &str) -> &'static str {
     match ty {
         "string" | "*string" => "string",
-        "*float64" | "*uint64" => "number",
+        "*float64" | "*uint64" | "*uint32" => "number",
         other => panic!("no JSON kind is declared for the Go type {other}"),
     }
 }

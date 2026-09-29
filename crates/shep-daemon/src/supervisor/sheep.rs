@@ -173,6 +173,12 @@ pub(super) async fn run_sheep<P: RunningProcess>(
                                     .send(Msg::ActionReply { id, action, body, stamp })
                                     .await;
                             }
+                            ChildMessage::LambLabel { pid, label } => {
+                                let root_pid = proc.pid();
+                                let _ = actor_tx
+                                    .send(Msg::LambLabel { root_pid, pid, label })
+                                    .await;
+                            }
                         }
                     }
                     None => from_child_open = false,

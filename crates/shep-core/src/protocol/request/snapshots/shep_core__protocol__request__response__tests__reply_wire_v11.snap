@@ -441,7 +441,8 @@ expression: replies
               },
               {
                 "pid": 4244,
-                "name": "sh"
+                "name": "sh",
+                "label": "worker 1"
               }
             ],
             "last_exit": null,

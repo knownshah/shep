@@ -163,6 +163,10 @@ pub struct LambRow {
     pub pid: u32,
     /// The executable's name, as the OS reports it. Never its command line.
     pub name: String,
+    /// What the sheep named this lamb on its shepherd channel, if anything.
+    /// The app's own words, never read from the OS.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 /// Why a sheep's process most recently stopped. Mirrors `ExitInfo`'s wire
@@ -233,6 +237,7 @@ impl From<&Lamb> for LambRow {
         Self {
             pid: lamb.pid,
             name: lamb.name.clone(),
+            label: lamb.label.clone(),
         }
     }
 }
@@ -383,7 +388,10 @@ mod tests {
             .dog(Some(DogSource::Adopted {
                 path: "/usr/local/bin/dog".to_string(),
             }))
-            .lambs(Some(vec![Lamb::new(4243, "node")]))
+            .lambs(Some(vec![
+                Lamb::new(4243, "node"),
+                Lamb::new(4244, "node").with_label("worker 1"),
+            ]))
             .pending(Some(vec!["env".to_string()]))
             .overridden(Some(vec!["cwd".to_string()]))
             .build();

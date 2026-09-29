@@ -10,7 +10,7 @@ use shep_core::protocol::ProcessInfo;
 use crate::cli::Format;
 use crate::style::Presentation;
 
-use super::{FlockRows, LambRows, SCHEMA_VERSION, rows, table_of};
+use super::{FlockRows, LabelledLambRows, LambRows, SCHEMA_VERSION, rows, table_of};
 
 /// The `--format json` shape [`emit_described`] writes:
 /// [`super::OutputEnvelope`]'s own three fields, plus `secrets` riding
@@ -103,7 +103,11 @@ pub fn emit_described(
                         .pid
                         .map_or_else(|| "-".to_string(), |pid| pid.to_string()),
                 )?;
-                write!(out, "{}", table_of(&LambRows(lambs.clone()), style))?;
+                if LabelledLambRows::wanted_for(lambs) {
+                    write!(out, "{}", table_of(&LabelledLambRows(lambs.clone()), style))?;
+                } else {
+                    write!(out, "{}", table_of(&LambRows(lambs.clone()), style))?;
+                }
             }
             // Once per name, not once per row: a parked or overridden
             // config belongs to the app, and the daemon writes the same
@@ -271,6 +275,41 @@ mod tests {
         // asserted.
         assert!(rendered.contains("4243"), "{rendered}");
         assert!(rendered.contains("node"), "{rendered}");
+        assert!(
+            !rendered.contains("LABEL"),
+            "nothing was labelled: {rendered}"
+        );
+    }
+
+    #[test]
+    fn a_labelled_tree_gets_a_label_column_with_a_dash_for_the_rest() {
+        let info = ProcessInfo::builder(3, "jobs", ProcStatus::Online)
+            .pid(Some(4242))
+            .lambs(Some(vec![
+                Lamb::new(4243, "python").with_label("worker 1"),
+                Lamb::new(4244, "python"),
+            ]))
+            .build();
+        let mut out = Vec::new();
+        emit_described(
+            &mut out,
+            Format::Table,
+            "describe",
+            vec![info],
+            Presentation::BARE,
+            &[],
+        )
+        .unwrap();
+        let rendered = String::from_utf8(out).unwrap();
+        let mut table = rendered.lines().skip_while(|line| !line.starts_with("PID"));
+        let header = table.next().expect("a lamb table");
+        let at = header.find("LABEL").expect("a LABEL column");
+        let labels: Vec<&str> = table
+            .take(2)
+            .map(|row| row.get(at..).unwrap_or_default().trim_end())
+            .collect();
+
+        assert_eq!(labels, vec!["worker 1", "-"], "{rendered}");
     }
 
     /// The same rule `emit_flock` follows for a flock with no dogs.
@@ -346,7 +385,10 @@ mod tests {
     fn the_json_surface_stays_one_array_with_lambs_on_each_row() {
         let info = ProcessInfo::builder(3, "web", ProcStatus::Online)
             .pid(Some(4242))
-            .lambs(Some(vec![Lamb::new(4243, "node")]))
+            .lambs(Some(vec![
+                Lamb::new(4243, "node"),
+                Lamb::new(4244, "node").with_label("worker 1"),
+            ]))
             .build();
         let mut out = Vec::new();
         emit_described(
@@ -361,7 +403,13 @@ mod tests {
         let value: serde_json::Value = serde_json::from_slice(&out).unwrap();
         let rows = value["data"].as_array().unwrap();
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0]["lambs"][0]["pid"], 4243);
+        assert_eq!(
+            rows[0]["lambs"],
+            serde_json::json!([
+                {"pid": 4243, "name": "node"},
+                {"pid": 4244, "name": "node", "label": "worker 1"},
+            ])
+        );
     }
 
     /// `shep reload <name>` is the one fact an operator reading this

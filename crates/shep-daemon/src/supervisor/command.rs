@@ -366,6 +366,18 @@ pub(crate) enum Msg {
         /// The sheep's id.
         id: u32,
     },
+    /// The sheep's shepherd channel named one of its lambs.
+    ///
+    /// Keyed by the sending process's pid, the number a `Describe` row
+    /// carries, so a respawn starts with no labels.
+    LambLabel {
+        /// The pid of the process whose channel carried it.
+        root_pid: u32,
+        /// The lamb it names.
+        pid: u32,
+        /// The label, empty to clear.
+        label: shep_core::protocol::LambLabel,
+    },
     /// One swap of a reload ran out of time.
     ///
     /// The only way out of a [`ReloadJob`] the actor raises for itself: every
