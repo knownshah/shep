@@ -435,9 +435,9 @@ cwd = "/srv/migrate"`}</CodeBlock>
       node v26.8.1, an Apple M4 Pro. Both tools ran the same two shell
       scripts under the same <code>/bin/sh</code>, with logs going to each
       tool's own default file capture, and the daemon is what was sampled
-      rather than the children. The log row was measured again on 2026-09-28
-      with shep's <code>log_timestamps</code> off, pm2's default, so both
-      files hold the script's 58 bytes a line.
+      rather than the children. The log row is a 2026-09-28 rerun with
+      shep's <code>log_timestamps</code> off, pm2's default, so both files
+      hold the same 58-byte lines.
     </p>
     <div class="verb-table bench-table">
       <div class="row header">
@@ -483,7 +483,8 @@ cwd = "/srv/migrate"`}</CodeBlock>
       barely moved, so this is shep changing rather than the machine: idle
       memory 13.90 MiB to 17.41, a warm start 0.056 s to 0.095, and the{" "}
       <code>shep</code> binary 14.23 MiB to 17.94, one of the three the
-      footprint row counts. shep is still ahead on everything but footprint.
+      footprint row counts. shep is still ahead on everything but footprint
+      and idle CPU.
     </p>
 
     <p>
