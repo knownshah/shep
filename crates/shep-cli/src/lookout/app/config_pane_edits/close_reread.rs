@@ -249,6 +249,27 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_re_read_answered_with_the_wrong_kind_writes_nothing() {
+        let mut app = closing_jobs();
+        let effect = app.update(Msg::Replied {
+            sent: Sent::SheepConfig { name: "web".into() },
+            result: Ok(Response::SheepDogSettingsSet {
+                name: "web".into(),
+                dog: "jobs".into(),
+            }),
+        });
+        assert_eq!(effect, Effect::None);
+        assert_eq!(app.config_pane().expect("still up").edits().len(), 1);
+        assert_eq!(
+            app.notice().map(ToString::to_string).as_deref(),
+            Some(
+                "web: the shepherd answered something this lookout does not understand, \
+                 so nothing was written"
+            )
+        );
+    }
+
     /// The wait ends with the read the link task never took, so a later
     /// `r` is a refresh and not a close.
     #[test]
