@@ -6,6 +6,7 @@ use shep_core::protocol::Lamb;
 
 use crate::output::Render;
 use crate::style::Presentation;
+use crate::terminal_safe::sanitise;
 
 use super::toolkit::{Paint, paint};
 
@@ -79,7 +80,10 @@ impl Render for LabelledLambRows {
                 vec![
                     lamb.pid.to_string(),
                     lamb.name.clone(),
-                    lamb.label.clone().unwrap_or_else(|| "-".to_string()),
+                    // The app worded it, so a bidi override goes too.
+                    lamb.label
+                        .as_deref()
+                        .map_or_else(|| "-".to_string(), |label| sanitise(label).0),
                 ]
             })
             .collect()
@@ -170,6 +174,18 @@ mod tests {
                 ],
             ]
         );
+    }
+
+    /// `Lamb::label` is a plain `String`, not a `LambLabel`, past the
+    /// daemon's own construction of it: this table is the last place that
+    /// can catch a bidi override before it reaches a terminal.
+    #[test]
+    fn a_label_is_sanitised_before_it_reaches_the_cell() {
+        let rows = LabelledLambRows(vec![
+            Lamb::new(48_302, "python").with_label("worker\u{202e}1"),
+        ])
+        .rows();
+        assert_eq!(rows[0][2], "worker1");
     }
 
     #[test]
