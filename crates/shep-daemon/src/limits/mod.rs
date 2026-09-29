@@ -19,6 +19,7 @@ use tokio::sync::mpsc;
 
 use shep_core::values::MemSize;
 
+mod labels;
 pub mod sample;
 pub(crate) mod stats;
 
@@ -113,6 +114,7 @@ impl PollingEnforcer {
                 // sheep. Without the hoist a tick costs O(flock × table
                 // size), each id building its own index over the whole host
                 // table.
+                let sampled_at = tokio::time::Instant::now();
                 let table = sampler.sample();
                 let index = TreeIndex::build(&table);
 
@@ -120,6 +122,7 @@ impl PollingEnforcer {
                 // writer of the CPU baseline an on-demand listing measures
                 // its window against.
                 stats.record_baseline(&index, tokio::time::Instant::now());
+                stats.prune_labels(&index, sampled_at);
 
                 // Summed and self-disarmed in one locked section, so the
                 // next tick cannot re-report the same over-limit reading.
@@ -235,6 +238,43 @@ mod tests {
             Ok(Some(breach)) => panic!("unexpected breach observed: {breach:?}"),
             Ok(None) => panic!("breach channel disconnected while checking for no breach"),
         }
+    }
+
+    /// The tick's reading has lost lamb 2. A later walk finds pid 2 again,
+    /// the shape a recycled pid takes.
+    struct LambGoneThenRecycled;
+
+    impl MemorySampler for LambGoneThenRecycled {
+        fn sample(&self) -> Vec<sample::ProcessRss> {
+            vec![rss(1, None, 100)]
+        }
+
+        fn identify(&self) -> Vec<sample::ProcessIdentity> {
+            vec![
+                crate::testing::identity(1, None, "srv"),
+                crate::testing::identity(2, Some(1), "python"),
+            ]
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_tick_forgets_the_label_of_a_lamb_that_left_the_tree() {
+        let sampler: Arc<dyn MemorySampler> = Arc::new(LambGoneThenRecycled);
+        let stats = Arc::new(StatsState::new(Arc::clone(&sampler)));
+        let label = shep_core::protocol::LambLabel::new("worker 1").unwrap();
+        stats.label_lamb(1, 2, &label, tokio::time::Instant::now());
+        let walked = stats.lambs_of(&stats.lamb_index(), 1);
+        assert_eq!(walked[0].label.as_deref(), Some("worker 1"));
+
+        let (tx, mut rx) = mpsc::channel(1);
+        let _enforcer = PollingEnforcer::start(Arc::clone(&sampler), tx, Arc::clone(&stats));
+        tokio::task::yield_now().await;
+        assert_no_breach_within(&mut rx, ticks(1)).await;
+
+        assert_eq!(
+            stats.lambs_of(&stats.lamb_index(), 1),
+            vec![shep_core::protocol::Lamb::new(2, "python")]
+        );
     }
 
     // Nothing is armed on purpose: this is the half that has to run for a

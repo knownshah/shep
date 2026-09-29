@@ -231,6 +231,23 @@ impl TreeIndex {
         self.total_over(root, &self.cpu_by_pid)
     }
 
+    /// Every descendant of `root` this index knows about, `root` excluded.
+    ///
+    /// Cycle-safe for the reason [`Self::total_over`] gives.
+    pub(crate) fn descendants_of(&self, root: u32) -> HashSet<u32> {
+        let mut seen = HashSet::from([root]);
+        let mut stack = vec![root];
+        while let Some(pid) = stack.pop() {
+            for &child in self.children_of.get(&pid).into_iter().flatten() {
+                if seen.insert(child) {
+                    stack.push(child);
+                }
+            }
+        }
+        seen.remove(&root);
+        seen
+    }
+
     /// Sums `totals` over `root` and every descendant this index knows about.
     ///
     /// Shared by both per-pid quantities so the cycle-safe walk exists once.
@@ -274,6 +291,19 @@ mod tests {
     fn lone_root_sums_its_own_bytes() {
         let table = [rss(1, None, 100)];
         assert_eq!(tree_rss(&table, 1), 100);
+    }
+
+    #[test]
+    fn descendants_reach_every_generation_and_leave_out_the_root() {
+        let index = TreeIndex::build(&[
+            rss(1, None, 0),
+            rss(2, Some(1), 0),
+            rss(3, Some(2), 0),
+            rss(4, None, 0),
+            rss(1, Some(3), 0),
+        ]);
+        assert_eq!(index.descendants_of(1), HashSet::from([2, 3]));
+        assert!(index.descendants_of(99).is_empty());
     }
 
     #[test]
