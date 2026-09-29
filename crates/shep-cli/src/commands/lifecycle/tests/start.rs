@@ -232,8 +232,8 @@ async fn an_assignment_reaches_the_env_of_the_sheep_it_registers() {
     }
 }
 
-/// `stamped` says `true` so the flag has something to win over, and
-/// `unstamped` proves a Flockfile's own `false` survives the load unaided.
+/// Each Flockfile's own value must reach the wire without the flag, and
+/// the flag must win over `stamped`'s `true`.
 #[tokio::test]
 async fn no_log_timestamps_reaches_the_sheep_a_script_or_a_flockfile_registers() {
     let dir = tempfile::tempdir().unwrap();
@@ -250,12 +250,14 @@ async fn no_log_timestamps_reaches_the_sheep_a_script_or_a_flockfile_registers()
     for (target, flag, want) in [
         (&script, false, true),
         (&script, true, false),
+        (&stamped, false, true),
         (&stamped, true, false),
         (&unstamped, false, false),
     ] {
         let home = tempfile::tempdir().unwrap();
         let sock = shep_client::testing::control_address(home.path());
         let (client, mut envelopes) = fake_client_capturing_envelopes(&sock).await;
+        // The target itself, not an assignment followed by a pushed target.
         let mut args = start_args(&target.to_string_lossy());
         args.no_log_timestamps = flag;
         let _ = start_against_with_args(&client, &args).await;
