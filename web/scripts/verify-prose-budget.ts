@@ -70,11 +70,11 @@ export const BUDGETS: Record<string, number> = {
   secrets: 2080, // 1977
   lifecycle: 2020, // 1919
   logs: 1900, // 1805
-  "from-pm2": 1720, // 1659
   // Raised from 1690 on 2026-09-28 for "Naming your lambs": `lamb-label`
   // is a new message an app author has to be told about, not prose to trim
   // back out.
   "shepherd-channel": 1890, // 1804
+  "from-pm2": 1720, // 1659
   "boot-order": 1670, // 1586
   "talking-to-a-sheep": 1620, // 1534
   // Raised from 1330 on the same day and for the same feature. `host` is a
