@@ -16,7 +16,10 @@ impl App {
     /// close at once. A second `Escape` while the read is out asks nothing.
     pub(in crate::lookout::app) fn reread_before_closing(&mut self) -> Option<Effect> {
         let pane = self.config_pane()?;
-        let whole_table = matches!(pane.target(), PaneTarget::SheepDog { .. });
+        let whole_table = matches!(
+            pane.target(),
+            PaneTarget::Dog { .. } | PaneTarget::SheepDog { .. }
+        );
         if !whole_table || pane.edits().is_empty() {
             return None;
         }
@@ -49,6 +52,13 @@ impl App {
                 }
                 self.refresh_sheep_dog_pane(&view);
                 return self.hold(format!("{sheep}: its {dog} table"));
+            }
+            (Ok(Response::DogSection { toml }), PaneTarget::Dog { .. }) => {
+                if pane.holds_section(toml.as_str()) {
+                    return self.write_and_close();
+                }
+                let _ = self.on_dog_section(name, Ok(Response::DogSection { toml }));
+                return self.hold(format!("{name}: its section in dogs.toml"));
             }
             (Ok(_unrecognised), _) => {
                 "the shepherd answered something this lookout does not understand".to_owned()
@@ -265,5 +275,115 @@ mod tests {
         assert_eq!(app.update(Msg::Key(KeyPress::Escape)), Effect::None);
         let written = table_written(answer_web(&mut app, web_view(true)));
         assert_eq!(written, json!({ "concurrency": 4, "token": TOKEN }));
+    }
+
+    /// `bark`'s section read, answered with `section`.
+    fn answer_bark(app: &mut App, section: String) -> Effect {
+        app.update(Msg::Replied {
+            sent: Sent::DogSection {
+                name: "bark".into(),
+            },
+            result: Ok(Response::DogSection {
+                toml: section.into(),
+            }),
+        })
+    }
+
+    /// `app_in_dog_pane_with_two_edits` with `Escape` pressed, so the
+    /// re-read is out.
+    fn closing_bark() -> App {
+        let mut app = fixtures::app_in_dog_pane_with_two_edits();
+        assert_eq!(
+            app.update(Msg::Key(KeyPress::Escape)),
+            Effect::Send(Sent::DogSection {
+                name: "bark".into()
+            }),
+            "esc reads the section again before writing"
+        );
+        app
+    }
+
+    /// The one section write a batch carries.
+    fn section_written(effect: Effect) -> String {
+        let batch = wire_batch(effect);
+        let [Sent::SetDogSection { name, toml, .. }] = batch.as_slice() else {
+            panic!("one section write: {batch:?}");
+        };
+        assert_eq!(name, "bark");
+        toml.as_str().to_owned()
+    }
+
+    #[test]
+    fn an_unchanged_section_is_written_and_the_dog_pane_closes() {
+        let mut app = closing_bark();
+        assert!(app.config_pane().is_some(), "held until the answer");
+        let written = section_written(answer_bark(&mut app, fixtures::dog_section()));
+        assert!(written.contains("poll = \"45s\""), "{written}");
+        assert!(written.contains("history_bytes = 8192"), "{written}");
+        assert!(matches!(app.body(), Body::FlockTable), "the pane closed");
+    }
+
+    /// The operator rotated the webhook by hand while the pane was open.
+    /// The next close writes the pane's edits over the rotated section.
+    #[test]
+    fn a_moved_section_holds_the_dog_pane_and_the_next_close_keeps_both_writes() {
+        const ROTATED_URL: &str = "https://hooks.example/rotated";
+        let moved = || {
+            fixtures::dog_section()
+                .replace("https://hooks.example/x", ROTATED_URL)
+                .replace("# how often", "# how often, set by ops")
+        };
+        let mut app = closing_bark();
+        assert_eq!(answer_bark(&mut app, moved()), Effect::None);
+        let pane = app.config_pane().expect("the pane stays up");
+        assert_eq!(pane.target().name(), "bark");
+        assert_eq!(pane.edits().len(), 2, "both edits ride the new section");
+        let notice = app.notice().expect("the hold is said");
+        assert!(notice.is_grave());
+        assert_eq!(
+            notice.to_string(),
+            "bark: its section in dogs.toml changed while this pane was open, so nothing \
+             was written; esc writes your edits over the new values"
+        );
+
+        let _ = app.update(Msg::Key(KeyPress::Escape));
+        let written = section_written(answer_bark(&mut app, moved()));
+        assert!(written.contains(ROTATED_URL), "{written}");
+        assert!(written.contains("# how often, set by ops"), "{written}");
+        assert!(written.contains("poll = \"45s\""), "{written}");
+    }
+
+    #[test]
+    fn a_failed_section_re_read_holds_the_dog_pane_and_writes_nothing() {
+        let mut app = closing_bark();
+        let effect = app.update(Msg::Replied {
+            sent: Sent::DogSection {
+                name: "bark".into(),
+            },
+            result: Err(fixtures::a_refusal()),
+        });
+        assert_eq!(effect, Effect::None);
+        assert_eq!(app.config_pane().expect("still up").edits().len(), 2);
+        let notice = app.notice().expect("reported");
+        assert!(notice.is_grave());
+        assert!(
+            notice.to_string().ends_with(", so nothing was written"),
+            "{notice}"
+        );
+    }
+
+    #[test]
+    fn an_unsent_section_re_read_says_nothing_was_written() {
+        let mut app = closing_bark();
+        let _ = app.update(Msg::Unsent {
+            sent: Sent::DogSection {
+                name: "bark".into(),
+            },
+        });
+        assert_eq!(
+            app.notice().map(ToString::to_string).as_deref(),
+            Some("bark: its config was not asked for, so nothing was written")
+        );
+        assert_eq!(app.config_pane().expect("still up").edits().len(), 2);
     }
 }

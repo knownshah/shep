@@ -564,7 +564,10 @@ mod tests {
         fixtures::file_edit(&mut app, "poll", "45s");
         let effect = app.update(Msg::Key(KeyPress::Escape));
         assert!(app.close_dialog().is_none());
-        assert!(matches!(effect, Effect::SendAll(_)), "got {effect:?}");
+        assert!(
+            matches!(effect, Effect::Send(Sent::DogSection { .. })),
+            "esc goes straight to the re-read: {effect:?}"
+        );
     }
 
     #[test]

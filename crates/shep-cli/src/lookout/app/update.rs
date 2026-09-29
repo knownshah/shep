@@ -310,7 +310,7 @@ impl App {
                 // is reported, and so is a write nobody took.
                 Sent::DogSection { name } => {
                     self.notice = Some(Notice {
-                        text: format!("{name}: its config was not asked for"),
+                        text: format!("{name}: its config was not asked for{}", self.end_close()),
                         grave: true,
                     });
                     Effect::None

@@ -190,6 +190,13 @@ impl ConfigPane {
         }
     }
 
+    /// Whether `section` is the text this dog pane last took from the
+    /// shepherd, comments included. False for any other target.
+    #[must_use]
+    pub(in crate::lookout) fn holds_section(&self, section: &str) -> bool {
+        self.section.as_deref() == Some(section)
+    }
+
     /// The key under the cursor, and why the pane will not edit it, when it
     /// will not. [`None`] both for a row that edits and for no row at all.
     ///

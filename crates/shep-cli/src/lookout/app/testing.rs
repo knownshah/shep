@@ -346,6 +346,26 @@ pub(super) fn type_concurrency(app: &mut App, typed: &str) {
     let _ = app.update(Msg::Key(KeyPress::TextApply));
 }
 
+/// `esc` on [`fixtures::app_in_dog_pane`]'s pane, with the re-read it
+/// sends answered by the section the pane opened on.
+pub(super) fn close_bark(app: &mut App) -> Effect {
+    assert_eq!(
+        app.update(Msg::Key(KeyPress::Escape)),
+        Effect::Send(Sent::DogSection {
+            name: "bark".into()
+        }),
+        "esc reads the section again before writing"
+    );
+    app.update(Msg::Replied {
+        sent: Sent::DogSection {
+            name: "bark".into(),
+        },
+        result: Ok(Response::DogSection {
+            toml: fixtures::dog_section().into(),
+        }),
+    })
+}
+
 /// `esc` on [`app_in_jobs_table`]'s pane, with the re-read it sends
 /// answered by the table the pane opened on: the effect carrying the write.
 pub(super) fn close_jobs_table(app: &mut App) -> Effect {
