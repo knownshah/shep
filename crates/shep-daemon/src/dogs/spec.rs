@@ -291,8 +291,8 @@ mod tests {
         );
     }
 
-    /// `narrate` writes its own stamped lines into a dog's log, and its test
-    /// splits every line at `LOG_STAMP_BYTES`, so the dog's own must match.
+    /// A dog's log also holds shep's narration, which `narrate` always
+    /// stamps, so the dog's own lines must carry the stamp too.
     #[test]
     fn a_dogs_own_log_lines_are_stamped() {
         let dir = tempfile::tempdir().unwrap();
