@@ -98,9 +98,8 @@ impl ConfigPane {
         table
     }
 
-    /// Whether `table` is the one this pane last took from the shepherd,
-    /// [`None`] standing for a sheep with no table. False for any other
-    /// target.
+    /// Whether `table` is the one this pane last took from the shepherd.
+    /// [`None`] is a sheep with no table. False for any other target.
     #[must_use]
     pub(in crate::lookout) fn holds_table(&self, table: Option<&Map<String, Value>>) -> bool {
         self.dog_table.as_ref().is_some_and(|state| {

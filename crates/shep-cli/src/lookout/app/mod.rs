@@ -219,10 +219,9 @@ pub struct App {
     dog_target: Option<DogProbe>,
     /// Whether `Escape` on a whole-table pane is waiting on its re-read.
     ///
-    /// Set by [`Self::reread_before_closing`], and cleared by the answer, by
-    /// a read the link task never took, or by the pane closing. While set,
-    /// the pane's next config answer decides the close instead of
-    /// refreshing it.
+    /// Set by [`Self::reread_before_closing`]. Cleared by its answer, by an
+    /// unsent read, or by the pane closing. While set, the pane's next
+    /// config answer decides the close instead of refreshing it.
     closing: bool,
     /// The close dialog over the open pane, or `None`.
     ///

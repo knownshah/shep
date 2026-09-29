@@ -1,18 +1,18 @@
 //! Closing a pane whose write replaces a whole table.
 //!
 //! `Request::SetSheepDogSettings` and `Request::SetDogConfig` each replace
-//! the table they name. A write built on what the pane read at open would
-//! undo any change another writer made since. So `Escape` reads the table
-//! again before writing: an unchanged table is written and the pane
-//! closes, and a moved one stays on screen under the operator's edits.
+//! the table they name. A write built on the table read at open undoes
+//! every change made since. So `Escape` reads the table again first. An
+//! unchanged table is written and the pane closes. A moved one stays on
+//! screen under the operator's edits.
 
 use super::super::*;
 
 impl App {
     /// `Escape` on a dog or per-sheep table pane holding edits: reads the
-    /// table again, and holds the pane until the answer lands.
+    /// table again and holds the pane for the answer.
     ///
-    /// [`None`] for every other pane and for one with nothing filed, which
+    /// [`None`] for every other pane, and for one with nothing filed. Those
     /// close at once. A second `Escape` while the read is out asks nothing.
     pub(in crate::lookout::app) fn reread_before_closing(&mut self) -> Option<Effect> {
         let pane = self.config_pane()?;
@@ -33,8 +33,8 @@ impl App {
     /// The answer to [`Self::reread_before_closing`]'s read.
     ///
     /// The table the pane holds: the write goes out and the pane closes. A
-    /// moved table: the pane takes it under the same edits, and writes
-    /// nothing until the next `Escape`. A failed read changes nothing.
+    /// moved table: the pane takes it under the same edits and writes
+    /// nothing. The next `Escape` writes. A failed read changes nothing.
     pub(in crate::lookout::app) fn on_close_reread(
         &mut self,
         name: &str,
@@ -73,8 +73,8 @@ impl App {
         Effect::None
     }
 
-    /// Ends a close's wait on a read the link task never took, and returns
-    /// what the notice about that read adds.
+    /// Ends a close's wait on a read the link task never took. Returns what
+    /// that read's notice adds.
     pub(in crate::lookout::app) fn end_close(&mut self) -> &'static str {
         if core::mem::take(&mut self.closing) {
             ", so nothing was written"
@@ -116,8 +116,7 @@ mod tests {
     use super::super::super::*;
     use crate::lookout::app::testing::*;
 
-    /// What a second writer rotates `jobs`'s token to while the pane is
-    /// open. No more a notice's to print than [`TOKEN`] is.
+    /// The token a second writer gives `jobs` while the pane is open.
     const ROTATED: &str = "sk-live-rotated-77Zq";
 
     /// `web_view(true)` with `jobs` replaced by `table`.
