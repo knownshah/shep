@@ -232,23 +232,26 @@ async fn an_assignment_reaches_the_env_of_the_sheep_it_registers() {
     }
 }
 
-/// The Flockfile says `true` so the flag has something to win over.
+/// `stamped` says `true` so the flag has something to win over, and
+/// `unstamped` proves a Flockfile's own `false` survives the load unaided.
 #[tokio::test]
 async fn no_log_timestamps_reaches_the_sheep_a_script_or_a_flockfile_registers() {
     let dir = tempfile::tempdir().unwrap();
     let script = dir.path().join("zam");
     std::fs::write(&script, "#!/bin/sh\nsleep 1\n").unwrap();
-    let flockfile = dir.path().join("Flockfile.toml");
-    std::fs::write(
-        &flockfile,
-        "[[app]]\nname = \"koji\"\nscript = \"/bin/sleep\"\nlog_timestamps = true\n",
-    )
-    .unwrap();
+    let flockfile = |name: &str, value: bool| {
+        let path = dir.path().join(format!("{name}.toml"));
+        let app = "[[app]]\nname = \"koji\"\nscript = \"/bin/sleep\"\n";
+        std::fs::write(&path, format!("{app}log_timestamps = {value}\n")).unwrap();
+        path
+    };
+    let (stamped, unstamped) = (flockfile("stamped", true), flockfile("unstamped", false));
 
     for (target, flag, want) in [
         (&script, false, true),
         (&script, true, false),
-        (&flockfile, true, false),
+        (&stamped, true, false),
+        (&unstamped, false, false),
     ] {
         let home = tempfile::tempdir().unwrap();
         let sock = shep_client::testing::control_address(home.path());
