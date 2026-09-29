@@ -233,8 +233,10 @@ impl TreeIndex {
 
     /// Every descendant of `root` this index knows about, `root` excluded.
     ///
-    /// Cycle-safe for the reason [`Self::total_over`] gives.
+    /// The one tree walk here, which [`Self::total_over`] sums over too.
     pub(crate) fn descendants_of(&self, root: u32) -> HashSet<u32> {
+        // Seeded with `root`: a self-parenting pid or a parent-link cycle (a
+        // fixture can produce one) terminates, and never re-counts `root`.
         let mut seen = HashSet::from([root]);
         let mut stack = vec![root];
         while let Some(pid) = stack.pop() {
@@ -250,23 +252,12 @@ impl TreeIndex {
 
     /// Sums `totals` over `root` and every descendant this index knows about.
     ///
-    /// Shared by both per-pid quantities so the cycle-safe walk exists once.
+    /// Shared by both per-pid quantities, over [`Self::descendants_of`]'s walk.
     fn total_over(&self, root: u32, totals: &HashMap<u32, u64>) -> u64 {
-        // Summed once, on first pop: a self-parenting pid or a parent-link
-        // cycle (a fixture can produce one) terminates instead of looping.
-        let mut visited = HashSet::new();
-        let mut stack = vec![root];
-        let mut sum = 0u64;
-        while let Some(pid) = stack.pop() {
-            if !visited.insert(pid) {
-                continue;
-            }
-            sum = sum.saturating_add(totals.get(&pid).copied().unwrap_or(0));
-            if let Some(children) = self.children_of.get(&pid) {
-                stack.extend(children.iter().copied());
-            }
-        }
-        sum
+        let reading = |pid: u32| totals.get(&pid).copied().unwrap_or(0);
+        self.descendants_of(root)
+            .into_iter()
+            .fold(reading(root), |sum, pid| sum.saturating_add(reading(pid)))
     }
 }
 
@@ -294,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn descendants_reach_every_generation_and_leave_out_the_root() {
+    fn descendants_reach_every_generation_and_leave_out_a_root_a_cycle_leads_back_to() {
         let index = TreeIndex::build(&[
             rss(1, None, 0),
             rss(2, Some(1), 0),
