@@ -70,8 +70,12 @@ pub type ServerWriteHalf = tokio::io::WriteHalf<ServerStream>;
 ///
 /// [`tokio::io::split`], not `UnixStream::into_split` (unix-only): it costs
 /// a small lock per frame in exchange for one code path on both platforms.
-/// Fine for a control plane's handful of frames per command; do not copy
-/// the tradeoff onto a data path.
+/// This now also carries the log data path (a subscriber's `log.out` and
+/// `log.err` frames), not just a control plane's handful of frames per
+/// command; an uncontended `BiLock` acquire is on the order of tens of
+/// nanoseconds, so even at a thousand lines a second the total is
+/// microseconds. Keep the single code path; do not fork it onto
+/// `into_split` without measuring a real cost first.
 #[must_use]
 pub fn split(stream: ServerStream) -> (ServerReadHalf, ServerWriteHalf) {
     tokio::io::split(stream)
