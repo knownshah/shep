@@ -8,6 +8,7 @@ use ratatui::text::{Line, Span};
 use super::super::app::{App, LambWalk};
 use super::flock::fit;
 use crate::output::human_duration;
+use crate::terminal_safe::sanitise;
 
 /// The lamb line: what the last walk found, and how old it is.
 ///
@@ -41,7 +42,11 @@ pub(super) fn lamb_line(
             };
             let list = lambs
                 .iter()
-                .map(|lamb| format!("{} {}", lamb.pid, lamb.name))
+                .map(|lamb| match &lamb.label {
+                    // The app worded it, so a bidi override goes too.
+                    Some(label) => format!("{} {} ({})", lamb.pid, lamb.name, sanitise(label).0),
+                    None => format!("{} {}", lamb.pid, lamb.name),
+                })
                 .collect::<Vec<_>>()
                 .join("   ");
             format!(
@@ -118,6 +123,19 @@ mod tests {
         let stamp = line.find("read ").expect("a stamp");
         let list = line.find("48220").expect("a list");
         assert!(stamp < list, "the caveat must survive truncation: {line:?}");
+    }
+
+    #[test]
+    fn a_labelled_lamb_carries_its_label_after_its_name() {
+        let app = with_lamb_reading(LambWalk::Walked(vec![
+            Lamb::new(48_220, "python").with_label("worker\u{202e} 1"),
+            Lamb::new(48_221, "python"),
+        ]));
+        let rendered = render_all(&detail_lines(&app, 200));
+        assert!(
+            rendered.contains("48220 python (worker 1)   48221 python"),
+            "got {rendered:?}"
+        );
     }
 
     #[test]

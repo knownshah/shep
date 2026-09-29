@@ -225,6 +225,7 @@ pub(crate) mod tests {
         assert_priorities_match_headers::<FlockRows>(&["ID", "NAME", "STATUS"]);
         assert_priorities_match_headers::<DogRows>(&["ID", "NAME", "STATUS"]);
         assert_priorities_match_headers::<LambRows>(&["PID", "NAME"]);
+        assert_priorities_match_headers::<LabelledLambRows>(&["PID", "NAME"]);
         assert_priorities_match_headers::<DogActionRow>(&["NAME", "STATUS"]);
         assert_priorities_match_headers::<FlushedRows>(&["ID", "NAME"]);
         assert_priorities_match_headers::<EmptiedFiles>(&["STREAM", "RESULT"]);

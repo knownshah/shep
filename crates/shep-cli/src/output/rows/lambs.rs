@@ -1,9 +1,13 @@
-//! A sheep's lamb tree as `describe`'s second table: [`LambRows`].
+//! A sheep's lamb tree as `describe`'s second table: [`LambRows`], or
+//! [`LabelledLambRows`] once the sheep has named any of its lambs.
 
 use serde::Serialize;
 use shep_core::protocol::Lamb;
 
 use crate::output::Render;
+use crate::style::Presentation;
+
+use super::toolkit::{Paint, paint};
 
 /// One sheep's lamb tree, as `describe`'s second table.
 ///
@@ -46,9 +50,75 @@ impl Render for LambRows {
     const PRIORITIES: &'static [u8] = &[0, 0];
 }
 
+/// [`LambRows`] plus a LABEL column, for a tree where the sheep named at
+/// least one lamb on its shepherd channel.
+///
+/// Its own table so a tree nobody labelled renders as it always has. JSON
+/// is never read, for [`LambRows`]'s reason.
+#[derive(Debug, Serialize)]
+pub struct LabelledLambRows(pub Vec<Lamb>);
+
+impl LabelledLambRows {
+    /// Whether `lambs` needs this table rather than [`LambRows`].
+    pub fn wanted_for(lambs: &[Lamb]) -> bool {
+        lambs.iter().any(|lamb| lamb.label.is_some())
+    }
+}
+
+/// Only the `-` of an unlabelled lamb is painted: PID and NAME are identity,
+/// as in [`LambRows`].
+impl Render for LabelledLambRows {
+    fn headers() -> &'static [&'static str] {
+        &["PID", "NAME", "LABEL"]
+    }
+
+    fn rows(&self) -> Vec<Vec<String>> {
+        self.0
+            .iter()
+            .map(|lamb| {
+                vec![
+                    lamb.pid.to_string(),
+                    lamb.name.clone(),
+                    lamb.label.clone().unwrap_or_else(|| "-".to_string()),
+                ]
+            })
+            .collect()
+    }
+
+    fn rows_for(&self, presentation: Presentation, status_word: bool) -> Vec<Vec<String>> {
+        paint(
+            self.rows(),
+            Self::headers(),
+            presentation,
+            status_word,
+            |_, _, _| Paint::Default,
+        )
+    }
+
+    /// # Panics
+    /// If `header` is not one of `Self::headers()`'s own values.
+    #[track_caller]
+    fn json_key_for(header: &str) -> &'static str {
+        match header {
+            "PID" => "pid",
+            "NAME" => "name",
+            "LABEL" => "label",
+            other => panic!("LabelledLambRows::headers() does not include {other:?}"),
+        }
+    }
+
+    const JSON_ONLY: &'static [&'static str] = &[];
+
+    // Parallel to `headers()`. The label is the app's own text, so it goes
+    // first; PID and NAME are identity.
+    const PRIORITIES: &'static [u8] = &[0, 0, 6];
+}
+
 #[cfg(test)]
 mod tests {
-    use super::super::tests::{assert_no_drift, coloured};
+    use crate::vocabulary::Role;
+
+    use super::super::tests::{assert_no_drift, coloured, painted};
     use super::*;
 
     #[test]
@@ -64,5 +134,51 @@ mod tests {
     fn lamb_rows_carry_no_colour_at_all() {
         let rows = LambRows(vec![Lamb::new(48_302, "node")]).rows_for(coloured(), true);
         assert_eq!(rows[0], vec!["48302".to_string(), "node".to_string()]);
+    }
+
+    #[test]
+    fn labelled_lamb_rows_do_not_drift() {
+        assert_no_drift(
+            &LabelledLambRows(vec![
+                Lamb::new(4243, "python").with_label("worker 1"),
+                Lamb::new(4244, "sh"),
+            ]),
+            |j| &j[0],
+            &[],
+        );
+    }
+
+    #[test]
+    fn only_a_missing_label_is_painted() {
+        let rows = LabelledLambRows(vec![
+            Lamb::new(48_302, "python").with_label("worker 1"),
+            Lamb::new(48_303, "sh"),
+        ])
+        .rows_for(coloured(), true);
+        assert_eq!(
+            rows,
+            vec![
+                vec![
+                    "48302".to_string(),
+                    "python".to_string(),
+                    "worker 1".to_string()
+                ],
+                vec![
+                    "48303".to_string(),
+                    "sh".to_string(),
+                    painted("-", Role::Ink3)
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn the_labelled_table_is_wanted_only_once_a_lamb_has_a_label() {
+        assert!(!LabelledLambRows::wanted_for(&[]));
+        assert!(!LabelledLambRows::wanted_for(&[Lamb::new(1, "sh")]));
+        assert!(LabelledLambRows::wanted_for(&[
+            Lamb::new(1, "sh"),
+            Lamb::new(2, "sh").with_label("b"),
+        ]));
     }
 }
