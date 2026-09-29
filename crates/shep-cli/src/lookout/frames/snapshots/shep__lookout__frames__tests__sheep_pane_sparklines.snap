@@ -41,6 +41,7 @@ user                        (unset)
 logging                                                                                            
 err_file                    (unset)                                                                
 level_rules                 (default)                                                              
+log_timestamps              (default)                                                              
 merge_logs                  (default)                                                              
 out_file                    (unset)                                                                
                                                                                                    
@@ -48,6 +49,5 @@ out_file                    (unset)
 inputs                                                                                             
 args                        ["--port","8080"]                                                      
 channel                     (default)                                                              
-dogs                        (default)                                                              
                                                                                                    
 esc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log  … control enabled

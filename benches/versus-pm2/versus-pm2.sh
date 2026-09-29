@@ -90,15 +90,20 @@ PY
 
 # ------------------------------------------------------------ config gen --
 
+# log_timestamps = false matches pm2's default, which stamps a line only when
+# asked (`time: true`), so both tools write the script's 58 bytes and nothing
+# else.
 gen_flockfile() { # kind outfile
   local kind="$1" out="$2" i
   : > "$out"
   if [ "$kind" = quiet ]; then
     for ((i=0; i<N_APPS; i++)); do
-      printf '[[app]]\nname = "q%d"\nscript = "%s/quiet.sh"\n\n' "$i" "$APPS" >> "$out"
+      printf '[[app]]\nname = "q%d"\nscript = "%s/quiet.sh"\nlog_timestamps = false\n\n' \
+        "$i" "$APPS" >> "$out"
     done
   else
-    printf '[[app]]\nname = "loud"\nscript = "%s/loud.sh"\n' "$APPS" >> "$out"
+    printf '[[app]]\nname = "loud"\nscript = "%s/loud.sh"\nlog_timestamps = false\n' \
+      "$APPS" >> "$out"
   fi
 }
 

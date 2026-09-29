@@ -64,6 +64,7 @@ fn start_args(target: &str) -> StartArgs {
         cwd: None,
         interpreter: None,
         flockfile: false,
+        no_log_timestamps: false,
         reset: None,
     }
 }

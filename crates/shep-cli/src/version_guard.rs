@@ -507,6 +507,7 @@ mod tests {
             cwd: None,
             interpreter: None,
             flockfile: false,
+            no_log_timestamps: false,
             reset: None,
         }
     }

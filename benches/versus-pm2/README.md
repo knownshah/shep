@@ -15,7 +15,10 @@ release `shep` if you have one, with the package's other binaries beside it.
 ## What it measures, and why each is fair
 
 Both tools run the *same two shell scripts* the harness writes, under the same
-`/bin/sh`, with logs going to each tool's own default file capture.
+`/bin/sh`, with logs going to each tool's own default file capture. shep's
+generated Flockfile sets `log_timestamps = false` to match pm2's default, which
+stamps a line only when asked, so both files hold the script's 58 bytes per
+line and nothing else.
 
 | Metric | Workload |
 | --- | --- |

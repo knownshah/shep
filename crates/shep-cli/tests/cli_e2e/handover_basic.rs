@@ -133,6 +133,66 @@ fn a_sheep_keeps_its_pid_and_its_log_across_a_daemon_reload() {
     graceful_kill(dir.path());
 }
 
+/// A sheep started with `--no-log-timestamps` still writes bare lines after
+/// `shep daemon reload`, since the successor adopts its pump from the config.
+///
+/// Read raw: every line must parse as a whole number, which a stamped one
+/// never does.
+#[cfg(unix)]
+#[test]
+fn an_unstamped_sheep_stays_unstamped_across_a_daemon_reload() {
+    let dir = tempfile::tempdir().unwrap();
+    let script = write_counting_script(&dir);
+    let mut guard = DaemonGuard::default();
+
+    let started = shep(dir.path())
+        .arg("start")
+        .arg(&script)
+        .arg("--name")
+        .arg("counter")
+        .arg("--no-log-timestamps")
+        .output()
+        .unwrap();
+    guard.adopt_home(dir.path());
+    assert_success(&started);
+
+    let online = |info: &serde_json::Value| info["status"] == "online" && !info["pid"].is_null();
+    let before = poll_flock(dir.path(), online);
+    let out_file = PathBuf::from(
+        before["out_file"]
+            .as_str()
+            .unwrap_or_else(|| panic!("an online sheep reports its out file: {before}")),
+    );
+    let seen_before = counting_lines(&out_file, 3);
+
+    assert_success(
+        &shep(dir.path())
+            .arg("daemon")
+            .arg("reload")
+            .output()
+            .unwrap(),
+    );
+    let after = poll_flock(dir.path(), online);
+    assert_eq!(
+        after["pid"], before["pid"],
+        "the sheep must be adopted, not respawned: {after}"
+    );
+
+    let seen = counting_lines(&out_file, seen_before.len() + 3);
+    assert!(
+        seen.len() > seen_before.len(),
+        "the sheep stopped logging across the handover: {seen:?}"
+    );
+    let raw: Vec<String> = std::fs::read_to_string(&out_file)
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    assert_unbroken_sequence(&raw, "an unstamped log across a handover");
+
+    graceful_kill(dir.path());
+}
+
 /// Fails if a bad `shep.toml` can orphan a running flock: the refusal must
 /// happen before anything is signalled, on both the handover arm and the
 /// stop-and-start arm. No `#[cfg(unix)]`, since the pre-flight in

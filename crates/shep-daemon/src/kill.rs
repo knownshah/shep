@@ -109,6 +109,7 @@ mod tests {
             env: BTreeMap::new(),
             out_file: PathBuf::from("/tmp/shep-kill-test-out.log"),
             err_file: PathBuf::from("/tmp/shep-kill-test-err.log"),
+            log_timestamps: true,
             channel: true,
             stdin: false,
             credentials: None,

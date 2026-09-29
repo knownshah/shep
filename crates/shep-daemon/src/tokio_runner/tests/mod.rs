@@ -70,6 +70,12 @@ struct PumpHarness<W = DuplexStream> {
 
 impl PumpHarness {
     fn start() -> Self {
+        Self::start_stamped(true)
+    }
+
+    /// [`PumpHarness::start`] for a sheep whose `log_timestamps` is
+    /// `stamped`.
+    fn start_stamped(stamped: bool) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let out_path = dir.path().join("out.log");
         let err_path = dir.path().join("err.log");
@@ -82,6 +88,7 @@ impl PumpHarness {
             Some(err_reader),
             LogSink::Path(out_path.clone()),
             LogSink::Path(err_path.clone()),
+            stamped,
             logs_tx,
             ctl_rx,
             PipeFds::default(),
@@ -127,6 +134,7 @@ impl PumpHarness<tokio::net::unix::pipe::Sender> {
             Some(err_reader),
             LogSink::Path(out_path.clone()),
             LogSink::Path(err_path.clone()),
+            true,
             logs_tx,
             ctl_rx,
             pipes,

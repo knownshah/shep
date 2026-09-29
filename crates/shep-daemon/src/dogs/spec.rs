@@ -291,6 +291,24 @@ mod tests {
         );
     }
 
+    /// A dog's log also holds shep's narration, which `narrate` always
+    /// stamps, so the dog's own lines must carry the stamp too.
+    #[test]
+    fn a_dogs_own_log_lines_are_stamped() {
+        let dir = tempfile::tempdir().unwrap();
+        let spec = DogSpec {
+            name: "metrics".to_string(),
+            source: DogSource::BuiltIn,
+        };
+
+        assert!(
+            dog_app(&spec, &test_paths(&dir))
+                .unwrap()
+                .config()
+                .log_timestamps
+        );
+    }
+
     /// An adopted dog is given no argv, so the environment is its only
     /// channel, and a mismatch looks exactly like a dog with no configuration.
     /// The name is the one the operator chose, not the binary's file stem.

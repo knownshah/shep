@@ -152,6 +152,7 @@ async fn a_report_names_the_stdin_write_end_it_was_told_about() {
         None::<DuplexStream>,
         LogSink::Path(dir.path().join("out.log")),
         LogSink::Path(dir.path().join("err.log")),
+        true,
         logs_tx,
         ctl_rx,
         pipes,
@@ -226,6 +227,39 @@ async fn an_adopted_sheep_without_a_stdin_pipe_has_a_closed_channel() {
     assert!(io.to_stdin.is_closed());
 }
 
+/// fails if a handover stamps the log of a sheep that turned
+/// `log_timestamps` off.
+#[cfg(unix)]
+#[tokio::test]
+async fn an_adopted_sheep_keeps_its_log_unstamped() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut child_out, out_pipe) = tokio::net::unix::pipe::pipe().unwrap();
+    let spec = AdoptSpec {
+        out_pipe: Some(out_pipe),
+        log_timestamps: false,
+        ..adopt_spec(&dir, None, None)
+    };
+    let (_proc, mut io) = TokioRunner::new()
+        .adopt(spec)
+        .expect("the real runner must be able to adopt");
+
+    child_out.write_all(b"after the handover\n").await.unwrap();
+    timeout(PUMP_DEADLINE, io.logs.recv())
+        .await
+        .expect("the adopted pump must forward the line")
+        .expect("the pump must not end while its stream is open");
+    let (done, ack) = oneshot::channel();
+    io.log_ctl.send(LogCtl::Flush { done }).await.unwrap();
+    timeout(PUMP_DEADLINE, ack)
+        .await
+        .expect("a flush must be acknowledged")
+        .expect("the pump must answer")
+        .expect("the flush must succeed");
+
+    let written = fs::read_to_string(dir.path().join("out.log")).unwrap();
+    assert_eq!(written, "after the handover\n");
+}
+
 /// fails if a descriptor report leaves out the sheep's shepherd
 /// channel.
 ///
@@ -257,6 +291,7 @@ async fn a_report_names_the_shepherd_channel_it_was_told_about() {
         None::<DuplexStream>,
         LogSink::Path(dir.path().join("out.log")),
         LogSink::Path(dir.path().join("err.log")),
+        true,
         logs_tx,
         ctl_rx,
         pipes,
@@ -365,6 +400,7 @@ fn adopt_spec(
         err_pipe: None,
         out_log: None,
         err_log: None,
+        log_timestamps: true,
         stdin_pipe,
         channel,
         reaper: Arc::new(crate::runner::AdoptedReaper::new()),
@@ -392,6 +428,7 @@ fn child_spec(dir: &tempfile::TempDir, program: &str, args: &[&str], stdin: bool
         env: BTreeMap::new(),
         out_file: dir.path().join("out.log"),
         err_file: dir.path().join("err.log"),
+        log_timestamps: true,
         channel: false,
         stdin,
         credentials: None,
@@ -487,6 +524,7 @@ fn preflight_spec(program: &str, cwd: Option<PathBuf>, path: Option<&str>) -> Sp
         env,
         out_file: PathBuf::from("/dev/null"),
         err_file: PathBuf::from("/dev/null"),
+        log_timestamps: true,
         channel: false,
         stdin: false,
         credentials: None,

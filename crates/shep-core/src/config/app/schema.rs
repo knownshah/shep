@@ -392,6 +392,19 @@ pub struct AppConfig {
         "blurb": "Put every instance's output in one pair of files"
     })))]
     pub merge_logs: bool,
+    /// Start each line in `out_file` and `err_file` with the time it was
+    /// written (default: `true`)
+    ///
+    /// Only the files: `shep bleats --follow` and a dog subscribed to
+    /// `log.*` see the sheep's line verbatim either way.
+    #[cfg_attr(feature = "schema", schemars(extend("init" = {
+        "group": "logging",
+        "blurb": "Start every log line with the time it was written. On unless set false",
+        "accepts": ["true or false"],
+        "neighbours": [{"field": "out_file", "note": "the file whose lines carry the stamp"},
+                       {"field": "err_file", "note": "likewise"}]
+    })))]
+    pub log_timestamps: bool,
     /// How this app's own lines announce their level, for a client that
     /// filters by one.
     ///

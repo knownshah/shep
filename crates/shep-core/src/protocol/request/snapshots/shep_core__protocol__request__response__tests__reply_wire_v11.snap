@@ -775,6 +775,7 @@ expression: replies
             "out_file": null,
             "err_file": null,
             "merge_logs": false,
+            "log_timestamps": true,
             "level_rules": [],
             "dogs": {},
             "channel": false,

@@ -654,23 +654,6 @@ impl ProcessRunner for FailingPumpRunner {
 // A swap's drainee and its replacement derive identical log paths. Both
 // cases name the replacement by id, the form that cannot match the drainee.
 
-/// A spawn spec for the cases that drive [`run_sheep`] directly. The
-/// scripted fake reads none of it; [`ProcessRunner::spawn`] takes one.
-fn log_ctl_spec() -> SpawnSpec {
-    SpawnSpec {
-        name: "svc".to_string(),
-        program: "./svc".to_string(),
-        args: Vec::new(),
-        cwd: None,
-        env: std::collections::BTreeMap::new(),
-        out_file: std::path::PathBuf::from("out.log"),
-        err_file: std::path::PathBuf::from("err.log"),
-        channel: false,
-        stdin: false,
-        credentials: None,
-    }
-}
-
 // --- Identity: which user a spawn actually runs as ----------------
 //
 // Nothing on the wire reports the uid a child comes up under, so the cases
