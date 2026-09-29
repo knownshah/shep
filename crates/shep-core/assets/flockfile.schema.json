@@ -550,6 +550,28 @@
             ]
           }
         },
+        "log_timestamps": {
+          "description": "Start each line in `out_file` and `err_file` with the time it was\nwritten (default: `true`)\n\nOnly the files: `shep bleats --follow` and a dog subscribed to\n`log.*` see the sheep's line verbatim either way.",
+          "type": "boolean",
+          "default": true,
+          "init": {
+            "accepts": [
+              "true or false"
+            ],
+            "blurb": "Start every log line with the time it was written. On unless set false",
+            "group": "logging",
+            "neighbours": [
+              {
+                "field": "out_file",
+                "note": "the file whose lines carry the stamp"
+              },
+              {
+                "field": "err_file",
+                "note": "likewise"
+              }
+            ]
+          }
+        },
         "max_memory": {
           "description": "Memory ceiling — polling enforcer restarts above this",
           "anyOf": [

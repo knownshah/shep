@@ -460,3 +460,66 @@ async fn an_action_that_cannot_even_be_delivered_still_ends() {
     );
     assert_eq!(answer.await.unwrap(), ActionOutcome::TimedOut);
 }
+
+/// The whole path a label takes: `run_sheep`'s relay, the actor, and the
+/// stats state a `Describe` walks. Keyed by the spawned pid, so a label
+/// filed under the sheep's id would miss.
+#[tokio::test(start_paused = true)]
+async fn a_lamb_label_on_the_channel_reaches_the_describe_walk() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = AppConfig::minimal("web", "./srv");
+    app.channel = true;
+    let root = crate::fake::FIRST_SCRIPTED_PID;
+    let sampler = crate::testing::ScriptedSampler::identifying(vec![vec![
+        crate::testing::identity(root, None, "srv"),
+        crate::testing::identity(root + 1, Some(root), "python"),
+        crate::testing::identity(root + 2, Some(root), "python"),
+    ]]);
+    let stats = Arc::new(crate::limits::stats::StatsState::new(Arc::new(sampler)));
+    let (breaches, _breaches_rx) = mpsc::channel(1);
+    let (liveness, _liveness_rx) = mpsc::channel(1);
+    let (events, _events_rx) = crate::bus::test_bus(256);
+    let runner = Arc::new(ScriptedRunner::new(vec![ProcScript::never_exits()]));
+    let handle =
+        SupervisorBuilder::new(SharedRunner(Arc::clone(&runner)), test_paths(&dir), events)
+            .extras(Extras {
+                clock: Arc::new(SystemClock),
+                enforcer: Arc::new(RecordingEnforcer::default()),
+                max_cron_sleep: DEFAULT_MAX_CRON_SLEEP,
+                reports: ExtrasReports { breaches, liveness },
+                stats: Arc::clone(&stats),
+            })
+            .spawn();
+    handle.start(vec![normalize(app).unwrap()]).await.unwrap();
+    let io = runner.io_handles(0);
+
+    io.from_child_tx
+        .send(ChildMessage::LambLabel {
+            pid: root + 2,
+            label: shep_core::protocol::LambLabel::new("worker 2").unwrap(),
+        })
+        .await
+        .unwrap();
+
+    // Two task hops away. The paused clock advances on each idle sleep, so
+    // the timeout is what ends a label that never lands.
+    let lambs = tokio::time::timeout(ACTION_WINDOW, async {
+        loop {
+            let lambs = stats.lambs_of(&stats.lamb_index(), root);
+            if lambs.iter().any(|lamb| lamb.label.is_some()) {
+                break lambs;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("the label never reached the walk");
+
+    assert_eq!(
+        lambs,
+        vec![
+            shep_core::protocol::Lamb::new(root + 1, "python"),
+            shep_core::protocol::Lamb::new(root + 2, "python").with_label("worker 2"),
+        ]
+    );
+}

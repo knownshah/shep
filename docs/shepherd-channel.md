@@ -113,7 +113,7 @@ only that half:
   channel.
 
 **The wire format below is unchanged** — same newline-delimited JSON, same
-`ready`/`metric`/`action-reply` outbound and `shutdown`/`action` inbound
+`ready`/`metric`/`action-reply`/`lamb-label` outbound and `shutdown`/`action` inbound
 shapes, same correlation id. A named pipe opened in byte mode is a blocking
 byte stream, so "read a line, parse it, act on it" still describes reading
 it exactly.
@@ -177,6 +177,7 @@ build a JSON object, append `\n`, write it.
 | `{"kind":"ready"}` | You are up and ready to serve. Only meaningful if `wait_ready = true`; the daemon is otherwise not waiting for it. |
 | `{"kind":"metric","name":"<name>","value":<number>}` | A custom metric sample. Currently logged by the daemon at debug level and nothing more — no dog reads it yet. |
 | `{"kind":"action-reply","action":"<name>","body":"<text>","id":<number>}` | Your answer to a triggered action. `action` names which one; `body` is free-form text and becomes what the operator sees. `id` is optional — echo the `id` from the `action` message you are answering and shep matches your reply to that exact request. |
+| `{"kind":"lamb-label","pid":<number>,"label":"<text>"}` | Names one of your own child processes in `shep describe` and lookout. An empty `label` clears it. See [Naming your lambs](#naming-your-lambs). |
 
 ### What you receive (daemon writes this)
 
@@ -267,6 +268,41 @@ there is currently no shep-level convention for how a multi-value `params`
 string should be split — that is a decision your app makes for its own
 actions, documented wherever you document them.
 
+## Naming your lambs
+
+`shep describe` lists your app's child processes, its lambs, as a pid and
+an executable name. It never shows their command lines, which carry
+credentials. So a worker pool of four `python` children reads as four
+identical rows. Tell shep which is which:
+
+```json
+{"kind":"lamb-label","pid":4312,"label":"worker 1"}
+```
+
+`describe` then shows a LABEL column beside NAME, `--format json` carries
+the label as `lambs[].label`, and lookout's lamb line reads
+`4312 python (worker 1)`. Send the message again to replace a label, or
+send an empty `label` to clear it.
+
+- **The label is at most 64 characters and holds no control character.**
+  A line that breaks either rule is dropped as a malformed frame, and the
+  shepherd logs a warning. There is no reply either way.
+- **Only your own tree counts.** A label is shown only while its pid is a
+  parent-pid descendant of your process. A pid outside it is never shown.
+- **A label goes when its lamb does.** Every 15 seconds the shepherd drops
+  labels whose pid has left your tree. A pid the OS hands to a new
+  descendant inside that window inherits the old label until then.
+- **Labels live in the shepherd's memory.** A restart of your app, of the
+  shepherd, or a `shep daemon reload` forgets them. Send them again when
+  you spawn the lamb. Each process holds at most 256; past that, the oldest
+  goes.
+
+A shepherd that predates this message logs it as malformed and carries on,
+so sending one to an older shep costs nothing but the warning.
+
+In Rust, `shep_channel::Shepherd::label_lamb(pid, LambLabel::new("worker 1")?)`
+checks the grammar before anything is sent.
+
 ## Finish writing before you exit
 
 `shutdown` is the one message that asks you to end the process, which makes
@@ -284,9 +320,10 @@ down while you wait.
 
 ## Everything you write here is also public on the bus
 
-Every message you send on fd 3 — `ready`, `metric`, `action-reply` — is
-republished on the daemon's event bus under `channel.*`
-(`channel.ready`, `channel.metric`, `channel.action_reply`), as its own
+Every message you send on fd 3 — `ready`, `metric`, `action-reply`,
+`lamb-label` — is republished on the daemon's event bus under `channel.*`
+(`channel.ready`, `channel.metric`, `channel.action_reply`,
+`channel.lamb_label`), as its own
 topic alongside `process.*` and the log topics. Anyone subscribed to
 `channel.*` sees it, not just the operator who happened to send the
 `trigger` you were answering.

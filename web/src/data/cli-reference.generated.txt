@@ -171,6 +171,12 @@ Options:
           file merely has that extension. Without this flag `shep start server.js` starts
           `server.js` as a script, which is what it has always meant.
 
+      --no-log-timestamps
+          Write this sheep's log lines without the timestamp shep puts in front of each one.
+          
+          The flag form of a Flockfile's `log_timestamps = false`, and it wins over a Flockfile's
+          own value. `shep bleats` shows the same lines either way; only the files on disk differ.
+
       --reset[=<RESET>]
           Widen a Flockfile load past its additive default: append nothing, overwrite instead. A
           mode touches only what its name says; see the four below. Refused when the target supplies
@@ -307,6 +313,12 @@ Options:
           running it through node, which is arbitrary code execution, so it never happens because a
           file merely has that extension. Without this flag `shep start server.js` starts
           `server.js` as a script, which is what it has always meant.
+
+      --no-log-timestamps
+          Write this sheep's log lines without the timestamp shep puts in front of each one.
+          
+          The flag form of a Flockfile's `log_timestamps = false`, and it wins over a Flockfile's
+          own value. `shep bleats` shows the same lines either way; only the files on disk differ.
 
       --reset[=<RESET>]
           Widen a Flockfile load past its additive default: append nothing, overwrite instead. A

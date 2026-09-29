@@ -597,7 +597,10 @@ mod tests {
                 result: Ok(Response::Described(vec![
                     ProcessInfo::builder(3, "web", ProcStatus::Online)
                         .pid(Some(4242))
-                        .lambs(Some(vec![Lamb::new(4243, "node"), Lamb::new(4244, "sh")]))
+                        .lambs(Some(vec![
+                            Lamb::new(4243, "node"),
+                            Lamb::new(4244, "sh").with_label("worker 1"),
+                        ]))
                         .build(),
                 ])),
             },
@@ -869,7 +872,7 @@ mod tests {
                 }),
             },
         ];
-        insta::assert_json_snapshot!("reply_wire_v10", replies);
+        insta::assert_json_snapshot!("reply_wire_v11", replies);
     }
 
     /// The additive claim on `SheepFieldSet::warning` has three halves and

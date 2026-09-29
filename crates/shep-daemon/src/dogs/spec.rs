@@ -133,7 +133,7 @@ pub fn dog_app(spec: &DogSpec, paths: &ShepPaths) -> Result<ResolvedApp, DogErro
     // from, so this is its only channel.
     config
         .env
-        .insert("SHEP_DOG_NAME".to_string(), spec.name.clone());
+        .insert(shep_core::dogs::DOG_NAME_VAR.to_string(), spec.name.clone());
     normalize(config).map_err(|err| DogError::Config(err.to_string()))
 }
 
@@ -288,6 +288,24 @@ mod tests {
             adopted.config().name,
             "otel",
             "the NAME is the config key, never the filename"
+        );
+    }
+
+    /// A dog's log also holds shep's narration, which `narrate` always
+    /// stamps, so the dog's own lines must carry the stamp too.
+    #[test]
+    fn a_dogs_own_log_lines_are_stamped() {
+        let dir = tempfile::tempdir().unwrap();
+        let spec = DogSpec {
+            name: "metrics".to_string(),
+            source: DogSource::BuiltIn,
+        };
+
+        assert!(
+            dog_app(&spec, &test_paths(&dir))
+                .unwrap()
+                .config()
+                .log_timestamps
         );
     }
 

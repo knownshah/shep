@@ -302,6 +302,24 @@ async fn a_reload_whose_replacement_cannot_spawn_says_so_on_the_bus() {
     assert_eq!(after[0].id, 0);
 }
 
+/// A spawn spec for the cases that drive [`run_sheep`] directly. The
+/// scripted fake reads none of it; [`ProcessRunner::spawn`] takes one.
+fn log_ctl_spec() -> SpawnSpec {
+    SpawnSpec {
+        name: "svc".to_string(),
+        program: "./svc".to_string(),
+        args: Vec::new(),
+        cwd: None,
+        env: std::collections::BTreeMap::new(),
+        out_file: std::path::PathBuf::from("out.log"),
+        err_file: std::path::PathBuf::from("err.log"),
+        log_timestamps: true,
+        channel: false,
+        stdin: false,
+        credentials: None,
+    }
+}
+
 /// Fails if `run_sheep` lets go of `ProcIo::log_ctl` while its sheep is
 /// still running. The real runner's log pump ends with that sender, and the
 /// read ends of the child's stdout and stderr close with the pump. Reads

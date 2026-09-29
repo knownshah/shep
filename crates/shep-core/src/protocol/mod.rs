@@ -1,4 +1,4 @@
-//! The client<->daemon wire protocol (version 10).
+//! The client<->daemon wire protocol (version 11).
 //!
 //! Typed request/response enums plus bus events. Framing lives in
 //! [`wire`]; a serialized shape change bumps [`PROTOCOL_VERSION`].
@@ -22,9 +22,9 @@
 //! [`Request::HostUsage`] and [`Response::HostUsage`] rode in after it
 //! and forced nothing either, on the terms [`Request::PutSecrets`] set
 //! above. Version 10 bumped on a third new `AppConfig` field, `dogs`, for
-//! the reason version 5 did.
+//! the reason version 5 did, and version 11 on a fourth, `log_timestamps`.
 //!
-//! A `*_wire_v10` test pins today's shape. A
+//! A `*_wire_v11` test pins today's shape. A
 //! `v1_*_fixture_still_deserializes` test pins an old peer's payload and
 //! never renames.
 
@@ -42,7 +42,7 @@ pub use request::{
     Reply, Request, Response, RpcError, RpcErrorCode, SelectorSpec, SheepApplied, SheepConfigView,
     SheepDrift, SheepRefusal, SignalOutcome, SignalReply, Smit, SmitError, sort_flock,
 };
-pub use shep_channel::{CHANNEL_VERSION, ChildMessage, ShepherdMessage};
+pub use shep_channel::{CHANNEL_VERSION, ChildMessage, LambLabel, LambLabelError, ShepherdMessage};
 pub use wire::{MAX_FRAME_BYTES, WireError, codec, decode_frame, encode_frame, reply_id};
 
 /// The shepherd channel's wire types. Moved to the `shep-channel` crate;
@@ -66,7 +66,7 @@ pub mod channel {
 /// config the operator did not write and says nothing. `environment`
 /// forced 8 after the denial had already moved to `Flockfile::parse`,
 /// which is the precedent.
-pub const PROTOCOL_VERSION: u32 = 10;
+pub const PROTOCOL_VERSION: u32 = 11;
 
 /// The oldest protocol this build accepts from a peer.
 ///
@@ -83,7 +83,7 @@ mod tests {
 
     /// Fails whenever `PROTOCOL_VERSION` moves, which makes a bump a
     /// deliberate edit rather than a reflex. It does not detect a shape
-    /// change that forgot to bump: the `*_wire_v10` snapshots do that, by
+    /// change that forgot to bump: the `*_wire_v11` snapshots do that, by
     /// gaining or losing the key.
     ///
     /// A bump moves five things together, and only this one fails on its
@@ -92,11 +92,11 @@ mod tests {
     /// snapshots with the names that pin them.
     ///
     /// `depends_on` forced 5, `environment` 8, dropping `increment_var` 9,
-    /// `dogs` 10. The `Response::Reloading` and `Response::Restarted`
+    /// `dogs` 10, `log_timestamps` 11. The `Response::Reloading` and `Response::Restarted`
     /// retypes forced 6 and 7, an object not being an array.
     #[test]
     fn an_added_app_config_field_forced_the_protocol_version_up() {
-        assert_eq!(PROTOCOL_VERSION, 10);
+        assert_eq!(PROTOCOL_VERSION, 11);
     }
 
     #[test]

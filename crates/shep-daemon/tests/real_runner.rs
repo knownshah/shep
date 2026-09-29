@@ -31,6 +31,7 @@ fn sh_spec(script: &str, channel: bool, out_file: PathBuf, err_file: PathBuf) ->
         env: BTreeMap::new(),
         out_file,
         err_file,
+        log_timestamps: true,
         channel,
         stdin: false,
         credentials: None,
@@ -40,17 +41,11 @@ fn sh_spec(script: &str, channel: bool, out_file: PathBuf, err_file: PathBuf) ->
 /// Builds a spec running `program args...` with logs under `dir`, for an
 /// arbitrary program rather than `sh_spec`'s single shell script.
 fn spec_for(dir: &tempfile::TempDir, program: &str, args: &[&str]) -> SpawnSpec {
+    let (out_file, err_file) = (dir.path().join("out.log"), dir.path().join("err.log"));
     SpawnSpec {
-        name: "real-runner-test".to_string(),
         program: program.to_string(),
         args: args.iter().map(|s| (*s).to_string()).collect(),
-        cwd: None,
-        env: BTreeMap::new(),
-        out_file: dir.path().join("out.log"),
-        err_file: dir.path().join("err.log"),
-        channel: false,
-        stdin: false,
-        credentials: None,
+        ..sh_spec("", false, out_file, err_file)
     }
 }
 
@@ -970,6 +965,7 @@ fn adopt_spec(dir: &tempfile::TempDir, pid: u32, reaper: &Arc<AdoptedReaper>) ->
         err_pipe: None,
         out_log: None,
         err_log: None,
+        log_timestamps: true,
         stdin_pipe: None,
         channel: None,
         reaper: Arc::clone(reaper),

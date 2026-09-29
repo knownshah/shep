@@ -62,6 +62,7 @@ fn cmd_spec(dir: &tempfile::TempDir, args: &[&str]) -> SpawnSpec {
         env: realistic_env(),
         out_file: dir.path().join("web-out.log"),
         err_file: dir.path().join("web-err.log"),
+        log_timestamps: true,
         channel: false,
         stdin: false,
         credentials: None,

@@ -5,11 +5,11 @@ use super::*;
 
 /// `assert_cmd` captures stdout through a pipe, so this is the not-a-tty
 /// refusal a `shep lookout > dash.txt` meets.
-#[test]
-fn shep_lookout_refuses_when_stdout_is_not_a_terminal() {
+#[track_caller]
+fn assert_refuses_non_tty(verb: &str) {
     let home = TempDir::new().unwrap();
     let output = shep(home.path())
-        .arg("lookout")
+        .arg(verb)
         .timeout(CMD_TIMEOUT)
         .output()
         .unwrap();
@@ -19,19 +19,13 @@ fn shep_lookout_refuses_when_stdout_is_not_a_terminal() {
 }
 
 #[test]
+fn shep_lookout_refuses_when_stdout_is_not_a_terminal() {
+    assert_refuses_non_tty("lookout");
+}
+
+#[test]
 fn shep_dash_is_the_same_verb() {
-    let home = TempDir::new().unwrap();
-    let output = shep(home.path())
-        .arg("dash")
-        .timeout(CMD_TIMEOUT)
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(2));
-    assert!(
-        String::from_utf8(output.stderr)
-            .unwrap()
-            .contains("needs a terminal")
-    );
+    assert_refuses_non_tty("dash");
 }
 
 /// The assertion is on `security boundary` alone: `wrap_help` re-wraps long

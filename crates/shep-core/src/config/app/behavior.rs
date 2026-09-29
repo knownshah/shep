@@ -53,6 +53,7 @@ impl Default for AppConfig {
             out_file: None,
             err_file: None,
             merge_logs: false,
+            log_timestamps: true,
             level_rules: Vec::new(),
             dogs: BTreeMap::new(),
             channel: false,
@@ -130,8 +131,25 @@ impl AppConfig {
 #[cfg(test)]
 mod tests {
     use super::super::schema::AppConfig;
+    use crate::config::{FlockFormat, Flockfile};
 
     // use schemars::generate
+
+    #[test]
+    fn log_lines_are_stamped_unless_a_flockfile_says_false() {
+        let parse = |extra: &str| {
+            let src = format!("[[app]]\nname = \"web\"\nscript = \"./srv\"\n{extra}");
+            Flockfile::parse(&src, FlockFormat::Toml)
+                .expect("parses")
+                .apps[0]
+                .log_timestamps
+        };
+
+        assert!(AppConfig::minimal("web", "./srv").log_timestamps);
+        assert!(parse(""));
+        assert!(parse("log_timestamps = true"));
+        assert!(!parse("log_timestamps = false"));
+    }
 
     #[test]
     fn an_unedited_config_has_drifted_in_no_field() {

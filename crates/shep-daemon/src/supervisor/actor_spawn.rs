@@ -550,6 +550,7 @@ impl<R: ProcessRunner> Actor<R> {
                 err_pipe,
                 out_log,
                 err_log,
+                log_timestamps: described.log_timestamps,
                 stdin_pipe,
                 channel,
                 reaper: Arc::clone(reaper),

@@ -59,13 +59,14 @@ pub(super) struct LogFile<W = tokio::fs::File> {
     /// Cleared by every flush attempt, successful or not: a file that cannot
     /// be written must not turn the idle flush into a retry loop.
     pub(super) buffered_since: Option<Instant>,
-    /// Scratch the line's timestamp is formatted into, cleared and refilled
-    /// per line rather than reallocated.
+    /// Scratch each record is joined in, cleared and refilled per line
+    /// rather than reallocated.
     ///
     /// Nothing outside [`LogFile::append`] may read it.
     pub(super) stamp: String,
-    /// Renders each line's timestamp into `stamp`.
-    pub(super) stamper: Stamper,
+    /// Renders each line's timestamp into `stamp`, `None` when the sheep's
+    /// `log_timestamps` is off.
+    pub(super) stamper: Option<Stamper>,
 }
 
 /// Where one stream's log handle comes from when a pump starts.
@@ -83,12 +84,13 @@ pub(super) enum LogSink {
 }
 
 impl LogFile<tokio::fs::File> {
-    /// Builds the log file a [`LogSink`] describes.
-    pub(super) async fn from_sink(sink: LogSink) -> Self {
+    /// Builds the log file a [`LogSink`] describes, stamping each line when
+    /// `stamped` says to.
+    pub(super) async fn from_sink(sink: LogSink, stamped: bool) -> Self {
         match sink {
-            LogSink::Path(path) => Self::open(path).await,
+            LogSink::Path(path) => Self::open(path, stamped).await,
             #[cfg(unix)]
-            LogSink::Carried(path, file) => Self::from_file(path, file),
+            LogSink::Carried(path, file) => Self::from_file(path, file, stamped),
         }
     }
 
@@ -100,7 +102,7 @@ impl LogFile<tokio::fs::File> {
     /// [`open_append`] documents. [`Self::reopen`] still goes by path, so a
     /// rotation works on a carried handle as on an opened one.
     #[cfg(unix)]
-    pub(super) fn from_file(path: PathBuf, file: tokio::fs::File) -> Self {
+    pub(super) fn from_file(path: PathBuf, file: tokio::fs::File, stamped: bool) -> Self {
         Self {
             // Same path, therefore the same lock as any other handle on it.
             // A carried descriptor is still one of two writers.
@@ -109,7 +111,7 @@ impl LogFile<tokio::fs::File> {
             handle: Some(BufWriter::with_capacity(LOG_BUFFER, file)),
             buffered_since: None,
             stamp: String::new(),
-            stamper: Stamper::default(),
+            stamper: stamped.then(Stamper::default),
         }
     }
 
@@ -119,7 +121,7 @@ impl LogFile<tokio::fs::File> {
     /// streams whether or not it can write them anywhere.
     /// [`LogFile::reopen`] is the one that reports, since there a caller is
     /// waiting.
-    pub(super) async fn open(path: PathBuf) -> Self {
+    pub(super) async fn open(path: PathBuf, stamped: bool) -> Self {
         let handle = open_append(&path)
             .await
             .ok()
@@ -130,7 +132,7 @@ impl LogFile<tokio::fs::File> {
             handle,
             buffered_since: None,
             stamp: String::new(),
-            stamper: Stamper::default(),
+            stamper: stamped.then(Stamper::default),
         }
     }
 
@@ -246,9 +248,10 @@ pub(crate) fn record_lock(path: &Path) -> Arc<tokio::sync::Mutex<()>> {
 }
 
 impl<W: AsyncWrite + Unpin> LogFile<W> {
-    /// Appends one timestamped line and its newline to the buffer, logging
-    /// rather than propagating a write failure: a log we cannot write to
-    /// must not stop the pump draining the child's pipes.
+    /// Appends one line and its newline to the buffer, after a timestamp
+    /// unless the sheep turned `log_timestamps` off. A write failure is
+    /// logged rather than propagated: a log we cannot write to must not stop
+    /// the pump draining the child's pipes.
     ///
     /// The stamp, the line and the newline are joined in `self.stamp` and
     /// handed to one `write_all`. [`crate::dogs::narrate`] writes through a
@@ -263,7 +266,9 @@ impl<W: AsyncWrite + Unpin> LogFile<W> {
             return;
         };
         self.stamp.clear();
-        self.stamper.stamp_into(&mut self.stamp);
+        if let Some(stamper) = self.stamper.as_mut() {
+            stamper.stamp_into(&mut self.stamp);
+        }
         self.stamp.push_str(line);
         self.stamp.push('\n');
         // Held across the write, not merely around the buffer copy: one

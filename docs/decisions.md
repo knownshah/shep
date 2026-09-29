@@ -22,9 +22,9 @@ go for the full argument. The commit that removed them names itself.
 - [Core types and the daemon's shape](#core-types-and-the-daemons-shape) (5)
 - [The CLI surface](#the-cli-surface) (4)
 - [Supervision and lifecycle](#supervision-and-lifecycle) (17)
-- [The log plane](#the-log-plane) (8)
+- [The log plane](#the-log-plane) (9)
 - [Reload](#reload) (9)
-- [Custom actions and the shepherd channel](#custom-actions-and-the-shepherd-channel) (9)
+- [Custom actions and the shepherd channel](#custom-actions-and-the-shepherd-channel) (10)
 - [The pm2 cutover](#the-pm2-cutover) (18)
 - [Dogs](#dogs) (31)
 - [Audit debt](#audit-debt) (11)
@@ -37,7 +37,7 @@ go for the full argument. The commit that removed them names itself.
 - [Config overrides](#config-overrides) (9)
 - [Dog config store](#dog-config-store) (1)
 - [CI flakes, and the log line a stop could lose](#ci-flakes-and-the-log-line-a-stop-could-lose) (4)
-- [CI and releases](#ci-and-releases) (2)
+- [CI and releases](#ci-and-releases) (3)
 - [Config pane writes](#config-pane-writes) (1)
 - [Boot ordering](#boot-ordering) (8)
 - [Following the flock](#following-the-flock) (3)
@@ -329,6 +329,16 @@ The daemon's tracing subscriber is initialized in the CLI's run_daemon entry poi
 
 `docs/writing-plans/plans/2026-08-09-shep-phase5-log-plane.md:180`
 
+### The per-line stamp is on by default, and a sheep can turn it off
+
+`AppConfig::log_timestamps`, default `true`, decides whether the shepherd starts each line of a sheep's out and err files with a `shep_core::logstamp` stamp. `shep start --no-log-timestamps` is its flag form. A dog's log always keeps the stamp, since shep writes its own stamped narration into that file.
+
+**Why:** the stamp shipped in 6a30fa56 with no opt-out, because a file with no time on its lines is one nobody can date, and that is still why the default is on. The versus-pm2 harness reversed the "no opt-out" half while running for #617: pm2 stamps only when asked, so shep wrote 88 bytes per line against pm2's 58 and the log-cost row compared unlike work. An app that stamps its own lines pays the same doubled prefix. Default off would have matched pm2 with no config and brought the undatable file back; the maintainer ruled for on in #635.
+
+A new `AppConfig` field bumps `PROTOCOL_VERSION`, here 10 to 11, for the reason `dogs` did: an older daemon ignoring the key would stamp a sheep its operator said not to. `MIN_SUPPORTED` does not move.
+
+`verified crates/shep-core/src/config/app/schema.rs (AppConfig::log_timestamps), crates/shep-daemon/src/tokio_runner/log_file.rs (LogFile::append), crates/shep-daemon/src/dogs/spec.rs (dog_app)`
+
 ## Reload
 
 ### A planned 'muster-roll double-counting' fix was dropped after its premise was audited and found false
@@ -476,6 +486,14 @@ Trigger builds a new waiter on spawn_readiness_task/await_ready's shape (single 
 **Why:** PendingReply has no timeout, because every existing command that uses it is backed by the kill ladder guaranteeing an eventual Msg::Exited. A custom action guarantees nothing back from the app, so a PendingReply-shaped trigger against an unresponsive app would leak an entry forever and park the caller. The staleness stamp reuses reload's reasoning (the new id, not a generation counter, since ids are never reused).
 
 `docs/writing-plans/plans/2026-08-11-shep-phase7-custom-actions.md:192`
+
+### A sheep labels its own lambs; the shepherd never reads a label from the OS
+
+A `lamb-label` message on fd 3 names one of the sheep's child processes, and `describe`, lookout and whistle show it beside the executable name. The label is keyed by the pid of the process whose channel sent it, joined only onto lambs the walk finds under that pid, and pruned on the existing 15s sampler tick once its pid leaves the tree. At most 64 characters, no control characters, 256 per process, in memory only.
+
+**Why:** Lambs are a pid and an executable name because argv carries credentials, which left a pool of identical workers as identical rows (#624). Letting the app word the label keeps the no-argv rule: shep shows what the app chose to say. Keying by the sending pid rather than the sheep's id means a respawn starts clean and one sheep can never label another's tree. The tick already walks the whole table, so pruning there costs no second walk; a label set after a tick's reading began survives that tick, since the reading can predate the lamb. The accepted gap is a pid recycled inside the same tree between two ticks, which inherits the dead lamb's label for up to 15s. `ChildMessage` stays exhaustive, so the new kind is a breaking change for Rust callers, while `CHANNEL_VERSION` stays `1`: an older shepherd logs the line as malformed and carries on.
+
+`docs/shepherd-channel.md`, "Naming your lambs"
 
 ## The pm2 cutover
 
@@ -1982,6 +2000,16 @@ Every CI nextest profile writes junit, and a composite action runs after every n
 **Why:** Retries went on for the integration tier on 2026-09-04 because a contended runner cannot always schedule a real shepherd and real sheep promptly, and the same day's two CI-only failures (the entry above this section) were both real defects a retry would have hidden. The retry is the right call for the merge and the wrong call for the record, and the record was the half that was missing: `.config/nextest.toml` said "`--junit` is on so the retries are countable" while no profile named a junit path, so a retried test left no trace anywhere a person looks. The report always exits 0. The test step already gave the verdict; this is what a person reads afterwards, and it is deliberately loud rather than a count in a log, because a count in a log is what the previous arrangement amounted to.
 
 `verified .config/nextest.toml, .github/actions/nextest-report/action.yml, .github/workflows/test.yml`
+
+### A performance regression is judged on shep's own figure, with pm2 as the control, by hand at a release
+
+`benches/versus-pm2/baseline.json` holds the last kept run of the versus-pm2 harness, and `versus-pm2.sh --check` compares a new run with it through `compare.py`, exiting 0 when every gated metric held, 1 when one regressed past its threshold and 2 when the run cannot be judged. A metric regresses when shep's own figure worsens past its threshold. It is judged only when shep's two rounds agree within that threshold, pm2's figure in the same run is within it of pm2's baseline figure, and the run's OS and architecture match the baseline's. `--record` replaces the baseline and refuses a run those rules could not judge. Nothing in CI runs the harness; CI runs `compare.py`'s tests and a parse of the script.
+
+**Why:** #291 and #292 were both found by a person reading a run against `from-pm2.astro`, because no run was ever kept anywhere a later one could be diffed against (#367). CI stays out of it for the reason the `bench` job already gives: a shared runner cannot hold a wall clock still, and this harness also installs a third-party npm package. Gating on the shep/pm2 ratio was the other candidate, and it charges shep for whatever moves pm2: between the two published runs node went from v26.5.0 to v26.8.1 and pm2's idle RSS fell 7.4%, so the ratio moved 35% where shep's memory grew 25%. Using pm2 as a control instead is the argument both issues were made on, that shep moved while pm2 at the same version on the same box did not. It also turns a machine that moved into an explicit "cannot judge" rather than a false regression or a false pass. Exit 2 is kept apart from exit 1 so that "slower" and "could not tell" never read the same.
+
+The first committed baseline was transcribed from the docs page's 2026-09-14 table, since that run's `metrics.jsonl` was never kept. Its pm2 figures did not reproduce on the same machine two weeks later (log cost 6.5 us against 4.1 and both starts at least 25% slower, in two runs whose shep rounds agreed within 3%), so three of five gated metrics were unjudgeable against it. It was replaced by a recorded run on 2026-09-28, before merging.
+
+`verified benches/versus-pm2/compare.py (METRICS, judge, record), benches/versus-pm2/test_compare.py, benches/versus-pm2/versus-pm2.sh (preflight, m_run, main), .github/workflows/test.yml (versus-pm2), web/src/pages/docs/from-pm2.astro, benches/versus-pm2/README.md`
 
 ## Config pane writes
 

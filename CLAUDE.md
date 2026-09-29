@@ -49,6 +49,9 @@ cargo check --workspace --all-targets --all-features --target x86_64-pc-windows-
 - At a merge: the task gate, plus
   `cargo test --workspace --all-features -- --test-threads=1` and
   `cargo bench --manifest-path benches/Cargo.toml -- --test` on stable and 1.88.
+- At a release, by hand, on macOS: `./benches/versus-pm2/versus-pm2.sh --check`,
+  the only comparison against a recorded baseline. Never in CI. Exit 2 is
+  "cannot judge", not a pass. [docs/testing.md](docs/testing.md) covers `--record`.
 
 Gotchas:
 

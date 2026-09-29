@@ -231,21 +231,26 @@ fn a_reopen_that_cannot_open_a_path_again_exits_internal() {
 /// end of file and the next one lands at offset 0. The file's length is the
 /// whole assertion: `bleats` prints the line either way, since a sparse hole
 /// reads back as NUL bytes in front of it.
-#[test]
-fn an_external_copytruncate_leaves_the_next_line_at_offset_zero() {
+///
+/// `stamped` false runs it under `--no-log-timestamps`, where the length has
+/// only the sheep's own bytes to account for.
+fn copytruncate_leaves_the_next_line_at_offset_zero(stamped: bool) {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path();
     let gate = home.join("copied");
     let script = write_rotating_script(&dir, &gate);
     let mut guard = DaemonGuard::default();
 
-    let boot = shep(home)
+    let mut start = shep(home);
+    start
         .arg("start")
         .arg(&script)
         .arg("--name")
-        .arg("truncated")
-        .output()
-        .unwrap();
+        .arg("truncated");
+    if !stamped {
+        start.arg("--no-log-timestamps");
+    }
+    let boot = start.output().unwrap();
     guard.adopt_home(home);
     assert_success(&boot);
 
@@ -305,7 +310,7 @@ fn an_external_copytruncate_leaves_the_next_line_at_offset_zero() {
         std::fs::metadata(&out_file).unwrap().len(),
         // Stamp, line, newline: the claim is that the file holds one line's
         // worth of bytes with no hole in front of it.
-        (shep_core::logstamp::LOG_STAMP_BYTES + ROTATE_AFTER.len() + 1) as u64,
+        (stamp_bytes(stamped) + ROTATE_AFTER.len() + 1) as u64,
         "the sheep's next line must land at offset 0 of the emptied file: a \
          handle that kept its offset across an external truncation would \
          leave a hole the size of what was emptied in front of it, and \
@@ -313,6 +318,25 @@ fn an_external_copytruncate_leaves_the_next_line_at_offset_zero() {
     );
 
     graceful_kill(home);
+}
+
+/// How many bytes the shepherd puts in front of each line.
+fn stamp_bytes(stamped: bool) -> usize {
+    if stamped {
+        shep_core::logstamp::LOG_STAMP_BYTES
+    } else {
+        0
+    }
+}
+
+#[test]
+fn an_external_copytruncate_leaves_the_next_line_at_offset_zero() {
+    copytruncate_leaves_the_next_line_at_offset_zero(true);
+}
+
+#[test]
+fn an_unstamped_log_takes_its_next_line_at_offset_zero_after_a_copytruncate() {
+    copytruncate_leaves_the_next_line_at_offset_zero(false);
 }
 
 /// [`ROTATE_BEFORE`] being gone proves the truncate happened; [`ROTATE_AFTER`]

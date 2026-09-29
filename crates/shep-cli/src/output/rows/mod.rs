@@ -5,12 +5,13 @@
 //! They live here rather than under `commands/` because nothing here carries
 //! a `cfg`, so a test on the Windows leg can name every one. Split by the
 //! payload each group renders: [`process`] for a sheep's own
-//! `ProcessInfo`/`Lamb` rows, [`dogs`] for the dog-specific ones,
-//! [`toolkit`] for the paint/cell rules both share, [`lifecycle`] for
-//! one-shot verb results, [`replies`] for a daemon action's reply,
-//! [`secrets`] for the KV store and `shep secret`.
+//! `ProcessInfo` rows, [`lambs`] for its lamb tree, [`dogs`] for the
+//! dog-specific ones, [`toolkit`] for the paint/cell rules both share,
+//! [`lifecycle`] for one-shot verb results, [`replies`] for a daemon
+//! action's reply, [`secrets`] for the KV store and `shep secret`.
 
 mod dogs;
+mod lambs;
 mod lifecycle;
 mod process;
 mod replies;
@@ -18,6 +19,7 @@ mod secrets;
 mod toolkit;
 
 pub use dogs::*;
+pub use lambs::*;
 pub use lifecycle::*;
 pub use process::*;
 pub use replies::*;
@@ -223,6 +225,7 @@ pub(crate) mod tests {
         assert_priorities_match_headers::<FlockRows>(&["ID", "NAME", "STATUS"]);
         assert_priorities_match_headers::<DogRows>(&["ID", "NAME", "STATUS"]);
         assert_priorities_match_headers::<LambRows>(&["PID", "NAME"]);
+        assert_priorities_match_headers::<LabelledLambRows>(&["PID", "NAME"]);
         assert_priorities_match_headers::<DogActionRow>(&["NAME", "STATUS"]);
         assert_priorities_match_headers::<FlushedRows>(&["ID", "NAME"]);
         assert_priorities_match_headers::<EmptiedFiles>(&["STREAM", "RESULT"]);

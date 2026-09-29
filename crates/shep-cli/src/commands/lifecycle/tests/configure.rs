@@ -84,6 +84,7 @@ async fn a_discovered_flockfile_applies_to_an_app_the_flock_already_has() {
         cwd: None,
         interpreter: None,
         flockfile: false,
+        no_log_timestamps: false,
         reset: None,
     };
     let mut out = Vec::new();
