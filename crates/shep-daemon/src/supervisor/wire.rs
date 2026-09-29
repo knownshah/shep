@@ -114,6 +114,10 @@ pub(super) fn swap_budget(config: &AppConfig) -> Duration {
 /// [`Actor::handle_reload`]'s selector pass and [`Actor::advance_reload`], so
 /// a reload cannot drop an instance silently or reach one it had ruled out.
 /// `advance_reload` adds the `manual` half on its own.
+///
+/// [`Actor::handle_extra_restart`] asks the same question for the same
+/// reason: a `ready_failed` sheep is armed extras same as an `Online` one, so
+/// its own report must be able to reach it too.
 pub(super) fn reload_eligible(slot: &SheepSlot) -> bool {
     slot.entry.status == ProcStatus::Online || slot.ready_failed
 }

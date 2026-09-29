@@ -333,10 +333,13 @@ impl<R: ProcessRunner> Actor<R> {
     /// One sheep's transition to `Online`: emits the event, then arms every
     /// lifecycle extra its configuration asks for.
     ///
-    /// The single arming site, reached by all three transitions. Arming
-    /// happens at the transition, not the spawn: a liveness probe armed
-    /// against an app that has not finished starting fails its threshold and
-    /// restarts the app before it ever comes up.
+    /// The arming site for every ordinary transition, reached by all three.
+    /// Arming happens at the transition, not the spawn: a liveness probe
+    /// armed against an app that has not finished starting fails its
+    /// threshold and restarts the app before it ever comes up. An abandoned
+    /// reload's replacement is the one instance armed without going through
+    /// here: it never becomes `Online`, so [`Actor::reload_ready_result`] and
+    /// [`Actor::handle_reload_verified`] call [`Self::arm_extras`] directly.
     pub(super) fn went_online(&mut self, id: u32, info: ProcessInfo, manually: bool) {
         // Whatever an earlier reload concluded about this instance, it is
         // serving now. See `SheepSlot::ready_failed`.
@@ -350,11 +353,11 @@ impl<R: ProcessRunner> Actor<R> {
     /// Arms `id`'s lifecycle extras, rebuilding the spec the running process
     /// was spawned from.
     ///
-    /// Rebuilding is what makes one arming site possible:
-    /// `handle_ready_result` holds an id and nothing else, and `describe` is
-    /// pure over a `spec`, `instance` and `credentials` that never change.
-    /// The store it reads can move under a running sheep, which is why this
-    /// is [`describe`] and not [`assemble`].
+    /// Rebuilding is what makes a shared arming body possible: a caller holds
+    /// an id and nothing else, and `describe` is pure over a `spec`,
+    /// `instance` and `credentials` that never change. The store it reads can
+    /// move under a running sheep, which is why this is [`describe`] and not
+    /// [`assemble`].
     pub(super) fn arm_extras(&mut self, id: u32) {
         let Some(extras) = self.extras.as_ref() else {
             return;

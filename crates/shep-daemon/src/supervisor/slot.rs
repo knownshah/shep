@@ -85,7 +85,11 @@ pub(super) struct SheepSlot {
     ///
     /// Read by [`Actor::advance_reload`]'s replaceable test. A reload replaces
     /// `Online` instances, so without this the instance a failed reload left
-    /// behind would be beyond the reach of the reload that rolls it back.
+    /// behind would be beyond the reach of the reload that rolls it back. Also
+    /// read by [`Actor::handle_extra_restart`]'s status guard: an abandoned
+    /// reload's replacement is armed the same extras an `Online` sheep is
+    /// (see [`Actor::reload_ready_result`]), so its own liveness probe or
+    /// memory limit must still be able to restart it.
     ///
     /// Cleared wherever the id gets a new process or a new verdict:
     /// [`Actor::respawn`]'s success arm and [`Actor::went_online`].
