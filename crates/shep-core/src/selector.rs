@@ -52,8 +52,8 @@ fn is_glob(input: &str) -> bool {
 /// # Errors
 ///
 /// - [`SelectorError::BadGlob`]: the pattern is not a valid glob.
-/// - [`SelectorError::BadRegex`]: the glob translated to a regex `regex`
-///   itself rejects.
+/// - [`SelectorError::BadRegex`]: `globset` translated the glob to a regex
+///   that the `regex` crate itself rejects.
 fn glob_to_regex(input: &str) -> Result<regex::Regex, SelectorError> {
     let glob = globset::Glob::new(input).map_err(|e| SelectorError::BadGlob(e.to_string()))?;
     let source = glob.regex();
