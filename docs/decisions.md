@@ -22,7 +22,7 @@ go for the full argument. The commit that removed them names itself.
 - [Core types and the daemon's shape](#core-types-and-the-daemons-shape) (5)
 - [The CLI surface](#the-cli-surface) (4)
 - [Supervision and lifecycle](#supervision-and-lifecycle) (17)
-- [The log plane](#the-log-plane) (8)
+- [The log plane](#the-log-plane) (9)
 - [Reload](#reload) (9)
 - [Custom actions and the shepherd channel](#custom-actions-and-the-shepherd-channel) (9)
 - [The pm2 cutover](#the-pm2-cutover) (18)
@@ -328,6 +328,16 @@ The daemon's tracing subscriber is initialized in the CLI's run_daemon entry poi
 **Why:** tracing_subscriber::fmt::init() panics on a second install in the same process. boot() is called repeatedly across ~15 unit and e2e-fixture tests in one test binary, so installing there would fail every test after the first. run_daemon's only caller is main, and each real invocation is a fresh process.
 
 `docs/writing-plans/plans/2026-08-09-shep-phase5-log-plane.md:180`
+
+### The per-line stamp is on by default, and a sheep can turn it off
+
+`AppConfig::log_timestamps`, default `true`, decides whether the shepherd starts each line of a sheep's out and err files with a `shep_core::logstamp` stamp. `shep start --no-log-timestamps` is its flag form. A dog's log always keeps the stamp, since shep writes its own stamped narration into that file.
+
+**Why:** the stamp shipped in 6a30fa56 with no opt-out, because a file with no time on its lines is one nobody can date, and that is still why the default is on. The versus-pm2 harness reversed the "no opt-out" half while running for #617: pm2 stamps only when asked, so shep wrote 88 bytes per line against pm2's 58 and the log-cost row compared unlike work. An app that stamps its own lines pays the same doubled prefix. Default off would have matched pm2 with no config and brought the undatable file back; the maintainer ruled for on in #635.
+
+A new `AppConfig` field bumps `PROTOCOL_VERSION`, here 10 to 11, for the reason `dogs` did: an older daemon ignoring the key would stamp a sheep its operator said not to. `MIN_SUPPORTED` does not move.
+
+`verified crates/shep-core/src/config/app/schema.rs (AppConfig::log_timestamps), crates/shep-daemon/src/tokio_runner/log_file.rs (LogFile::append), crates/shep-daemon/src/dogs/spec.rs (dog_app)`
 
 ## Reload
 
