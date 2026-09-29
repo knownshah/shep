@@ -13,6 +13,7 @@ pub(super) fn spec() -> SpawnSpec {
         env: BTreeMap::new(),
         out_file: PathBuf::from("/tmp/shep-test-out.log"),
         err_file: PathBuf::from("/tmp/shep-test-err.log"),
+        log_timestamps: true,
         channel: true,
         stdin: false,
         credentials: None,

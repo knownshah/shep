@@ -277,11 +277,18 @@ where
 /// be in the file yet. [`LogCtl::Reopen`], [`LogCtl::Flush`] and
 /// [`super::IDLE_FLUSH`] are the barriers. A reopen waits behind the pump's
 /// own file I/O, with no timeout.
+///
+/// `stamped` is the sheep's `log_timestamps`, and it holds for both files.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "eight: both streams, both sinks, both channels, the fds, the stamp"
+)]
 pub(super) fn spawn_log_pump<O, E>(
     stdout: Option<O>,
     stderr: Option<E>,
     out_sink: LogSink,
     err_sink: LogSink,
+    stamped: bool,
     logs_tx: mpsc::Sender<LogLine>,
     mut ctl_rx: mpsc::Receiver<LogCtl>,
     pipes: PipeFds,
@@ -291,8 +298,8 @@ pub(super) fn spawn_log_pump<O, E>(
 {
     tokio::spawn(async move {
         let mut files = LogFiles {
-            out: LogFile::from_sink(out_sink).await,
-            err: LogFile::from_sink(err_sink).await,
+            out: LogFile::from_sink(out_sink, stamped).await,
+            err: LogFile::from_sink(err_sink, stamped).await,
             pipes,
             #[cfg(unix)]
             parked: false,

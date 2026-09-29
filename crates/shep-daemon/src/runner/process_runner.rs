@@ -124,6 +124,9 @@ pub struct AdoptSpec {
     pub out_log: Option<tokio::fs::File>,
     /// The appending handle on its stderr log, likewise.
     pub err_log: Option<tokio::fs::File>,
+    /// Whether each line written through `out_log` and `err_log` starts
+    /// with a [`shep_core::logstamp`] stamp, as [`SpawnSpec::log_timestamps`].
+    pub log_timestamps: bool,
     /// The write end of its stdin pipe, still the one the child reads from,
     /// for a sheep whose app asked for one.
     ///
@@ -195,6 +198,10 @@ pub struct SpawnSpec {
     pub out_file: PathBuf,
     /// File stderr is appended to
     pub err_file: PathBuf,
+    /// Start each line appended to `out_file` and `err_file` with a
+    /// [`shep_core::logstamp`] stamp. `false` writes the child's lines as
+    /// they came.
+    pub log_timestamps: bool,
     /// Open the shepherd channel (fd 3 socketpair)
     pub channel: bool,
     /// Pipe the child's stdin, so `shep whisper` can write to it. `false`
@@ -395,6 +402,7 @@ mod tests {
             env: BTreeMap::new(),
             out_file: PathBuf::from("/tmp/web-out.log"),
             err_file: PathBuf::from("/tmp/web-err.log"),
+            log_timestamps: true,
             channel: false,
             stdin: false,
             credentials: None,

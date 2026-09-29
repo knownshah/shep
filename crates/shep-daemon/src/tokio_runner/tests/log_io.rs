@@ -33,7 +33,7 @@ async fn narration_cannot_tear_a_line_the_pump_is_writing() {
         let path = path.clone();
         let long = long.clone();
         tokio::spawn(async move {
-            let mut log = LogFile::open(path).await;
+            let mut log = LogFile::open(path, true).await;
             for i in 0..1200 {
                 log.append(&format!("{i} {long}")).await;
                 if i % 4 == 0 {
@@ -230,7 +230,7 @@ async fn a_run_of_lines_costs_one_write_per_bufferful_not_one_per_line() {
         handle: Some(BufWriter::with_capacity(LOG_BUFFER, sink.clone())),
         buffered_since: None,
         stamp: String::new(),
-        stamper: Stamper::default(),
+        stamper: Some(Stamper::default()),
     };
     for _ in 0..lines {
         log.append(LINE).await;
@@ -278,7 +278,7 @@ async fn a_line_from_a_sheep_that_then_goes_quiet_still_reaches_its_file() {
         handle: Some(BufWriter::with_capacity(LOG_BUFFER, sink.clone())),
         buffered_since: None,
         stamp: String::new(),
-        stamper: Stamper::default(),
+        stamper: Some(Stamper::default()),
     };
 
     log.append(LINE).await;
@@ -307,6 +307,22 @@ async fn a_line_from_a_sheep_that_then_goes_quiet_still_reaches_its_file() {
 
 /// Fails if a line reaches its file without the time it was written.
 ///
+/// Both files, and past a reopen: the setting belongs to the sheep, not
+/// to the handle a rotation replaces. Read raw, since `log_text` strips.
+#[tokio::test]
+async fn a_sheep_with_log_timestamps_off_gets_its_lines_as_written() {
+    let mut pump = PumpHarness::start_stamped(false);
+    pump.feed(false, "out before").await;
+    pump.feed(true, "err before").await;
+    pump.reopen().await;
+    pump.feed(false, "out after").await;
+    pump.flush().await;
+
+    let raw = |path: &PathBuf| fs::read_to_string(path).unwrap();
+    assert_eq!(raw(&pump.out_path), "out before\nout after\n");
+    assert_eq!(raw(&pump.err_path), "err before\n");
+}
+
 /// `mtime` answers for the whole file and only until something touches
 /// it again, so a per-line stamp is what an operator can trust after a
 /// rotation.
@@ -319,7 +335,7 @@ async fn a_line_from_a_sheep_that_then_goes_quiet_still_reaches_its_file() {
 async fn a_line_carries_the_time_it_was_written() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("stamped.log");
-    let mut log = LogFile::open(path.clone()).await;
+    let mut log = LogFile::open(path.clone(), true).await;
 
     log.append("the-sheep-said-this").await;
     log.flush().await.expect("the file must be writable");
@@ -357,8 +373,8 @@ async fn a_line_carries_the_time_it_was_written() {
 async fn the_idle_flush_window_is_measured_from_the_oldest_buffered_line() {
     let dir = tempfile::tempdir().unwrap();
     let mut files = LogFiles {
-        out: LogFile::open(dir.path().join("out.log")).await,
-        err: LogFile::open(dir.path().join("err.log")).await,
+        out: LogFile::open(dir.path().join("out.log"), true).await,
+        err: LogFile::open(dir.path().join("err.log"), true).await,
         pipes: PipeFds::default(),
         #[cfg(unix)]
         parked: false,
@@ -808,7 +824,7 @@ async fn a_flush_reports_the_write_its_file_never_took() {
         )),
         buffered_since: None,
         stamp: String::new(),
-        stamper: Stamper::default(),
+        stamper: Some(Stamper::default()),
     };
 
     // Swallowed by design: the pump keeps draining a child whose log
@@ -847,7 +863,7 @@ async fn a_log_file_from_an_open_handle_still_appends() {
     // Opened exactly as a predecessor's pump had it, and handed over
     // rather than reopened by path.
     let handle = open_append(&path).await.unwrap();
-    let mut log = LogFile::from_file(path.clone(), handle);
+    let mut log = LogFile::from_file(path.clone(), handle, true);
 
     log.append("second").await;
     log.flush().await.expect("the carried handle must be live");
