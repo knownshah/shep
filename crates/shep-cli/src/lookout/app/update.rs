@@ -32,6 +32,7 @@ impl App {
             config_for: None,
             dog_target: None,
             closing: false,
+            config_read_in_flight: false,
             close_dialog: None,
             held: None,
             style: (StyleLevel::Full, StyleSource::Default),
@@ -282,6 +283,7 @@ impl App {
                 // swallowed: silence here looks like a key that is not
                 // bound. A close waiting on it ends, having written nothing.
                 Sent::SheepConfig { name } => {
+                    self.config_read_in_flight = false;
                     self.notice = Some(Notice {
                         text: format!("{name}: its config was not asked for{}", self.end_close()),
                         grave: true,
@@ -309,6 +311,7 @@ impl App {
                 // The dog twins of the two arms above: a read nobody took
                 // is reported, and so is a write nobody took.
                 Sent::DogSection { name } => {
+                    self.config_read_in_flight = false;
                     self.notice = Some(Notice {
                         text: format!("{name}: its config was not asked for{}", self.end_close()),
                         grave: true,

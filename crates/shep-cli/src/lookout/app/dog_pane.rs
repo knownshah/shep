@@ -52,6 +52,7 @@ impl App {
         let Some(probe) = self.dog_target.clone().filter(|probe| probe.name == name) else {
             return Effect::None;
         };
+        self.config_read_in_flight = false;
         if self.closing {
             return self.on_close_reread(name, result);
         }

@@ -223,6 +223,17 @@ pub struct App {
     /// unsent read, or by the pane closing. While set, the pane's next
     /// config answer decides the close instead of refreshing it.
     closing: bool,
+    /// Whether a [`Sent::SheepConfig`] or [`Sent::DogSection`] read for the
+    /// open pane is out and has not answered yet.
+    ///
+    /// Set by [`Self::reread_pane`], cleared by [`Self::on_sheep_config`],
+    /// [`Self::on_dog_section`], or an unsent read. `r` and
+    /// [`Self::reread_before_closing`] both route through `reread_pane`, and
+    /// a reply carries nothing back to say which of two outstanding reads it
+    /// answers, so this stops a second one going out while the first is
+    /// still in flight: without it, a close's own re-read and a stray
+    /// refresh could each answer the other's request.
+    config_read_in_flight: bool,
     /// The close dialog over the open pane, or `None`.
     ///
     /// Raised by `Escape` on a pane carrying changes the running child has

@@ -46,6 +46,7 @@ impl App {
         if self.config_target.as_deref() != Some(name) {
             return Effect::None;
         }
+        self.config_read_in_flight = false;
         if self.closing {
             return self.on_close_reread(name, result);
         }
@@ -355,17 +356,26 @@ impl App {
     /// A dog's schema is not re-probed. It came from the dog's binary at
     /// open and is parked on [`Self::dog_target`]; re-probing would respawn
     /// somebody else's binary on a keystroke whose job is to re-read a file.
+    ///
+    /// `None` while a read for this pane is already out: see
+    /// [`Self::config_read_in_flight`]'s doc for why a second one is refused
+    /// rather than sent.
     pub(super) fn reread_pane(&mut self) -> Effect {
+        if self.config_read_in_flight {
+            return Effect::None;
+        }
         let Some(pane) = self.config_pane() else {
             return Effect::None;
         };
         let name = pane.target().name().to_owned();
-        match pane.target() {
+        let effect = match pane.target() {
             PaneTarget::Sheep { .. } | PaneTarget::SheepDog { .. } => {
                 Effect::Send(Sent::SheepConfig { name })
             }
             PaneTarget::Dog { .. } => Effect::Send(Sent::DogSection { name }),
-        }
+        };
+        self.config_read_in_flight = true;
+        effect
     }
 
     /// Drops the open pane and everything a reply for it would re-open.
