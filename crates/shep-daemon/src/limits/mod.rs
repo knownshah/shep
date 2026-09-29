@@ -4,7 +4,8 @@
 //! enforced against the process tree, its own pid plus every lamb it spawned,
 //! not its resident set alone. [`sample::MemorySampler`] reads the process
 //! table, [`sample::tree_rss`] sums one tree, and [`LimitEnforcer`] watches
-//! those sums; `stats::StatsState` rides the same tick for `shep flock`. The
+//! those sums; `stats::StatsState` rides the same tick for `shep flock` and
+//! to prune lamb labels. The
 //! ppid-based sum only approximates the killed process group: a forked
 //! orphan can leave the tree but stay in the group, and a `setsid`
 //! descendant can leave the group but stay in the tree. A breach is noticed

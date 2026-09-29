@@ -9,6 +9,9 @@
 //! last periodic baseline, subtracted without writing one, so its window is usually one
 //! `MEMORY_POLL_INTERVAL` old, longer if a full breaches channel paused the poll loop. Both
 //! sum the whole tree; see [`limits`](super) for the kill-unit divergence.
+//!
+//! It also holds the labels sheep give their lambs (`limits::labels`), joined onto
+//! `describe`'s lamb walk and pruned on the same tick.
 
 use core::fmt;
 use std::collections::{HashMap, HashSet};
