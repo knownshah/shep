@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "source": "recorded by versus-pm2.sh --record",
+  "recorded": "2026-09-28",
+  "shep_version": "0.10.1",
+  "shep_sha": "ba00c8a44013a360b2fa8c44288348aee8aa41e0",
+  "pm2": "7.0.4",
+  "node": "v26.8.1",
+  "machine": {
+    "os": "Darwin",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "ncpu": 14
+  },
+  "metrics": {
+    "idle_rss": {
+      "unit": "KiB",
+      "field": "rss_kb",
+      "shep": 18408.0,
+      "shep_rounds": [
+        18448.0,
+        18368.0
+      ],
+      "pm2": 66448.0
+    },
+    "idle_cpu": {
+      "unit": "%",
+      "field": "cputime_derived_pct",
+      "shep": 0.6095,
+      "shep_rounds": [
+        0.586,
+        0.633
+      ],
+      "pm2": 0.081
+    },
+    "log_cpu_per_line": {
+      "unit": "us",
+      "field": "us_per_line",
+      "shep": 2.49345,
+      "shep_rounds": [
+        2.4989,
+        2.488
+      ],
+      "pm2": 6.6777
+    },
+    "start_cold": {
+      "unit": "s",
+      "field": "cold_s",
+      "shep": 0.18585,
+      "shep_rounds": [
+        0.1883,
+        0.1834
+      ],
+      "pm2": 0.4579
+    },
+    "start_warm": {
+      "unit": "s",
+      "field": "warm_s",
+      "shep": 0.0872,
+      "shep_rounds": [
+        0.0864,
+        0.088
+      ],
+      "pm2": 0.2797
+    },
+    "footprint": {
+      "unit": "bytes",
+      "field": "shep_install_bytes",
+      "shep": 54102224.0,
+      "shep_rounds": [
+        54102224.0
+      ],
+      "pm2": 24236032.0
+    }
+  }
+}
