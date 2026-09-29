@@ -130,6 +130,13 @@ $ shep bleats <name> --no-follow  # tail only`}</CodeBlock>
       is there for <code>tail</code>, <code>less</code>, <code>grep</code>,
       and a rotated archive nobody can date any other way.
     </p>
+    <p>
+      An app that already stamps its own lines can turn shep's off with{" "}
+      <code>log_timestamps = false</code> in its Flockfile, or{" "}
+      <code>shep start --no-log-timestamps</code> for a script. Its lines then
+      land exactly as it wrote them, which is what pm2 does by default. A
+      dog's log always keeps the stamp.
+    </p>
     <p class="fine">
       Every handle is opened append-only, and a symlink sitting at the path
       is refused rather than written through. Append matters more than it
