@@ -1184,6 +1184,7 @@ user                        (unset)                                         │
 logging                                                                     │                                                                                   
 err_file                    (unset)                                         │                                                                                   
 level_rules                 (default)                                       │                                                                                   
+log_timestamps              (default)                                       │                                                                                   
 merge_logs                  (default)                                       │                                                                                   
 out_file                    (unset)                                         │                                                                                   
                                                                             │                                                                                   
@@ -1191,7 +1192,6 @@ out_file                    (unset)                                         │
 inputs                                                                      │                                                                                   
 args                        ["--port","8080"]                               │                                                                                   
 channel                     (default)                                       │                                                                                   
-dogs                        (default)                                       │                                                                                   
                                                                                                                                                                 
 esc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log   / filter                                                      control enabled
 
@@ -1236,6 +1236,7 @@ user                        (unset)
 logging                                                                                                                                    
 err_file                    (unset)                                                                                                        
 level_rules                 (default)                                                                                                      
+log_timestamps              (default)                                                                                                      
 merge_logs                  (default)                                                                                                      
 out_file                    (unset)                                                                                                        
                                                                                                                                            
@@ -1243,7 +1244,6 @@ out_file                    (unset)
 inputs                                                                                                                                     
 args                        ["--port","8080"]                                                                                              
 channel                     (default)                                                                                                      
-dogs                        (default)                                                                                                      
                                                                                                                                            
 esc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log   / filter                                 control enabled
 
@@ -1288,6 +1288,7 @@ user                        (unset)
 logging                                                                                            
 err_file                    (unset)                                                                
 level_rules                 (default)                                                              
+log_timestamps              (default)                                                              
 merge_logs                  (default)                                                              
 out_file                    (unset)                                                                
                                                                                                    
@@ -1295,7 +1296,6 @@ out_file                    (unset)
 inputs                                                                                             
 args                        ["--port","8080"]                                                      
 channel                     (default)                                                              
-dogs                        (default)                                                              
                                                                                                    
 esc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log  … control enabled
 
@@ -1755,18 +1755,18 @@ shep lookout   /home/ada/.shep                                                  
   FIELD                       VALUE                                           LANDS                                                                             
 >  err_file                   (unset) -> /var/log/api/err.log                 respawn    FOCUSED  err_file  text                                                
  ~ level_rules                []                                              now         Where stderr goes. Written out, the default is                        
-   merge_logs                 false                                           respawn     {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log                      
-   out_file                   (unset)                                         respawn                                                                           
-                                                                                          now     (unset)                                                       
-  pending edits                                                                           default (none)                                                        
-    cwd  (unset) -> /srv/api                                                              example {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log              
-    err_file  (unset) -> /var/log/api/err.log                                                                                                                   
-                                                                                          ▲ respawn  the sheep must stop and start again                        
-  env                                                                                                                    pick the timing when you close the pane
-   DATABASE_URL               (set)                                                                                                                             
-   NODE_ENV                   (set)                                                       ──────────────────────────────────────────────────────────────────────
-   + add a key                                                                            VALIDATION                                                            
-                                    ▛▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▜d                                   
+   log_timestamps             true                                            respawn     {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log                      
+   merge_logs                 false                                           respawn                                                                           
+   out_file                   (unset)                                         respawn     now     (unset)                                                       
+                                                                                          default (none)                                                        
+  pending edits                                                                           example {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log              
+    cwd  (unset) -> /srv/api                                                                                                                                    
+    err_file  (unset) -> /var/log/api/err.log                                             ▲ respawn  the sheep must stop and start again                        
+                                                                                                                         pick the timing when you close the pane
+  env                                                                                                                                                           
+   DATABASE_URL               (set)                                                       ──────────────────────────────────────────────────────────────────────
+   NODE_ENV                   (set)                                                       VALIDATION                                                            
+   + add a key                      ▛▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▜d                                   
                                     ▐  2 EDITS NEED A RESPAWN, 1 FIELD ALREADY DID api is online, pid 48219                ▌P_HOME}} expand                     
                                     ▐  cwd and err_file take hold when the process starts again.                           ▌: warned                            
                                     ▐                                                                                      ▌                                    
@@ -1807,17 +1807,17 @@ shep lookout   /home/ada/.shep                                              6 in
   FIELD                       VALUE                                                       
 >  err_file                   (unset) -… FOCUSED  err_file  text                          
  ~ level_rules                []          Where stderr goes. Written out, the default is  
-   merge_logs                 false       {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log
-   out_file                   (unset)                                                     
-                                          now     (unset)                                 
-  pending edits                           default (none)                                  
-    cwd  (unset) -> /srv/api              example {{SHEP_HOME}}/logs/{{name}}-{{instance}…
-    err_file  (unset) -> /var/log/api…                                                    
-                                          ▲ respawn  the sheep must stop and start again  
-  env                                              pick the timing when you close the pane
-   DATABASE_URL               (set)                                                       
-   NODE_ENV                   (set)       ────────────────────────────────────────────────
-   + add a key                            VALIDATION                                      
+   log_timestamps             true        {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log
+   merge_logs                 false                                                       
+   out_file                   (unset)     now     (unset)                                 
+                                          default (none)                                  
+  pending edits                           example {{SHEP_HOME}}/logs/{{name}}-{{instance}…
+    cwd  (unset) -> /srv/api                                                              
+    err_file  (unset) -> /var/log/api…    ▲ respawn  the sheep must stop and start again  
+                                                   pick the timing when you close the pane
+  env                                                                                     
+   DATABASE_URL               (set)       ────────────────────────────────────────────────
+   NODE_ENV                   (set)       VALIDATION                                      
  ▛▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▜ 
  ▐  2 EDITS NEED A RESPAWN, 1 FIELD ALREADY DID api is online, pid 48219                ▌…
  ▐  cwd and err_file take hold when the process starts again.                           ▌ 
@@ -1861,6 +1861,7 @@ shep lookout   /home/ada/.shep                                             6 in 
   {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log                                       
 >  err_file                   (unset) -> /var/log/api/err.log                  respawn   
  ~ level_rules                []                                               now       
+   log_timestamps             true                                             respawn   
    merge_logs                 false                                            respawn   
    out_file                   (unset)                                          respawn   
                                                                                          
@@ -1874,7 +1875,6 @@ shep lookout   /home/ada/.shep                                             6 in 
    + add a key                                                                           
   ───────────────────────────────────────────────────────────────────────────────────────
   = read-only, set it in the Flockfile   ~ no widget for this shape   ! parked, awaits a…
-                                                                                         
                                                                                          
                                                                                          
                                                                                          

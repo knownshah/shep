@@ -971,7 +971,7 @@ mod tests {
                 },
             ),
         ];
-        insta::assert_json_snapshot!("request_wire_v10", requests);
+        insta::assert_json_snapshot!("request_wire_v11", requests);
     }
 
     #[test]

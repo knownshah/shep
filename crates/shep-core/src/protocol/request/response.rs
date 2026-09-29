@@ -869,7 +869,7 @@ mod tests {
                 }),
             },
         ];
-        insta::assert_json_snapshot!("reply_wire_v10", replies);
+        insta::assert_json_snapshot!("reply_wire_v11", replies);
     }
 
     /// The additive claim on `SheepFieldSet::warning` has three halves and

@@ -93,6 +93,8 @@ const FIELDS: &[(&str, ApplyGroup)] = &[
     ("out_file", ApplyGroup::NeedsRespawn),
     ("err_file", ApplyGroup::NeedsRespawn),
     ("merge_logs", ApplyGroup::NeedsRespawn),
+    // Read once, when the log pump starts beside the child.
+    ("log_timestamps", ApplyGroup::NeedsRespawn),
     ("channel", ApplyGroup::NeedsRespawn),
     ("stdin", ApplyGroup::NeedsRespawn),
     ("wait_ready", ApplyGroup::NeedsRespawn),
@@ -283,12 +285,12 @@ mod tests {
 
     /// fails if the split drifts unnoticed.
     #[test]
-    fn the_split_is_20_5_15_2() {
+    fn the_split_is_21_5_16_2() {
         let fields = appconfig_fields();
         let count = |want: ApplyGroup| fields.keys().filter(|k| apply_group(k) == want).count();
         assert_eq!(count(ApplyGroup::Live), 21, "Live");
         assert_eq!(count(ApplyGroup::NextSpawn), 5, "NextSpawn");
-        assert_eq!(count(ApplyGroup::NeedsRespawn), 15, "NeedsRespawn");
+        assert_eq!(count(ApplyGroup::NeedsRespawn), 16, "NeedsRespawn");
         assert_eq!(count(ApplyGroup::Structural), 2, "Structural");
     }
 

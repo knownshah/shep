@@ -11,18 +11,18 @@ shep lookout   /home/ada/.shep                                                  
   FIELD                       VALUE                                           LANDS                                                                             
 >  err_file                   (unset) -> /var/log/api/err.log                 respawn    FOCUSED  err_file  text                                                
  ~ level_rules                []                                              now         Where stderr goes. Written out, the default is                        
-   merge_logs                 false                                           respawn     {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log                      
-   out_file                   (unset)                                         respawn                                                                           
-                                                                                          now     (unset)                                                       
-  pending edits                                                                           default (none)                                                        
-    cwd  (unset) -> /srv/api                                                              example {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log              
-    err_file  (unset) -> /var/log/api/err.log                                                                                                                   
-                                                                                          ▲ respawn  the sheep must stop and start again                        
-  env                                                                                                                    pick the timing when you close the pane
-   DATABASE_URL               (set)                                                                                                                             
-   NODE_ENV                   (set)                                                       ──────────────────────────────────────────────────────────────────────
-   + add a key                                                                            VALIDATION                                                            
-                                    ▛▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▜d                                   
+   log_timestamps             true                                            respawn     {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log                      
+   merge_logs                 false                                           respawn                                                                           
+   out_file                   (unset)                                         respawn     now     (unset)                                                       
+                                                                                          default (none)                                                        
+  pending edits                                                                           example {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log              
+    cwd  (unset) -> /srv/api                                                                                                                                    
+    err_file  (unset) -> /var/log/api/err.log                                             ▲ respawn  the sheep must stop and start again                        
+                                                                                                                         pick the timing when you close the pane
+  env                                                                                                                                                           
+   DATABASE_URL               (set)                                                       ──────────────────────────────────────────────────────────────────────
+   NODE_ENV                   (set)                                                       VALIDATION                                                            
+   + add a key                      ▛▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▜d                                   
                                     ▐  2 EDITS NEED A RESPAWN, 1 FIELD ALREADY DID api is online, pid 48219                ▌P_HOME}} expand                     
                                     ▐  cwd and err_file take hold when the process starts again.                           ▌: warned                            
                                     ▐                                                                                      ▌                                    

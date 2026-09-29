@@ -361,11 +361,11 @@ mod tests {
         };
         assert_eq!(flagged('*'), ["reuse_port", "max_restarts"]);
         assert_eq!(flagged('!'), ["kill_signal"]);
-        // 42, not 43: `env` no longer draws its own field row, folded into
+        // 43, not 44: `env` no longer draws its own field row, folded into
         // the env rows below the field list instead.
         assert_eq!(
             rows_of(&text).len(),
-            42,
+            43,
             "every field but env is drawn at 89"
         );
     }
@@ -391,8 +391,8 @@ mod tests {
         );
         // `dogs` opens a screen of its own, so it is neither of the two.
         assert_eq!(glyphed('\u{203a}'), ["dogs"]);
-        // 42, not 43: `env` no longer draws its own field row.
-        assert_eq!(glyphed(' ').len(), 42 - 2 - 3 - 1);
+        // 43, not 44: `env` no longer draws its own field row.
+        assert_eq!(glyphed(' ').len(), 43 - 2 - 3 - 1);
     }
 
     /// `kill_timeout` and `exp_backoff_restart_delay` default to 1600ms

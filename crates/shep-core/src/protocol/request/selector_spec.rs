@@ -18,7 +18,7 @@ pub enum SelectorSpec {
     Regex(String),
     /// By fold name
     Fold(String),
-    // Both field names are wire contract, pinned by `request_wire_v10`.
+    // Both field names are wire contract, pinned by `request_wire_v11`.
     /// By app name and instance slot
     ///
     /// On the wire: `{"kind":"instance","value":{"name":"web","slot":2}}`.
