@@ -98,6 +98,16 @@ impl ConfigPane {
         table
     }
 
+    /// Whether `table` is the one this pane last took from the shepherd,
+    /// [`None`] standing for a sheep with no table. False for any other
+    /// target.
+    #[must_use]
+    pub(in crate::lookout) fn holds_table(&self, table: Option<&Map<String, Value>>) -> bool {
+        self.dog_table.as_ref().is_some_and(|state| {
+            table.map_or(state.table.is_empty(), |table| state.table == *table)
+        })
+    }
+
     /// Replaces the table under an open pane with the shepherd's current
     /// one, keeping the cursor and the filed edits. An open editor is
     /// dropped, for the reason [`Self::adopt_edits`] gives.

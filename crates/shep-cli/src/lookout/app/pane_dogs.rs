@@ -584,7 +584,7 @@ mod tests {
     fn closing_a_table_pane_sends_the_whole_table_once_and_lands_on_the_dashboard() {
         let mut app = app_in_jobs_table();
         type_concurrency(&mut app, "4");
-        let effect = app.update(Msg::Key(KeyPress::Escape));
+        let effect = close_jobs_table(&mut app);
         assert!(!format!("{effect:?}").contains(TOKEN), "{effect:?}");
         let batch = wire_batch(effect);
         let [
@@ -620,7 +620,7 @@ mod tests {
     fn a_landed_table_write_says_so_and_names_no_value() {
         let mut app = app_in_jobs_table();
         type_concurrency(&mut app, "4");
-        let mut batch = wire_batch(app.update(Msg::Key(KeyPress::Escape)));
+        let mut batch = wire_batch(close_jobs_table(&mut app));
         let effect = app.update(Msg::Replied {
             sent: batch.remove(0),
             result: Ok(Response::SheepDogSettingsSet {

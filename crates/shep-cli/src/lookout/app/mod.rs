@@ -217,6 +217,13 @@ pub struct App {
     /// probed once at open and reused on every re-read, so `r` never
     /// respawns the dog's binary. Cleared alongside `config_target`.
     dog_target: Option<DogProbe>,
+    /// Whether `Escape` on a whole-table pane is waiting on its re-read.
+    ///
+    /// Set by [`Self::reread_before_closing`], and cleared by the answer, by
+    /// a read the link task never took, or by the pane closing. While set,
+    /// the pane's next config answer decides the close instead of
+    /// refreshing it.
+    closing: bool,
     /// The close dialog over the open pane, or `None`.
     ///
     /// Raised by `Escape` on a pane carrying changes the running child has

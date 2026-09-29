@@ -46,6 +46,9 @@ impl App {
         if self.config_target.as_deref() != Some(name) {
             return Effect::None;
         }
+        if self.closing {
+            return self.on_close_reread(name, result);
+        }
         match result {
             Ok(Response::SheepConfig(view)) => match self.config_for {
                 Some(ConfigFor::SheepPane) => {
@@ -188,10 +191,11 @@ impl App {
     /// Movement walks fields, `r` re-reads, `space` cycles the row under
     /// the cursor, `Enter` or `e` edits it, `u` undoes the newest edit,
     /// and `Escape` asks the close dialog's question if there is one to
-    /// ask, else writes everything filed and leaves. `h` raises the keymap
-    /// overlay; see `KeyPress::Help`'s arm below. Everything else is named
-    /// rather than wildcarded, so a stray variant cannot fall silently into
-    /// an arm that ignores it.
+    /// ask, else writes everything filed and leaves. A dog's table is read
+    /// again before that write: see [`Self::reread_before_closing`]. `h`
+    /// raises the keymap overlay; see `KeyPress::Help`'s arm below.
+    /// Everything else is named rather than wildcarded, so a stray variant
+    /// cannot fall silently into an arm that ignores it.
     ///
     /// Nothing is armed here and no key is eaten. A keystroke that edits
     /// files into the pane's own set and sends nothing, so a stray one
@@ -236,6 +240,9 @@ impl App {
                 if let Some(dialog) = self.close_offer() {
                     self.close_dialog = Some(dialog);
                     return Effect::None;
+                }
+                if let Some(effect) = self.reread_before_closing() {
+                    return effect;
                 }
                 let writes = self.take_pane_writes();
                 self.close_pane();
@@ -383,6 +390,7 @@ impl App {
         self.config_target = None;
         self.config_for = None;
         self.dog_target = None;
+        self.closing = false;
         // A dogs probe still out belongs to this pane. Retired here, not on
         // a refresh, so a pane reopened on the same sheep does not open the
         // list for an Enter it never saw.

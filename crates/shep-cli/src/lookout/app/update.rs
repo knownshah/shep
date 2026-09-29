@@ -31,6 +31,7 @@ impl App {
             config_target: None,
             config_for: None,
             dog_target: None,
+            closing: false,
             close_dialog: None,
             held: None,
             style: (StyleLevel::Full, StyleSource::Default),
@@ -279,10 +280,10 @@ impl App {
                 Sent::Lambs { .. } => Effect::None,
                 // A config read nobody took, reported rather than
                 // swallowed: silence here looks like a key that is not
-                // bound. Nothing was armed, so this is the whole report.
+                // bound. A close waiting on it ends, having written nothing.
                 Sent::SheepConfig { name } => {
                     self.notice = Some(Notice {
-                        text: format!("{name}: its config was not asked for"),
+                        text: format!("{name}: its config was not asked for{}", self.end_close()),
                         grave: true,
                     });
                     Effect::None

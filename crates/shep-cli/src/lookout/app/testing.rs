@@ -345,3 +345,17 @@ pub(super) fn type_concurrency(app: &mut App, typed: &str) {
     }
     let _ = app.update(Msg::Key(KeyPress::TextApply));
 }
+
+/// `esc` on [`app_in_jobs_table`]'s pane, with the re-read it sends
+/// answered by the table the pane opened on: the effect carrying the write.
+pub(super) fn close_jobs_table(app: &mut App) -> Effect {
+    assert_eq!(
+        app.update(Msg::Key(KeyPress::Escape)),
+        Effect::Send(Sent::SheepConfig { name: "web".into() }),
+        "esc reads the sheep again before writing"
+    );
+    app.update(Msg::Replied {
+        sent: Sent::SheepConfig { name: "web".into() },
+        result: Ok(Response::SheepConfig(Box::new(web_view(true)))),
+    })
+}
