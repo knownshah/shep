@@ -62,8 +62,8 @@ pub struct BootPlan {
     pub knots: Vec<BTreeSet<String>>,
 }
 
-/// Borrowed names, owned. The five collection sites below all convert one of
-/// this module's `&str` sets or paths into an owned `Vec<String>` or
+/// Borrowed names, owned. The call sites below all convert one of this
+/// module's `&str` sets or paths into an owned `Vec<String>` or
 /// `BTreeSet<String>` for a `BootPlan` field; this is the one place that
 /// spells the conversion.
 fn owned<'a, C: FromIterator<String>>(names: impl IntoIterator<Item = &'a str>) -> C {
