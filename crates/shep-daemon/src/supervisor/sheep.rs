@@ -173,6 +173,14 @@ pub(super) async fn run_sheep<P: RunningProcess>(
                                     .send(Msg::ActionReply { id, action, body, stamp })
                                     .await;
                             }
+                            ChildMessage::LambLabel { pid, label } => {
+                                tracing::debug!(
+                                    id,
+                                    pid,
+                                    label = label.as_str(),
+                                    "lamb label forwarded to the bus as channel.lamb_label"
+                                );
+                            }
                         }
                     }
                     None => from_child_open = false,
