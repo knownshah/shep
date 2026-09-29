@@ -9,15 +9,19 @@
 //! last periodic baseline, subtracted without writing one, so its window is usually one
 //! `MEMORY_POLL_INTERVAL` old, longer if a full breaches channel paused the poll loop. Both
 //! sum the whole tree; see [`limits`](super) for the kill-unit divergence.
+//!
+//! It also holds the labels sheep give their lambs (`limits::labels`), joined onto
+//! `describe`'s lamb walk and pruned on the same tick.
 
 use core::fmt;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use shep_core::protocol::Lamb;
+use shep_core::protocol::{Lamb, LambLabel};
 use shep_core::values;
 use tokio::time::Instant;
 
+use super::labels::LambLabels;
 use super::sample::{MemorySampler, ProcessIdentity, TreeIndex};
 
 /// One sheep's live resource reading.
@@ -62,6 +66,8 @@ pub(crate) struct StatsState {
     watched: Mutex<HashMap<u32, u32>>,
     /// The last periodic reading, per watched root pid.
     baselines: Mutex<HashMap<u32, Baseline>>,
+    /// What each sheep named its lambs, joined into [`Self::lambs_of`].
+    labels: LambLabels,
 }
 
 /// An indexed snapshot of the machine's process table: who each process is,
@@ -86,6 +92,7 @@ impl StatsState {
             sampler,
             watched: Mutex::new(HashMap::new()),
             baselines: Mutex::new(HashMap::new()),
+            labels: LambLabels::default(),
         }
     }
 
@@ -265,7 +272,24 @@ impl StatsState {
             }
         }
         lambs.sort_unstable_by_key(|lamb| lamb.pid);
+        let mut labels = self.labels.of(root_pid);
+        for lamb in &mut lambs {
+            lamb.label = labels.remove(&lamb.pid);
+        }
         lambs
+    }
+
+    /// Records what the sheep at `root_pid` named its lamb `pid`.
+    pub(crate) fn label_lamb(&self, root_pid: u32, pid: u32, label: &LambLabel, now: Instant) {
+        self.labels.set(root_pid, pid, label, now);
+    }
+
+    /// Drops the labels `index` shows have left their tree.
+    ///
+    /// `taken_at` is read before the table `index` was built from; see
+    /// [`LambLabels::prune`].
+    pub(crate) fn prune_labels(&self, index: &TreeIndex, taken_at: Instant) {
+        self.labels.prune(index, taken_at);
     }
 }
 

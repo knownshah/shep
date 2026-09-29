@@ -12,6 +12,7 @@ pub mod detail;
 pub mod flock;
 pub mod host;
 mod keymap;
+mod lamb_line;
 pub mod link_panel;
 mod overlay;
 pub mod pane;

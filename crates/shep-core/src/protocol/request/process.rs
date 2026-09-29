@@ -71,16 +71,31 @@ pub struct Lamb {
     pub pid: u32,
     /// The executable's name, as the OS reports it. Never its command line.
     pub name: String,
+    /// What the sheep named this lamb on its shepherd channel, with a
+    /// [`ChildMessage::LambLabel`](crate::protocol::ChildMessage::LambLabel).
+    ///
+    /// `None` when it sent none, or the shepherd predates labels. Never
+    /// read from the OS, so the no-argv rule above still holds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 impl Lamb {
-    /// One lamb.
+    /// One lamb, with no label.
     #[must_use]
     pub fn new(pid: u32, name: impl Into<String>) -> Self {
         Self {
             pid,
             name: name.into(),
+            label: None,
         }
+    }
+
+    /// This lamb, carrying the sheep's own label for it.
+    #[must_use]
+    pub fn with_label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
+        self
     }
 }
 
@@ -735,6 +750,14 @@ mod tests {
         let lamb = Lamb::new(4243, "node");
         let json = serde_json::to_string(&lamb).unwrap();
         assert_eq!(json, r#"{"pid":4243,"name":"node"}"#);
+        assert_eq!(serde_json::from_str::<Lamb>(&json).unwrap(), lamb);
+    }
+
+    #[test]
+    fn a_labelled_lamb_carries_the_label_beside_the_name() {
+        let lamb = Lamb::new(4243, "python").with_label("worker 1");
+        let json = serde_json::to_string(&lamb).unwrap();
+        assert_eq!(json, r#"{"pid":4243,"name":"python","label":"worker 1"}"#);
         assert_eq!(serde_json::from_str::<Lamb>(&json).unwrap(), lamb);
     }
 

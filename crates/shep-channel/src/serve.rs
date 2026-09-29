@@ -5,7 +5,9 @@ use std::time::Duration;
 
 use crate::dispatch::{Dispatch, Outcome, run};
 use crate::outbox::{DEFAULT_CAPACITY, Drain, Outbox};
-use crate::{CHANNEL_VERSION, Channel, ChannelError, ChildMessage, VERSION_VAR, session};
+use crate::{
+    CHANNEL_VERSION, Channel, ChannelError, ChildMessage, LambLabel, VERSION_VAR, session,
+};
 
 /// What to tell an author running under shep with no channel.
 const NO_CHANNEL_ADVICE: &str = "no channel on this process. Set `channel = true` \
@@ -213,6 +215,34 @@ impl Shepherd {
                 name: name.into(),
                 value,
             });
+        }
+    }
+
+    /// Names one of this app's child processes in `shep describe`.
+    ///
+    /// Blocks only until the message is queued, like [`Shepherd::ready`]:
+    /// a dropped label would leave the lamb unnamed with nothing to say
+    /// why. An empty label clears the one `pid` had.
+    ///
+    /// ```
+    /// use shep_channel::LambLabel;
+    ///
+    /// let shepherd = shep_channel::serve();
+    /// // Usually `Child::id()` of a process this app just spawned.
+    /// let worker_pid = 4312;
+    /// shepherd
+    ///     .label_lamb(worker_pid, LambLabel::new("worker 1").unwrap())
+    ///     .unwrap();
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// [`ChannelError::Closed`] when the shepherd has gone away. Without a
+    /// channel this always returns `Ok(())`.
+    pub fn label_lamb(&self, pid: u32, label: LambLabel) -> Result<(), ChannelError> {
+        match &self.0.outbox {
+            Some(outbox) => outbox.push_blocking(ChildMessage::LambLabel { pid, label }),
+            None => Ok(()),
         }
     }
 }
@@ -584,6 +614,31 @@ mod tests {
             }
             other => panic!("expected an action reply, got {other:?}"),
         }
+    }
+
+    /// Only the blocking push reports a refusal. A lossy one would count a
+    /// dropped message and return nothing.
+    #[test]
+    fn a_lamb_label_the_shepherd_cannot_take_is_an_error_not_a_drop() {
+        let outbox = Arc::new(Outbox::new(1));
+        let shepherd = shepherd_over(&outbox);
+        let label = LambLabel::new("worker 1").expect("a valid label");
+
+        shepherd
+            .label_lamb(4312, label.clone())
+            .expect("room for the label");
+        assert_eq!(
+            outbox.pop(),
+            Some(ChildMessage::LambLabel {
+                pid: 4312,
+                label: label.clone()
+            })
+        );
+        outbox.close();
+        assert!(matches!(
+            shepherd.label_lamb(4312, label),
+            Err(ChannelError::Closed)
+        ));
     }
 
     /// A shutdown reply queued right before the shepherd leaves must still

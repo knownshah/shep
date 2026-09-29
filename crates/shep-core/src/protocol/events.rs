@@ -193,12 +193,13 @@ impl BusEvent {
             },
             Self::LogOut { .. } => "log.out",
             Self::LogErr { .. } => "log.err",
-            // Total match over `ChildMessage`: a fourth kind on fd 3 fails
+            // Total match over `ChildMessage`: a new kind on fd 3 fails
             // to compile here until its topic is decided.
             Self::Channel { message, .. } => match message {
                 ChildMessage::Ready => "channel.ready",
                 ChildMessage::Metric { .. } => "channel.metric",
                 ChildMessage::ActionReply { .. } => "channel.action_reply",
+                ChildMessage::LambLabel { .. } => "channel.lamb_label",
             },
             Self::Dropped { .. } => "daemon.dropped",
             Self::DaemonShutdown => "daemon.shutdown",
@@ -221,6 +222,7 @@ impl BusEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocol::LambLabel;
     use crate::protocol::request::{ExitInfo, ProcessInfo};
     use crate::status::ProcStatus;
 
@@ -475,6 +477,13 @@ mod tests {
                 },
                 "channel.action_reply",
             ),
+            (
+                ChildMessage::LambLabel {
+                    pid: 4312,
+                    label: LambLabel::new("worker 1").unwrap(),
+                },
+                "channel.lamb_label",
+            ),
         ] {
             let event = BusEvent::Channel {
                 id: 3,
@@ -487,7 +496,7 @@ mod tests {
     /// `channel.*` is the only pattern anyone subscribes with; a topic that
     /// drifts out from under it becomes unreachable.
     #[test]
-    fn the_channel_glob_reaches_all_three_topics() {
+    fn the_channel_glob_reaches_every_channel_topic() {
         for message in [
             ChildMessage::Ready,
             ChildMessage::Metric {
@@ -498,6 +507,10 @@ mod tests {
                 action: "gc".to_string(),
                 body: String::new(),
                 id: None,
+            },
+            ChildMessage::LambLabel {
+                pid: 1,
+                label: LambLabel::new("").unwrap(),
             },
         ] {
             let topic = BusEvent::Channel { id: 1, message }.topic();

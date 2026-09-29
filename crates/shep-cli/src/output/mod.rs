@@ -45,9 +45,9 @@ pub use flock::emit_flock;
 pub use rows::{
     AvailableDogRows, BarkRows, DeletedIds, DescribedSecret, DogActionRow, DogRows, EmptiedFile,
     EmptiedFiles, FlockRows, FlushedRows, ImportEnvRow, ImportEnvRows, ImportRow, ImportRows,
-    KillRow, KvEntry, KvRows, KvUnsetRow, LambRows, RolledSheep, RolledSheepRows, SavedRollRow,
-    SecretKeyRow, SecretKeyRows, SecretSlotRow, SecretStatus, SecretValueRow, SentLineRows,
-    SignalledRows, StartupStep, StartupSteps, TriggeredRows,
+    KillRow, KvEntry, KvRows, KvUnsetRow, LabelledLambRows, LambRows, RolledSheep, RolledSheepRows,
+    SavedRollRow, SecretKeyRow, SecretKeyRows, SecretSlotRow, SecretStatus, SecretValueRow,
+    SentLineRows, SignalledRows, StartupStep, StartupSteps, TriggeredRows,
 };
 pub use table::{human_bytes, human_duration, local_timestamp, render_table};
 

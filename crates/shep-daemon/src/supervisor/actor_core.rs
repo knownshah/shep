@@ -29,6 +29,17 @@ impl<R: ProcessRunner> Actor<R> {
                     self.handle_ready_signal(id);
                     false
                 }
+                Msg::LambLabel {
+                    root_pid,
+                    pid,
+                    label,
+                } => {
+                    if let Some(extras) = self.extras.as_ref() {
+                        let now = tokio::time::Instant::now();
+                        extras.stats.label_lamb(root_pid, pid, &label, now);
+                    }
+                    false
+                }
                 Msg::ReloadDeadline { name, stamp } => {
                     self.handle_reload_deadline(&name, stamp);
                     false

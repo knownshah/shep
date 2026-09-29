@@ -8,7 +8,8 @@
  * run too, on 2026-09-02, against a real named pipe created the way the
  * daemon creates one: it opened the pipe TWICE until then, which succeeds
  * and silently drops everything the app writes. Quality bar:
- * getting-started.astro.
+ * getting-started.astro. The lamb-label shape runs against the real binary
+ * in cli_e2e's a_sheep_labels_one_of_its_lambs_over_its_channel.
  */
 import DocsLayout from "../../layouts/DocsLayout.astro";
 import ReferencePills from "../../components/docs/ReferencePills.astro";
@@ -122,6 +123,7 @@ channel = true`}</CodeBlock>
       <div class="row"><span><code>{`{"kind":"ready"}`}</code></span> <span data-label="Meaning">You are up and ready to serve. Only meaningful if <code>wait_ready = true</code>.</span></div>
       <div class="row"><span><code>{`{"kind":"metric","name":"<n>","value":<num>}`}</code></span> <span data-label="Meaning">A custom metric sample. Currently logged by the daemon at debug level and nothing more. No dog reads it yet.</span></div>
       <div class="row"><span><code>{`{"kind":"action-reply","action":"<n>","body":"<t>","id":<num>}`}</code></span> <span data-label="Meaning">Your answer to a triggered action. <code>id</code> is optional: echo the one from the <code>action</code> message and shep matches your reply to that exact request.</span></div>
+      <div class="row"><span><code>{`{"kind":"lamb-label","pid":<num>,"label":"<t>"}`}</code></span> <span data-label="Meaning">Names one of your child processes in <code>shep describe</code>. See <a href="#naming-your-lambs">naming your lambs</a>.</span></div>
     </div>
 
     <h3 id="what-you-receive-daemon-writes-this">What you receive (daemon writes this)</h3>
@@ -303,13 +305,36 @@ ID  NAME  OUTCOME     DETAIL
       costs the operator a timeout; both are refused immediately.
     </p>
 
+    <h2 id="naming-your-lambs">Naming your lambs</h2>
+    <p>
+      <code>shep describe</code> lists your child processes as a pid and an
+      executable name, never their command lines, so four{" "}
+      <code>python</code> workers read as four identical rows. Name them:
+    </p>
+    <CodeBlock>{`{"kind":"lamb-label","pid":4312,"label":"worker 1"}`}</CodeBlock>
+    <p>
+      <code>describe</code> then adds a LABEL column,{" "}
+      <code>--format json</code> carries <code>lambs[].label</code>, and
+      lookout's lamb line reads <code>4312 python (worker 1)</code>. Send it
+      again to replace the label, or with an empty <code>label</code> to
+      clear it.
+    </p>
+    <p class="fine">
+      At most 64 characters and no control characters: anything else is
+      dropped as a malformed line. A label shows only while its pid is in
+      your own tree, and goes within 15 seconds of the lamb exiting. It
+      lives in the shepherd's memory, so a restart forgets it: send it when
+      you spawn the lamb.
+    </p>
+
     <h2 id="everything-you-write-here-is-also-public-on-the-bus">Everything you write here is also public on the bus</h2>
     <p>
       Every message you send on fd 3 (<code>ready</code>,{" "}
-      <code>metric</code>, <code>action-reply</code>) is republished on the
-      daemon's event bus under <code>channel.*</code> (
-      <code>channel.ready</code>, <code>channel.metric</code>,{" "}
-      <code>channel.action_reply</code>), its own topic alongside{" "}
+      <code>metric</code>, <code>action-reply</code>,{" "}
+      <code>lamb-label</code>) is republished on the daemon's event bus
+      under <code>channel.*</code> (<code>channel.ready</code>,{" "}
+      <code>channel.metric</code>, <code>channel.action_reply</code>,{" "}
+      <code>channel.lamb_label</code>), its own topic alongside{" "}
       <code>process.*</code> and the log topics. Anyone subscribed to{" "}
       <code>channel.*</code> sees it, not just the operator who happened to
       send the trigger you were answering.

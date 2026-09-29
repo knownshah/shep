@@ -14,7 +14,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use shep_channel::{ChildMessage, ShepherdMessage};
+use shep_channel::{ChildMessage, LambLabel, ShepherdMessage};
 
 mod common;
 
@@ -70,6 +70,20 @@ fn child_messages_match_their_fixtures() {
                 action: "gc".into(),
                 body: "ok".into(),
                 id: Some(7),
+            },
+        ),
+        (
+            "child-lamb-label",
+            ChildMessage::LambLabel {
+                pid: 4312,
+                label: LambLabel::new("worker 1").expect("a valid label"),
+            },
+        ),
+        (
+            "child-lamb-label-clear",
+            ChildMessage::LambLabel {
+                pid: 4312,
+                label: LambLabel::new("").expect("an empty label clears"),
             },
         ),
     ];

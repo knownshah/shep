@@ -231,25 +231,33 @@ impl TreeIndex {
         self.total_over(root, &self.cpu_by_pid)
     }
 
-    /// Sums `totals` over `root` and every descendant this index knows about.
+    /// Every descendant of `root` this index knows about, `root` excluded.
     ///
-    /// Shared by both per-pid quantities so the cycle-safe walk exists once.
-    fn total_over(&self, root: u32, totals: &HashMap<u32, u64>) -> u64 {
-        // Summed once, on first pop: a self-parenting pid or a parent-link
-        // cycle (a fixture can produce one) terminates instead of looping.
-        let mut visited = HashSet::new();
+    /// The one tree walk here, which [`Self::total_over`] sums over too.
+    pub(crate) fn descendants_of(&self, root: u32) -> HashSet<u32> {
+        // Seeded with `root`: a self-parenting pid or a parent-link cycle (a
+        // fixture can produce one) terminates, and never re-counts `root`.
+        let mut seen = HashSet::from([root]);
         let mut stack = vec![root];
-        let mut sum = 0u64;
         while let Some(pid) = stack.pop() {
-            if !visited.insert(pid) {
-                continue;
-            }
-            sum = sum.saturating_add(totals.get(&pid).copied().unwrap_or(0));
-            if let Some(children) = self.children_of.get(&pid) {
-                stack.extend(children.iter().copied());
+            for &child in self.children_of.get(&pid).into_iter().flatten() {
+                if seen.insert(child) {
+                    stack.push(child);
+                }
             }
         }
-        sum
+        seen.remove(&root);
+        seen
+    }
+
+    /// Sums `totals` over `root` and every descendant this index knows about.
+    ///
+    /// Shared by both per-pid quantities, over [`Self::descendants_of`]'s walk.
+    fn total_over(&self, root: u32, totals: &HashMap<u32, u64>) -> u64 {
+        let reading = |pid: u32| totals.get(&pid).copied().unwrap_or(0);
+        self.descendants_of(root)
+            .into_iter()
+            .fold(reading(root), |sum, pid| sum.saturating_add(reading(pid)))
     }
 }
 
@@ -274,6 +282,19 @@ mod tests {
     fn lone_root_sums_its_own_bytes() {
         let table = [rss(1, None, 100)];
         assert_eq!(tree_rss(&table, 1), 100);
+    }
+
+    #[test]
+    fn descendants_reach_every_generation_and_leave_out_a_root_a_cycle_leads_back_to() {
+        let index = TreeIndex::build(&[
+            rss(1, None, 0),
+            rss(2, Some(1), 0),
+            rss(3, Some(2), 0),
+            rss(4, None, 0),
+            rss(1, Some(3), 0),
+        ]);
+        assert_eq!(index.descendants_of(1), HashSet::from([2, 3]));
+        assert!(index.descendants_of(99).is_empty());
     }
 
     #[test]

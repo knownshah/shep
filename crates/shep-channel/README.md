@@ -38,6 +38,9 @@ running out tells them apart.
 that exits from its own shutdown handler loses replies an operator is still
 waiting on.
 
+An app that runs several children of one binary can tell `shep describe`
+which is which: `shepherd.label_lamb(child.id(), LambLabel::new("worker 1")?)`.
+
 The wire itself is documented in `docs/shepherd-channel.md` in the shep
 repository. It is language agnostic, and Go, JavaScript and Python
 libraries over the same contract are planned.
