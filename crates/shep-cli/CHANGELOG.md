@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-29
+
+### Added
+
+- A sheep carries a settings table per dog
+
+### Changed
+
+- Regroup bark's files by what each one is about
+- Parse a dog's section one way at startup and on reload
+- Let Delivery take its own settings from a BarkConfig
+- Build bark's client adapters in one place
+- Name the built-in dogs once, as an enum
+- Stop the build on a BuiltInDog variant ALL leaves out
+
+### Fixed
+
+- Show a map of tables as read-only JSON
+- Sanitise a lamb label before it reaches describe's LABEL cell
+
+### Performance
+
+- Escape each sheep's label prefix once per scrape ([#546](https://github.com/shep-pm/shep/pull/546))
+- Answer tail requests from a window of the ring's end ([#547](https://github.com/shep-pm/shep/pull/547))
+
+
 ## [0.10.1] - 2026-09-22
 
 ### Changed

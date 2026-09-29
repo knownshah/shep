@@ -232,6 +232,49 @@ async fn an_assignment_reaches_the_env_of_the_sheep_it_registers() {
     }
 }
 
+/// Each Flockfile's own value must reach the wire without the flag, and
+/// the flag must win over `stamped`'s `true`.
+#[tokio::test]
+async fn no_log_timestamps_reaches_the_sheep_a_script_or_a_flockfile_registers() {
+    let dir = tempfile::tempdir().unwrap();
+    let script = dir.path().join("zam");
+    std::fs::write(&script, "#!/bin/sh\nsleep 1\n").unwrap();
+    let flockfile = |name: &str, value: bool| {
+        let path = dir.path().join(format!("{name}.toml"));
+        let app = "[[app]]\nname = \"koji\"\nscript = \"/bin/sleep\"\n";
+        std::fs::write(&path, format!("{app}log_timestamps = {value}\n")).unwrap();
+        path
+    };
+    let (stamped, unstamped) = (flockfile("stamped", true), flockfile("unstamped", false));
+
+    for (target, flag, want) in [
+        (&script, false, true),
+        (&script, true, false),
+        (&stamped, false, true),
+        (&stamped, true, false),
+        (&unstamped, false, false),
+    ] {
+        let home = tempfile::tempdir().unwrap();
+        let sock = shep_client::testing::control_address(home.path());
+        let (client, mut envelopes) = fake_client_capturing_envelopes(&sock).await;
+        // The target itself, not an assignment followed by a pushed target.
+        let mut args = start_args(&target.to_string_lossy());
+        args.no_log_timestamps = flag;
+        let _ = start_against_with_args(&client, &args).await;
+
+        match next_start(&mut envelopes).await.body {
+            Request::Start { apps } => {
+                assert_eq!(apps.len(), 1, "{target:?} registers one app");
+                assert_eq!(
+                    apps[0].log_timestamps, want,
+                    "{target:?} with the flag {flag}"
+                );
+            }
+            other => panic!("expected a Start request, got {other:?}"),
+        }
+    }
+}
+
 #[tokio::test]
 async fn an_assignment_on_an_existing_sheep_is_recorded_before_it_resumes() {
     use shep_client::testing::fake_client_answering;

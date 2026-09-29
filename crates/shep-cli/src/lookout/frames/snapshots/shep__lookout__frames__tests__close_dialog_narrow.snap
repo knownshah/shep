@@ -12,6 +12,7 @@ shep lookout   /home/ada/.shep                                             6 in 
   {{SHEP_HOME}}/logs/{{name}}-{{instance}}-err.log                                       
 >  err_file                   (unset) -> /var/log/api/err.log                  respawn   
  ~ level_rules                []                                               now       
+   log_timestamps             true                                             respawn   
    merge_logs                 false                                            respawn   
    out_file                   (unset)                                          respawn   
                                                                                          
@@ -25,7 +26,6 @@ shep lookout   /home/ada/.shep                                             6 in 
    + add a key                                                                           
   ───────────────────────────────────────────────────────────────────────────────────────
   = read-only, set it in the Flockfile   ~ no widget for this shape   ! parked, awaits a…
-                                                                                         
                                                                                          
                                                                                          
                                                                                          

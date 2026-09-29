@@ -202,6 +202,7 @@ pub(super) fn build<E>(
         env,
         out_file,
         err_file,
+        log_timestamps: config.log_timestamps,
         channel,
         stdin: config.stdin,
         credentials,
@@ -337,6 +338,24 @@ mod tests {
             spec.err_file,
             PathBuf::from("/home/ada/.shep/logs/api-err.log")
         );
+    }
+
+    #[test]
+    fn the_spec_carries_whether_the_app_stamps_its_log_lines() {
+        let paths = test_paths();
+        let stamped = |log_timestamps| {
+            let app = normalize(AppConfig {
+                log_timestamps,
+                ..AppConfig::minimal("web", "app")
+            })
+            .unwrap();
+            assemble(&app, 0, &paths, None, &no_secrets())
+                .unwrap()
+                .log_timestamps
+        };
+
+        assert!(stamped(true));
+        assert!(!stamped(false));
     }
 
     #[test]

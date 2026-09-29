@@ -293,11 +293,13 @@ of that exposure, so the socket would buy a round trip for nothing.
 
 - **Shepherd channel** (extra pipe fd, newline JSON, language-agnostic):
   child→daemon `{"kind":"ready"}`, `{"kind":"metric",...}`,
-  `{"kind":"action-reply",...}`; daemon→child `{"kind":"shutdown"}`,
-  `{"kind":"action",...}`. Fd number exported as `SHEP_CHANNEL_FD`, wire
-  version as `SHEP_CHANNEL_VERSION` (`1`). An `action` carries `name` and
-  `id`, and `params` when the operator supplied any — the `params` key is
-  absent otherwise, which is what keeps it additive (§9). `id` is the
+  `{"kind":"action-reply",...}`, `{"kind":"lamb-label",...}`; daemon→child
+  `{"kind":"shutdown"}`, `{"kind":"action",...}`. Fd number exported as
+  `SHEP_CHANNEL_FD`, wire version as `SHEP_CHANNEL_VERSION` (`1`). A
+  `lamb-label` names one of the app's own lambs for `describe`; it is
+  additive, and an older daemon drops it as malformed. An `action` carries
+  `name` and `id`, and `params` when the operator supplied any — the `params`
+  key is absent otherwise, which is what keeps it additive (§9). `id` is the
   dispatch's correlation token; an app that echoes it back on its
   `action-reply` as `id` gets its answer matched to that exact request, and
   an app that does not is matched by action name and by order, exactly as

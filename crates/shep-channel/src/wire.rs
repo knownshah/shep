@@ -45,7 +45,110 @@ pub enum ChildMessage {
         #[serde(skip_serializing_if = "Option::is_none", default)]
         id: Option<u64>,
     },
+    /// Names one of this sheep's lambs for `shep describe` and lookout.
+    ///
+    /// Shown only while `pid` is in the sheep's own process tree. An empty
+    /// `label` clears the one `pid` had.
+    LambLabel {
+        /// The lamb's pid, as the app's own spawn call reported it
+        pid: u32,
+        /// What `describe` shows beside the lamb's executable name
+        label: LambLabel,
+    },
 }
+
+/// A sheep's own name for one of its lambs
+///
+/// Holds at most [`LambLabel::MAX_CHARS`] characters and no control
+/// character, whether built with [`LambLabel::new`] or read off the wire.
+/// Empty is a real value: it clears a label rather than setting one.
+// wire format: changing this is a breaking change
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct LambLabel(String);
+
+impl LambLabel {
+    /// The most characters a label may hold, counted as Unicode scalar
+    /// values.
+    // Room for `worker 12 of 16` or a queue name, and still one table column.
+    pub const MAX_CHARS: usize = 64;
+
+    /// A label, checked against the channel's grammar.
+    ///
+    /// # Errors
+    ///
+    /// - [`LambLabelError::TooLong`] when `label` has more than
+    ///   [`Self::MAX_CHARS`] characters.
+    /// - [`LambLabelError::ControlCharacter`] when `label` holds one, a
+    ///   newline included.
+    pub fn new(label: impl Into<String>) -> Result<Self, LambLabelError> {
+        let label = label.into();
+        let chars = label.chars().count();
+        if chars > Self::MAX_CHARS {
+            return Err(LambLabelError::TooLong { chars });
+        }
+        if label.chars().any(char::is_control) {
+            return Err(LambLabelError::ControlCharacter);
+        }
+        Ok(Self(label))
+    }
+
+    /// The label's text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Whether this clears a label rather than setting one.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl TryFrom<String> for LambLabel {
+    type Error = LambLabelError;
+
+    fn try_from(label: String) -> Result<Self, Self::Error> {
+        Self::new(label)
+    }
+}
+
+impl From<LambLabel> for String {
+    fn from(label: LambLabel) -> Self {
+        label.0
+    }
+}
+
+/// Why a string is not a [`LambLabel`].
+// Library crate: a new rule in the label grammar is a new variant.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LambLabelError {
+    /// The label has more than [`LambLabel::MAX_CHARS`] characters.
+    TooLong {
+        /// How many characters it has.
+        chars: usize,
+    },
+    /// The label holds a control character, which could drive the
+    /// terminal it is shown on.
+    ControlCharacter,
+}
+
+impl core::fmt::Display for LambLabelError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::TooLong { chars } => write!(
+                f,
+                "a lamb label holds at most {} characters, and this one has {chars}",
+                LambLabel::MAX_CHARS
+            ),
+            Self::ControlCharacter => f.write_str("a lamb label cannot hold a control character"),
+        }
+    }
+}
+
+impl core::error::Error for LambLabelError {}
 
 /// Daemon -> child message
 // wire format: changing these strings is a breaking change
@@ -178,6 +281,68 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<ShepherdMessage>(with_params).unwrap(),
             with_params_msg
+        );
+    }
+
+    #[test]
+    fn a_lamb_label_round_trips() {
+        let fixture = r#"{"kind":"lamb-label","pid":4312,"label":"worker 1"}"#;
+        let msg = ChildMessage::LambLabel {
+            pid: 4312,
+            label: LambLabel::new("worker 1").unwrap(),
+        };
+        assert_eq!(serde_json::from_str::<ChildMessage>(fixture).unwrap(), msg);
+        assert_eq!(serde_json::to_string(&msg).unwrap(), fixture);
+    }
+
+    /// The clearing form: an absent key would be a malformed frame instead.
+    #[test]
+    fn an_empty_lamb_label_is_on_the_wire_and_clears() {
+        let fixture = r#"{"kind":"lamb-label","pid":4312,"label":""}"#;
+        let ChildMessage::LambLabel { label, .. } =
+            serde_json::from_str::<ChildMessage>(fixture).unwrap()
+        else {
+            panic!("{fixture} decoded as another kind");
+        };
+        assert!(label.is_empty());
+        assert!(
+            serde_json::from_str::<ChildMessage>(r#"{"kind":"lamb-label","pid":4312}"#).is_err()
+        );
+    }
+
+    #[test]
+    fn a_label_is_counted_in_characters_up_to_the_limit() {
+        let at_limit = "é".repeat(LambLabel::MAX_CHARS);
+        assert_eq!(LambLabel::new(at_limit.clone()).unwrap().as_str(), at_limit);
+        assert_eq!(
+            LambLabel::new(format!("{at_limit}e")),
+            Err(LambLabelError::TooLong {
+                chars: LambLabel::MAX_CHARS + 1
+            })
+        );
+    }
+
+    #[test]
+    fn a_label_with_a_control_character_is_refused_on_the_wire_too() {
+        for label in ["a\nb", "\u{1b}[2J", "tab\there", "\u{9b}31m"] {
+            assert_eq!(
+                LambLabel::new(label),
+                Err(LambLabelError::ControlCharacter),
+                "{label:?}"
+            );
+            let frame = serde_json::json!({"kind": "lamb-label", "pid": 1, "label": label});
+            assert!(
+                serde_json::from_value::<ChildMessage>(frame).is_err(),
+                "{label:?} decoded"
+            );
+        }
+    }
+
+    #[test]
+    fn a_label_error_says_the_limit_and_the_length() {
+        assert_eq!(
+            LambLabelError::TooLong { chars: 70 }.to_string(),
+            "a lamb label holds at most 64 characters, and this one has 70"
         );
     }
 }

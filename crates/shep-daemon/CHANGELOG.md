@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-29
+
+### Performance
+
+- Size the children map like its two siblings
+- Two repeated-work findings in the rpc paths
+- Hand the resolved app to the spawn instead of cloning it twice
+- Four of the per-tick repeated-work findings ([#551](https://github.com/shep-pm/shep/pull/551))
+
+
 ## [0.10.1] - 2026-09-22
 
 

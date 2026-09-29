@@ -313,6 +313,87 @@ fn describe_renders_a_real_sheeps_lamb_tree() {
     graceful_kill(dir.path());
 }
 
+#[cfg(unix)]
+/// A shell sheep labels one of two `sleep` lambs on fd 3. Polled, since the
+/// label crosses the channel pump and the actor before a walk can show it.
+#[test]
+fn a_sheep_labels_one_of_its_lambs_over_its_channel() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let script = write_script(
+        &dir,
+        "labeller.sh",
+        &format!(
+            "#!/bin/sh\n{}sleep 300 &\n\
+             printf '{{\"kind\":\"lamb-label\",\"pid\":%s,\"label\":\"worker 1\"}}\\n' \"$!\" >&3\n\
+             sleep 300 &\nwait\n",
+            record_pid_line(&dir)
+        ),
+    );
+    let flockfile = write_flockfile(
+        &dir,
+        &format!(
+            "[[app]]\nname = \"labeller\"\nscript = '{}'\nchannel = true\n",
+            script.display()
+        ),
+    );
+    let mut guard = DaemonGuard::default();
+
+    let started = shep(home).arg("start").arg(&flockfile).output().unwrap();
+    guard.adopt_home(home);
+    assert_success(&started);
+
+    let start = Instant::now();
+    let lambs = loop {
+        let output = shep(home)
+            .args(["--format", "json", "describe", "labeller"])
+            .output()
+            .unwrap();
+        assert_success(&output);
+        let envelope: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        let lambs = envelope["data"][0]["lambs"].clone();
+        let sleeps = lambs.as_array().map_or(0, |all| {
+            all.iter().filter(|lamb| lamb["name"] == "sleep").count()
+        });
+        let labelled = lambs
+            .as_array()
+            .is_some_and(|all| all.iter().any(|lamb| lamb["label"] == "worker 1"));
+        if (sleeps == 2 && labelled) || start.elapsed() >= FLOCK_DEADLINE {
+            break lambs;
+        }
+        std::thread::sleep(FLOCK_POLL_INTERVAL);
+    };
+
+    let mut rows: Vec<(String, Option<String>)> = lambs
+        .as_array()
+        .unwrap_or_else(|| panic!("describe walked no lambs: {lambs}"))
+        .iter()
+        .map(|lamb| {
+            (
+                lamb["name"].as_str().unwrap_or_default().to_string(),
+                lamb["label"].as_str().map(str::to_string),
+            )
+        })
+        .collect();
+    rows.sort();
+    assert_eq!(
+        rows,
+        vec![
+            ("sleep".to_string(), None),
+            ("sleep".to_string(), Some("worker 1".to_string())),
+        ],
+        "{lambs}"
+    );
+
+    let table = shep(home).args(["describe", "labeller"]).output().unwrap();
+    assert_success(&table);
+    let table = String::from_utf8_lossy(&table.stdout);
+    assert!(table.contains("LABEL"), "{table}");
+    assert!(table.contains("worker 1"), "{table}");
+
+    graceful_kill(home);
+}
+
 // --- Save / Muster ---------------------------------------------------------
 
 #[cfg(unix)]

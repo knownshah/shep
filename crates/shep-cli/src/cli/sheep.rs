@@ -94,6 +94,14 @@ pub struct StartArgs {
     /// `server.js` as a script, which is what it has always meant.
     #[arg(long)]
     pub flockfile: bool,
+    /// Write this sheep's log lines without the timestamp shep puts in
+    /// front of each one.
+    ///
+    /// The flag form of a Flockfile's `log_timestamps = false`, and it
+    /// wins over a Flockfile's own value. `shep bleats` shows the same
+    /// lines either way; only the files on disk differ.
+    #[arg(long)]
+    pub no_log_timestamps: bool,
     /// Widen a Flockfile load past its additive default: append nothing,
     /// overwrite instead. A mode touches only what its name says; see the
     /// four below. Refused when the target supplies no template to reset
@@ -313,6 +321,18 @@ mod tests {
             }
             other => panic!("expected two Start commands, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn start_stamps_log_lines_unless_told_not_to() {
+        use clap::Parser;
+        let parse = |argv: &[&str]| match Cli::try_parse_from(argv).unwrap().command {
+            Commands::Start(args) => args.no_log_timestamps,
+            other => panic!("expected start, got {other:?}"),
+        };
+
+        assert!(!parse(&["shep", "start", "srv.js"]));
+        assert!(parse(&["shep", "start", "srv.js", "--no-log-timestamps"]));
     }
 
     /// fails if a mode value does not reach `StartArgs.reset`, or if a

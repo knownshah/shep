@@ -437,8 +437,9 @@ esc/s close   j/k select   g… control enabled`;
     <p>
       The detail pane also shows the selected sheep's lambs: a count of the
       descendants <code>Describe</code>'s process-table walk found, each
-      one's pid and executable name, and how long ago that reading was
-      taken. It's fetched once when the selection actually moves onto a
+      one's pid and executable name (and its label in brackets, when the
+      sheep <a href="/docs/shepherd-channel#naming-your-lambs">named it</a>),
+      and how long ago that reading was taken. It's fetched once when the selection actually moves onto a
       running sheep, not on the table's own two-second listing, so the age
       stamp is real: hold the cursor on one sheep and the lamb list gets
       stale rather than silently refreshing behind a timestamp that still

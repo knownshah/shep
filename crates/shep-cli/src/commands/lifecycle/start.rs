@@ -366,6 +366,11 @@ async fn load_one(
             app.config.cwd = Some(cwd.clone());
         }
     }
+    if args.no_log_timestamps {
+        for app in &mut apps {
+            app.config.log_timestamps = false;
+        }
+    }
     // After the file's own values, since an assignment is something an
     // operator typed for this one sheep.
     for app in &mut apps {

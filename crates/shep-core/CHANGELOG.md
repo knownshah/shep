@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-29
+
+### Fixed
+
+- Saturate the tail window's doubling
+- Keep a tail window's first record when it starts on a boundary
+
+### Performance
+
+- Answer tail requests from a window of the ring's end
+- Answer tail requests from a window of the ring's end ([#547](https://github.com/shep-pm/shep/pull/547))
+- Four of the per-tick repeated-work findings ([#551](https://github.com/shep-pm/shep/pull/551))
+
+
 ## [0.10.1] - 2026-09-22
 
 ### Changed
