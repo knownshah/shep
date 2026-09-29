@@ -62,6 +62,14 @@ pub struct BootPlan {
     pub knots: Vec<BTreeSet<String>>,
 }
 
+/// Borrowed names, owned. The five collection sites below all convert one of
+/// this module's `&str` sets or paths into an owned `Vec<String>` or
+/// `BTreeSet<String>` for a `BootPlan` field; this is the one place that
+/// spells the conversion.
+fn owned<'a, C: FromIterator<String>>(names: impl IntoIterator<Item = &'a str>) -> C {
+    names.into_iter().map(str::to_string).collect()
+}
+
 /// Renders one cycle as `a -> b -> c -> a`.
 ///
 /// The closing repeat is what makes it readable as a cycle rather than as a
@@ -136,7 +144,7 @@ pub fn plan(nodes: &[BootNode]) -> BootPlan {
         .collect();
     let members: Vec<BTreeSet<String>> = knots
         .iter()
-        .map(|knot| knot.iter().map(|name| (*name).to_string()).collect())
+        .map(|knot| owned(knot.iter().copied()))
         .collect();
 
     let after_cycle = depends_on_a_cycle(&edges, &in_a_cycle);
@@ -163,13 +171,13 @@ pub fn plan(nodes: &[BootNode]) -> BootPlan {
 
     let mut stages: Vec<Vec<String>> = Vec::new();
     if !first.is_empty() {
-        stages.push(first.iter().map(|n| (*n).to_string()).collect());
+        stages.push(owned(first.iter().copied()));
     }
     stages.extend(kahn(&ordered, &edges, &first));
     if !in_a_cycle.is_empty() {
         // One stage for every cyclic node, never one per reported cycle: a
         // node several cycles run through is still started once.
-        stages.push(in_a_cycle.iter().map(|n| (*n).to_string()).collect());
+        stages.push(owned(in_a_cycle.iter().copied()));
     }
     // Whatever hangs off the knot, in its own edge order. Every dependency
     // outside this set is already placed, which is what `kahn` reads a
@@ -181,7 +189,7 @@ pub fn plan(nodes: &[BootNode]) -> BootPlan {
     // exists to prevent, so "last" has to mean last even when the graph is
     // degraded.
     if !last.is_empty() {
-        stages.push(last.iter().map(|n| (*n).to_string()).collect());
+        stages.push(owned(last.iter().copied()));
     }
 
     BootPlan {
@@ -254,7 +262,7 @@ fn kahn(
             left.remove(name);
             placed.insert(name);
         }
-        stages.push(ready.iter().map(|n| (*n).to_string()).collect());
+        stages.push(owned(ready.iter().copied()));
     }
     stages
 }
@@ -370,7 +378,7 @@ fn representative_cycle<'a>(
         // walk closes. Naming the node alone is the honest fallback.
         return vec![start.to_string()];
     }
-    path.iter().map(|n| (*n).to_string()).collect()
+    owned(path.iter().copied())
 }
 
 /// Walks from `at`, inside `members` only, until it finds an edge back to
