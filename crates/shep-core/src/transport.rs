@@ -72,7 +72,7 @@ pub type ServerWriteHalf = tokio::io::WriteHalf<ServerStream>;
 /// a small lock per frame in exchange for one code path on both platforms.
 /// This now also carries the log data path (a subscriber's `log.out` and
 /// `log.err` frames), not just a control plane's handful of frames per
-/// command; measured, the cost is an uncontended `BiLock` acquire, tens of
+/// command; an uncontended `BiLock` acquire is on the order of tens of
 /// nanoseconds, so even at a thousand lines a second the total is
 /// microseconds. Keep the single code path; do not fork it onto
 /// `into_split` without measuring a real cost first.
