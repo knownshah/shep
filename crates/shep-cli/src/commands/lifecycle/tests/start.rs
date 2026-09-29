@@ -232,6 +232,43 @@ async fn an_assignment_reaches_the_env_of_the_sheep_it_registers() {
     }
 }
 
+/// The Flockfile says `true` so the flag has something to win over.
+#[tokio::test]
+async fn no_log_timestamps_reaches_the_sheep_a_script_or_a_flockfile_registers() {
+    let dir = tempfile::tempdir().unwrap();
+    let script = dir.path().join("zam");
+    std::fs::write(&script, "#!/bin/sh\nsleep 1\n").unwrap();
+    let flockfile = dir.path().join("Flockfile.toml");
+    std::fs::write(
+        &flockfile,
+        "[[app]]\nname = \"koji\"\nscript = \"/bin/sleep\"\nlog_timestamps = true\n",
+    )
+    .unwrap();
+
+    for (target, flag, want) in [
+        (&script, false, true),
+        (&script, true, false),
+        (&flockfile, true, false),
+    ] {
+        let home = tempfile::tempdir().unwrap();
+        let sock = shep_client::testing::control_address(home.path());
+        let (client, mut envelopes) = fake_client_capturing_envelopes(&sock).await;
+        let mut args = start_args(&target.to_string_lossy());
+        args.no_log_timestamps = flag;
+        let _ = start_against_with_args(&client, &args).await;
+
+        match next_start(&mut envelopes).await.body {
+            Request::Start { apps } => {
+                assert_eq!(
+                    apps[0].log_timestamps, want,
+                    "{target:?} with the flag {flag}"
+                );
+            }
+            other => panic!("expected a Start request, got {other:?}"),
+        }
+    }
+}
+
 #[tokio::test]
 async fn an_assignment_on_an_existing_sheep_is_recorded_before_it_resumes() {
     use shep_client::testing::fake_client_answering;

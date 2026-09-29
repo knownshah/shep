@@ -52,6 +52,7 @@ async fn a_start_asks_for_a_deadline_its_own_stages_fit_inside() {
         cwd: None,
         interpreter: None,
         flockfile: false,
+        no_log_timestamps: false,
         reset: None,
     };
     {

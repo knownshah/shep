@@ -118,6 +118,7 @@ async fn a_discovered_flockfile_is_started_when_no_target_was_given() {
         cwd: None,
         interpreter: None,
         flockfile: false,
+        no_log_timestamps: false,
         reset: None,
     };
     {
