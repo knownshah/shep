@@ -52,6 +52,10 @@ impl App {
         let Some(probe) = self.dog_target.clone().filter(|probe| probe.name == name) else {
             return Effect::None;
         };
+        self.config_read_in_flight = false;
+        if self.closing {
+            return self.on_close_reread(name, result);
+        }
         match result {
             Ok(Response::DogSection { toml }) => {
                 // Everything a refresh has to carry across, read before the
@@ -452,7 +456,7 @@ mod tests {
             app.update(Msg::Key(KeyPress::TextChar(typed)));
         }
         app.update(Msg::Key(KeyPress::TextApply));
-        let batch = wire_batch(close_writing(&mut app));
+        let batch = wire_batch(close_bark(&mut app));
         let [Sent::SetDogSection { name, toml, .. }] = batch.as_slice() else {
             panic!("closing the pane sends the section: {batch:?}");
         };
@@ -475,7 +479,7 @@ mod tests {
     #[test]
     fn closing_a_dog_pane_sends_one_write_for_two_edits() {
         let mut app = fixtures::app_in_dog_pane_with_two_edits();
-        let Effect::SendAll(sent) = app.update(Msg::Key(KeyPress::Escape)) else {
+        let Effect::SendAll(sent) = close_bark(&mut app) else {
             panic!("wanted a batch");
         };
         assert_eq!(sent.len(), 1, "a dog takes one section write, not two");
