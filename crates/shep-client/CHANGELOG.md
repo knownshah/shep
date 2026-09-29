@@ -10,6 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-29
+
+### Added
+
+- Parse a sheep's table into a dog's settings type
+- A dog publishes its per-sheep table schema with probe_with_sheep
+- Give dogs a shared Stop token and its signal listeners
+- Add typed requests for what more than one dog asks
+- Add DogIdentity and ReconnectingClient::connect_as
+- Give each connection error the exit code it ends on
+- Parse a dog's section without ever quoting it
+- Add ShepherdError, the one variant a dog's error wraps
+- Move DogRuntime into shep_client::dogs
+- Share a dog's startup prelude: arguments and home
+- Give a dog's tests its schema keys and printed keys
+
+### Changed
+
+- One schema renderer and one probe body for both probes
+- One body for probe and probe_with_sheep
+
+### Fixed
+
+- Take a whitespace SHEP_DOG_NAME at its word
+- Name --print-config when a dog is asked for --help
+- Count only #key = value lines as printed settings
+
+
 ## [0.10.1] - 2026-09-22
 
 
