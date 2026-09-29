@@ -40,7 +40,7 @@ fn is_glob(input: &str) -> bool {
     input.contains(['*', '?', '[', '{'])
 }
 
-/// Compiles a glob and hands back its regex source.
+/// Compiles a glob into a regex.
 ///
 /// `globset`'s pattern is already anchored, so `web-*` matches `web-api`
 /// and not `my-web-api`. Strips the `(?-u)` prefix, since `globset`
@@ -52,12 +52,13 @@ fn is_glob(input: &str) -> bool {
 /// # Errors
 ///
 /// - [`SelectorError::BadGlob`]: the pattern is not a valid glob.
-fn glob_to_regex(input: &str) -> Result<String, SelectorError> {
+/// - [`SelectorError::BadRegex`]: `globset` translated the glob to a regex
+///   that the `regex` crate itself rejects.
+fn glob_to_regex(input: &str) -> Result<regex::Regex, SelectorError> {
     let glob = globset::Glob::new(input).map_err(|e| SelectorError::BadGlob(e.to_string()))?;
-    let source = glob.regex().to_string();
-    Ok(source
-        .strip_prefix("(?-u)")
-        .map_or(source.clone(), ToString::to_string))
+    let source = glob.regex();
+    let source = source.strip_prefix("(?-u)").unwrap_or(source);
+    regex::Regex::new(source).map_err(|e| SelectorError::BadRegex(e.to_string()))
 }
 
 /// `s` as a `u32`, if every byte of it is an ASCII digit.
@@ -108,11 +109,7 @@ impl ProcessSelector {
             return Ok(Self::Id(id));
         }
         if is_glob(input) {
-            return glob_to_regex(input)
-                .and_then(|re| {
-                    regex::Regex::new(&re).map_err(|e| SelectorError::BadRegex(e.to_string()))
-                })
-                .map(Self::Regex);
+            return glob_to_regex(input).map(Self::Regex);
         }
         // Last, so every earlier form wins. A name cannot contain a colon
         // (`config::normalize` refuses one), so splitting on the last one
