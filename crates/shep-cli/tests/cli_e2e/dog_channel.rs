@@ -76,8 +76,10 @@ fn an_adopted_dog_that_asks_takes_a_trigger_and_stops_on_the_shutdown_message() 
         assert_success(&adopted);
     }
     let written = std::fs::read_to_string(home.join("shep.toml")).unwrap();
-    assert!(
-        written.contains(r#"channel_dogs = ["otel"]"#),
+    let recorded = shep_core::config::DaemonConfig::load(Some(&written), &|_| None).unwrap();
+    assert_eq!(
+        recorded.daemon.channel_dogs,
+        vec!["otel".to_string()],
         "only the dog that asked is recorded: {written}"
     );
 
