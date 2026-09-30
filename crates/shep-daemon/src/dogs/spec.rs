@@ -102,9 +102,11 @@ fn builtin_program() -> Result<PathBuf, DogError> {
 /// The app config the daemon spawns `spec` from.
 ///
 /// A built-in dog is `<this binary> dog <name>`; an adopted one is the
-/// operator's binary with no arguments. The environment carries exactly
-/// `SHEP_HOME` and `SHEP_DOG_NAME`, never a `[<name>]` value: a dog asks for
-/// its section over the socket.
+/// operator's binary with no arguments. The environment carries `SHEP_HOME`
+/// and `SHEP_DOG_NAME`, never a `[<name>]` value: a dog asks for its section
+/// over the socket. An adopted dog that asked for the shepherd channel gets
+/// `channel` and `shutdown_with_message`, and so the channel's own
+/// variables too; every other dog gets neither.
 ///
 /// # Errors
 /// - [`DogError::NoBinary`] if a built-in dog has no program to run.
@@ -112,19 +114,22 @@ fn builtin_program() -> Result<PathBuf, DogError> {
 ///   not know how to spawn.
 /// - [`DogError::Config`] if the assembled config failed `normalize`.
 pub fn dog_app(spec: &DogSpec, paths: &ShepPaths) -> Result<ResolvedApp, DogError> {
-    let (script, args) = match &spec.source {
+    let (script, args, channel) = match &spec.source {
         DogSource::BuiltIn => (
             builtin_program()?.display().to_string(),
             vec!["dog".to_string(), spec.name.clone()],
+            false,
         ),
         // No arguments: an adopted dog is somebody else's binary, and an argv
         // shep invented for it is one more thing it has to agree with.
-        DogSource::Adopted { path, .. } => (path.clone(), Vec::new()),
+        DogSource::Adopted { path, channel } => (path.clone(), Vec::new(), *channel),
         source => return Err(DogError::UnsupportedSource(format!("{source:?}"))),
     };
 
     let mut config = AppConfig::minimal(&spec.name, &script);
     config.args = args;
+    config.channel = channel;
+    config.shutdown_with_message = channel;
     config
         .env
         .insert("SHEP_HOME".to_string(), paths.home.display().to_string());
@@ -308,6 +313,31 @@ mod tests {
                 .config()
                 .log_timestamps
         );
+    }
+
+    #[test]
+    fn only_an_adopted_dog_that_asked_gets_the_channel_and_a_stop_by_message() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = test_paths(&dir);
+        let adopted = |channel| DogSource::Adopted {
+            path: "/usr/local/bin/shep-otel".to_string(),
+            channel,
+        };
+
+        for (source, expected) in [
+            (adopted(true), true),
+            (adopted(false), false),
+            (DogSource::BuiltIn, false),
+        ] {
+            let spec = DogSpec {
+                name: "otel".to_string(),
+                source: source.clone(),
+            };
+            let app = dog_app(&spec, &paths).unwrap();
+            let config = app.config();
+            assert_eq!(config.channel, expected, "{source:?}");
+            assert_eq!(config.shutdown_with_message, expected, "{source:?}");
+        }
     }
 
     /// An adopted dog is given no argv, so the environment is its only
