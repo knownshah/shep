@@ -284,8 +284,9 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && (needs.changes.outputs.rust == 'true' || needs.changes.result != 'success' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
-    # 39s on the last green run; the floor is doing all the work.
-    timeout-minutes: 10
+    # Sized for a cache miss, not a warm run: 65 MB from the mirror at its
+    # worst measured 80 kB/s is about 14 minutes before `cargo check` starts.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: rustup toolchain install stable --profile minimal --target x86_64-pc-windows-gnu
