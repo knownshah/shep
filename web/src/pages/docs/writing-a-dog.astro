@@ -415,8 +415,9 @@ shep-channel: true`}</CodeBlock>
       <code>shep adopt</code> records the ask in{" "}
       <code>[daemon] channel_dogs</code>, and shep starts the dog with{" "}
       <code>channel</code> and <code>shutdown_with_message</code> set. Only{" "}
-      <code>true</code> asks. A build that adds or drops the line takes
-      effect at the next <code>shep adopt</code>.
+      <code>true</code> asks. <code>shep adopt</code> reads the line again,
+      and a running dog picks up the change at <code>shep disable</code> then{" "}
+      <code>shep enable</code>.
     </p>
     <CodeBlock label="main.rs">{channelSnippet}</CodeBlock>
     <p>

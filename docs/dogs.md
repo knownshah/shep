@@ -591,9 +591,12 @@ would. Only the exact value `true` asks.
 The dog asks, not the operator: there is no flag for it, and a built-in
 dog written into `channel_dogs` by hand is ignored. Unlike the protocol,
 the ask is written down, because shep needs it at every start and not only
-at the adopt. A build that adds or drops the line takes effect at the next
+at the adopt. A build that adds or drops the line is recorded at the next
 `shep adopt`, which re-reads it and takes a dog that stopped asking back
-out. `shep rehome` forgets it with the rest of the adoption.
+out. A dog already running keeps the config it started with, as it does
+for a new path, until `shep disable` and `shep enable` bounce it or the
+next shepherd starts it. `shep rehome` forgets it with the rest of the
+adoption.
 
 A dog written against `shep-client` asks through a `Probe`:
 
