@@ -148,6 +148,13 @@ pub(crate) fn describe_outcome(outcome: &ActionOutcome) -> (&'static str, String
             "timed_out",
             "no reply within the app's own action_timeout".to_string(),
         ),
+        // No Flockfile key to name: the fix is in the dog, then a re-adopt.
+        ActionOutcome::DogNoChannel => (
+            "dog_no_channel",
+            "this dog did not ask for the shepherd channel — a dog asks in its \
+             --version answer, which shep adopt reads"
+                .to_string(),
+        ),
         other => ("unknown", format!("{other:?}")),
     }
 }
@@ -437,6 +444,17 @@ mod tests {
             detail.contains("wait_ready") && detail.contains("shutdown_with_message"),
             "and the two fields that imply it: {detail}"
         );
+    }
+
+    /// A dog has no Flockfile, so the sheep row's advice would send an
+    /// operator looking for a key that does not exist.
+    #[test]
+    fn a_dog_no_channel_detail_points_at_the_dog_not_a_flockfile_key() {
+        let (kind, detail) = describe_outcome(&ActionOutcome::DogNoChannel);
+        assert_eq!(kind, "dog_no_channel");
+        assert!(detail.contains("--version"), "{detail}");
+        assert!(detail.contains("shep adopt"), "{detail}");
+        assert!(!detail.contains("channel = true"), "{detail}");
     }
 
     #[test]
