@@ -306,6 +306,7 @@ async fn a_dog_whose_version_is_nothing_like_sheps_is_still_adopted() {
         Some(DogVersion {
             version: "9.9.9-rc1".to_string(),
             protocol: Some(PROTOCOL_VERSION),
+            channel: false,
         })
     );
 
@@ -371,6 +372,7 @@ async fn a_dog_that_names_no_protocol_is_adopted_with_the_version_it_gave() {
         Some(DogVersion {
             version: "0.1.3".to_string(),
             protocol: None,
+            channel: false,
         })
     );
 
@@ -518,6 +520,7 @@ fn output_that_answers_nothing_shep_asked_is_not_a_refusal() {
         Some(DogVersion {
             version: "--version".to_string(),
             protocol: None,
+            channel: false,
         }),
         "the last field of line 1 is taken as the version, whatever it is"
     );
@@ -538,6 +541,7 @@ fn a_future_shep_key_is_ignored_rather_than_breaking_the_parser() {
         Some(DogVersion {
             version: "0.4.0".to_string(),
             protocol: Some(2),
+            channel: false,
         })
     );
 
@@ -547,6 +551,7 @@ fn a_future_shep_key_is_ignored_rather_than_breaking_the_parser() {
         Some(DogVersion {
             version: "0.1.3".to_string(),
             protocol: None,
+            channel: false,
         }),
         "a protocol that is not a decimal is unknown, not a refusal"
     );

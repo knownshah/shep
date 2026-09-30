@@ -39,6 +39,7 @@ mod constants;
 mod daemon_log;
 mod dev;
 mod dispatch;
+mod dog_channel;
 mod dogs_kv;
 mod fixtures;
 mod flockfile_load;

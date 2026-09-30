@@ -177,6 +177,12 @@ boot_first_dogs = ["log-rotate"]`}</CodeBlock>
       schema. See <a href="/docs/boot-order">boot order</a> for the stages
       this positions a dog in.
     </p>
+    <p class="fine">
+      <code>[daemon] channel_dogs</code> lives there too, written by{" "}
+      <code>shep adopt</code> for a dog that <a
+      href="/docs/writing-a-dog#asking-for-the-channel">asks for the shepherd
+      channel</a>. Such a dog takes <code>shep trigger</code>.
+    </p>
 
     <h2 id="configuration-lives-on-the-socket-not-the-environment">Configuration lives on the socket, not the environment</h2>
     <p>

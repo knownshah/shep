@@ -278,6 +278,7 @@ pub(crate) mod tests {
             .memory_bytes(pid.map(|_| 3 * 1024 * 1024))
             .dog(Some(DogSource::Adopted {
                 path: "/usr/local/bin/shep-log-rotate".to_string(),
+                channel: false,
             }))
             .build()
     }
@@ -373,6 +374,7 @@ pub(crate) mod tests {
             "log-rotate",
             DogSource::Adopted {
                 path: "/usr/local/bin/shep-log-rotate".to_string(),
+                channel: false,
             },
             "online",
             true,

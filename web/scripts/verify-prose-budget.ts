@@ -52,7 +52,11 @@ export const BUDGETS: Record<string, number> = {
   // schema": probe_with_sheep is the write side of that same feature, and
   // it needed its own section rather than a sentence borrowed from
   // somebody else's.
-  "writing-a-dog": 4340, // 4325
+  //
+  // Raised from 4340 on 2026-09-30 for "Asking for the shepherd channel":
+  // `shep-channel: true` is a new line a dog author has to be told about,
+  // and the page had 15 words of headroom.
+  "writing-a-dog": 4450, // 4445
   overrides: 3380, // 3250
   // Raised from 3240 on 2026-09-27 for "A sheep's dogs row": the sub-screen
   // and the per-sheep table pane are new operator-facing surface, not

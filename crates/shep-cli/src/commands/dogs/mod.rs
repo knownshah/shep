@@ -86,10 +86,16 @@ fn fail_config(streams: &mut Streams<'_>, err: &ShepTomlError) -> ExitCode {
 /// dog, an argv branch of this binary. `shep.toml` is the only place either
 /// verb can learn it.
 fn dog_source(cfg: &ShepToml, name: &str) -> DogSource {
-    cfg.adopted_dog_path(name)
-        .map_or(DogSource::BuiltIn, |path| DogSource::Adopted {
-            path: path.display().to_string(),
-        })
+    adopted_source(cfg, name).unwrap_or(DogSource::BuiltIn)
+}
+
+/// [`dog_source`] for an adopted `name`, carrying its recorded channel ask,
+/// and `None` for any other name.
+fn adopted_source(cfg: &ShepToml, name: &str) -> Option<DogSource> {
+    cfg.adopted_dog_path(name).map(|path| DogSource::Adopted {
+        path: path.display().to_string(),
+        channel: cfg.asked_for_channel(name),
+    })
 }
 
 /// Connects to `paths.socket`, distinguishing a genuine absence from a

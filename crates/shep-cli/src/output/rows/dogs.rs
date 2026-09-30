@@ -238,6 +238,7 @@ pub(crate) mod tests {
                 "otel",
                 DogSource::Adopted {
                     path: "/usr/local/bin/shep-otel".to_string(),
+                    channel: false,
                 },
             ),
         ]);
@@ -296,6 +297,7 @@ pub(crate) mod tests {
                 "otel",
                 DogSource::Adopted {
                     path: "/usr/local/bin/shep-otel".to_string(),
+                    channel: false,
                 },
                 "online",
                 true,
@@ -314,6 +316,7 @@ pub(crate) mod tests {
                 "otel",
                 DogSource::Adopted {
                     path: "/usr/local/bin/shep-otel".to_string(),
+                    channel: false,
                 },
                 "stopped",
                 true,
@@ -381,6 +384,7 @@ pub(crate) mod tests {
             "log-rotate",
             DogSource::Adopted {
                 path: "/usr/local/bin/shep-log-rotate".to_string(),
+                channel: false,
             },
             "online",
             true,
@@ -433,6 +437,7 @@ pub(crate) mod tests {
             "otel",
             DogSource::Adopted {
                 path: "/usr/local/bin/shep-otel".to_string(),
+                channel: false,
             },
             "online",
             true,

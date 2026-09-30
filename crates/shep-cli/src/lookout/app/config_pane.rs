@@ -160,7 +160,7 @@ impl App {
             && let Some(source) = row.info.dog.as_ref()
         {
             let adopted_path = match source {
-                DogSource::Adopted { path } => Some(PathBuf::from(path)),
+                DogSource::Adopted { path, .. } => Some(PathBuf::from(path)),
                 _ => None,
             };
             return Effect::LoadDogPane {

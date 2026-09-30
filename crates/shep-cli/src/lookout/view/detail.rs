@@ -233,7 +233,7 @@ pub(crate) fn identity_line(app: &App, row: &Row, width: u16, palette: Palette) 
         match &info.dog {
             None => String::new(),
             Some(DogSource::BuiltIn) => "   dog built-in".to_string(),
-            Some(DogSource::Adopted { path }) => format!("   dog adopted {path}"),
+            Some(DogSource::Adopted { path, .. }) => format!("   dog adopted {path}"),
             // `DogSource` is `#[non_exhaustive]`: a source a newer shepherd
             // added must not take the pane down, and must not be reported as
             // anything it is not.
@@ -589,6 +589,7 @@ mod tests {
             .pid(Some(4_242))
             .dog(Some(DogSource::Adopted {
                 path: "/usr/local/bin/shep-log-rotate".to_string(),
+                channel: false,
             }))
             .handshook(Some(false))
             .build();
