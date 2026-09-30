@@ -272,6 +272,12 @@ jobs:
   # cannot run on Linux either way, so this stays `check` rather than
   # `test`. `test`'s own `windows-latest` legs already exercise the MSVC
   # target with a real `cargo test`.
+  #
+  # The cross toolchain comes from Azure's Ubuntu mirror, which has served it
+  # at 120 kB/s: the `mingw-w64` metapackage, 277 MB of i686 and x86_64 gcc
+  # and g++, then outlasted the ten-minute timeout. This installs only
+  # the x86_64 C compiler `ring` calls, about 62 MB, and caches its .debs so
+  # a warm run never downloads from the mirror.
   windows-gnu:
     needs: changes
     if: ${{ !cancelled() && (needs.changes.outputs.rust == 'true' || needs.changes.result != 'success' || github.event_name == 'workflow_dispatch') }}
@@ -282,7 +288,39 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: rustup toolchain install stable --profile minimal --target x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - run: sudo apt-get update && sudo apt-get install -y mingw-w64
+      # Keyed on the Ubuntu release: the .debs depend on the image's own
+      # libraries (libisl23, libmpc3), so a new release starts a new cache.
+      # The key never changes within a release, so a bad cache stays until
+      # `gh cache delete` removes it.
+      - id: ubuntu
+        run: echo "release=$(. /etc/os-release && echo "$VERSION_ID")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: mingw
+        with:
+          path: ~/mingw-debs
+          key: mingw-debs-${{ runner.arch }}-ubuntu-${{ steps.ubuntu.outputs.release }}
+      # Downloads into a scratch archive dir and copies out only the .debs:
+      # apt leaves a root-owned `lock` beside them that the cache cannot read.
+      - if: steps.mingw.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/apt/partial" ~/mingw-debs
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends --download-only -o Dir::Cache::Archives="$RUNNER_TEMP/apt" gcc-mingw-w64-x86-64-win32
+          cp "$RUNNER_TEMP"/apt/*.deb ~/mingw-debs/
+      # Installing from files still runs each package's postinst, which is
+      # what creates the unversioned `x86_64-w64-mingw32-gcc` that `cc` looks
+      # for. `--version` fails here, rather than a warm rust-cache with `ring`
+      # already built hiding a missing compiler until the cache next rotates.
+      - run: |
+          sudo apt-get install -y --no-install-recommends ~/mingw-debs/*.deb
+          x86_64-w64-mingw32-gcc --version
+      # Saved as soon as the install works, so a failing `cargo check` below
+      # does not throw the download away.
+      - if: steps.mingw.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/mingw-debs
+          key: ${{ steps.mingw.outputs.cache-primary-key }}
       - run: cargo check --workspace --all-targets --all-features --locked --target x86_64-pc-windows-gnu
   features:
     needs: changes
