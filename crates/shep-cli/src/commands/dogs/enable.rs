@@ -318,10 +318,10 @@ mod tests {
     /// half: [`serve_one_request`] only binds the socket, so `enable` does
     /// its own `Client::connect`.
     ///
-    /// Both asks: a re-enable that dropped the recorded channel would start
-    /// a dog that asked for one without it.
+    /// Run with the channel ask recorded and without: a re-enable that
+    /// dropped it would start a dog that asked for the channel without one.
     #[tokio::test]
-    async fn enable_of_an_adopted_dog_sends_the_path_and_ask_the_config_recorded() {
+    async fn enable_of_an_adopted_dog_sends_its_recorded_path_and_channel_ask() {
         for channel in [false, true] {
             let dir = tempfile::tempdir().unwrap();
             let paths = ShepPaths::resolve(&|_| None, dir.path());
