@@ -222,6 +222,7 @@ pub fn daemon_overrides(args: &DaemonArgs) -> DaemonOverrides {
 /// `[daemon] enabled_dogs` names each dog to start, in the order an operator
 /// wrote it; `[daemon] adopted_dogs` says which of those names is a
 /// third-party binary, and a name absent from it is [`DogSource::BuiltIn`].
+/// `[daemon] channel_dogs` says which adopted ones asked for the channel.
 #[must_use]
 pub fn boot_options(
     config: &DaemonConfig,
@@ -245,7 +246,7 @@ pub fn boot_options(
                 let source = match config.daemon.adopted_dogs.get(name) {
                     Some(path) => DogSource::Adopted {
                         path: path.display().to_string(),
-                        channel: false,
+                        channel: config.daemon.channel_dogs.contains(name),
                     },
                     None => DogSource::BuiltIn,
                 };
@@ -383,14 +384,18 @@ mod tests {
         assert!(opts.restore, "the default is to restore the muster roll");
     }
 
+    /// `metrics` in `channel_dogs` is a hand edit: a built-in never takes
+    /// the channel, whatever the file says.
     #[test]
     fn boot_options_carry_every_enabled_dog_with_the_source_the_file_names() {
         let src = r#"
 [daemon]
-enabled_dogs = ["metrics", "otel"]
+enabled_dogs = ["metrics", "otel", "jobs"]
+channel_dogs = ["jobs", "metrics"]
 
 [daemon.adopted_dogs]
 otel = "/usr/local/bin/shep-otel"
+jobs = "/usr/local/bin/shep-jobs"
 "#;
         let config = DaemonConfig::load(Some(src), &|_| None).unwrap();
         let opts = boot_options(
@@ -418,6 +423,13 @@ otel = "/usr/local/bin/shep-otel"
                     source: DogSource::Adopted {
                         path: "/usr/local/bin/shep-otel".into(),
                         channel: false,
+                    }
+                },
+                DogSpec {
+                    name: "jobs".into(),
+                    source: DogSource::Adopted {
+                        path: "/usr/local/bin/shep-jobs".into(),
+                        channel: true,
                     }
                 },
             ]

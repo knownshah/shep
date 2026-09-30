@@ -191,6 +191,11 @@ pub enum Commands {
     /// `[daemon] adopted_dogs` and `[daemon] enabled_dogs` in `shep.toml`,
     /// and starts it now if a shepherd is running.
     ///
+    /// A binary whose `--version` answer carries `shep-channel: true` is
+    /// also written to `[daemon] channel_dogs`, and runs with the shepherd
+    /// channel: `shep trigger` reaches it, and a stop is a message rather
+    /// than a signal. The dog asks; there is no flag for it.
+    ///
     /// The path can be given as-is, with a leading `~/`, or as a bare name
     /// already on `$PATH` (`cargo install` puts one there). Refuses, before
     /// touching the config at all, a path that resolves to nothing that
@@ -203,8 +208,8 @@ pub enum Commands {
     /// the one the shepherd itself uses to supervise it.
     Adopt(AdoptArgs),
     /// Forget where an adopted dog's binary lived: stops it if a shepherd
-    /// is running, and removes it from `[daemon] enabled_dogs` and
-    /// `[daemon] adopted_dogs`.
+    /// is running, and removes it from `[daemon] enabled_dogs`,
+    /// `[daemon] adopted_dogs` and `[daemon] channel_dogs`.
     ///
     /// Its `[<name>]` table in `dogs.toml` stays, as it does through a
     /// `shep disable`: those settings are the operator's, so adopting the

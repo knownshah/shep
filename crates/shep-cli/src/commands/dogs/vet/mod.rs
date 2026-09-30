@@ -633,6 +633,23 @@ pub(super) fn report_dog_version(streams: &mut Streams<'_>, name: &str, answer: 
     streams.aside(DOG_VERSION_NOTICE, &message);
 }
 
+/// [`emit_notice`](crate::output::emit_notice) code for the report that a
+/// candidate asked for the shepherd channel; not a failure.
+const DOG_CHANNEL_NOTICE: &str = "dog_channel";
+
+/// Tells the operator the candidate asked for the shepherd channel.
+///
+/// The dog asked, not the operator, so this is where an operator hears that
+/// it takes `shep trigger` and is stopped by a message instead of a signal.
+pub(super) fn report_channel_ask(streams: &mut Streams<'_>, name: &str) {
+    let message = format!(
+        "{name} asked for the shepherd channel, so it runs with channel and \
+         shutdown_with_message: `shep trigger {name} <action>` reaches it, and \
+         shep stops it with a message rather than a signal"
+    );
+    streams.aside(DOG_CHANNEL_NOTICE, &message);
+}
+
 /// [`emit_notice`](crate::output::emit_notice) code for the
 /// unreadable-schema warning; not a failure.
 const DOG_SCHEMA_UNREADABLE_NOTICE: &str = "dog_schema_unreadable";

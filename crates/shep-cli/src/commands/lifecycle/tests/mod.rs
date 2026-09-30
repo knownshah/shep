@@ -363,7 +363,7 @@ fn adopted_dog(dir: &Path, name: &str, answer: &str) -> ShepPaths {
         std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
     }
     crate::commands::shep_toml::ShepToml::edit(&paths.daemon_config, |cfg| {
-        cfg.adopt_dog(name, &binary).unwrap();
+        cfg.adopt_dog(name, &binary, false).unwrap();
     })
     .unwrap();
     paths

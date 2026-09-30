@@ -317,47 +317,52 @@ mod tests {
     /// End to end through `enable`, since the lookup lives in the config
     /// half: [`serve_one_request`] only binds the socket, so `enable` does
     /// its own `Client::connect`.
+    ///
+    /// Both asks: a re-enable that dropped the recorded channel would start
+    /// a dog that asked for one without it.
     #[tokio::test]
-    async fn enable_of_an_adopted_dog_sends_the_path_the_config_recorded() {
-        let dir = tempfile::tempdir().unwrap();
-        let paths = ShepPaths::resolve(&|_| None, dir.path());
-        std::fs::create_dir_all(&paths.run).unwrap();
-        ShepToml::edit(&paths.daemon_config, |seed| {
-            seed.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"))
-                .unwrap();
-        })
-        .unwrap();
-        let handle = serve_one_request(
-            &paths.socket,
-            sample_ack(),
-            Response::DogStarted(sample_info()),
-        )
-        .await;
-
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = enable(&mut streams(&mut out, &mut err), &paths, "otel").await;
-
-        assert_eq!(code, ExitCode::Success);
-        let envelope = tokio::time::timeout(std::time::Duration::from_secs(5), handle)
-            .await
-            .expect("enable must reach the wire; it hung instead of connecting")
+    async fn enable_of_an_adopted_dog_sends_the_path_and_ask_the_config_recorded() {
+        for channel in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let paths = ShepPaths::resolve(&|_| None, dir.path());
+            std::fs::create_dir_all(&paths.run).unwrap();
+            ShepToml::edit(&paths.daemon_config, |seed| {
+                seed.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"), channel)
+                    .unwrap();
+            })
             .unwrap();
-        assert_eq!(
-            envelope.body,
-            Request::EnableDog {
-                name: "otel".to_string(),
-                source: DogSource::Adopted {
-                    path: "/usr/local/bin/shep-otel".to_string(),
-                    channel: false,
-                },
-            }
-        );
-        let text = String::from_utf8(out).unwrap();
-        assert!(
-            text.contains("adopted"),
-            "the row must render an adopted dog as adopted: {text}"
-        );
+            let handle = serve_one_request(
+                &paths.socket,
+                sample_ack(),
+                Response::DogStarted(sample_info()),
+            )
+            .await;
+
+            let mut out = Vec::new();
+            let mut err = Vec::new();
+            let code = enable(&mut streams(&mut out, &mut err), &paths, "otel").await;
+
+            assert_eq!(code, ExitCode::Success);
+            let envelope = tokio::time::timeout(std::time::Duration::from_secs(5), handle)
+                .await
+                .expect("enable must reach the wire; it hung instead of connecting")
+                .unwrap();
+            assert_eq!(
+                envelope.body,
+                Request::EnableDog {
+                    name: "otel".to_string(),
+                    source: DogSource::Adopted {
+                        path: "/usr/local/bin/shep-otel".to_string(),
+                        channel,
+                    },
+                }
+            );
+            let text = String::from_utf8(out).unwrap();
+            assert!(
+                text.contains("adopted"),
+                "the row must render an adopted dog as adopted: {text}"
+            );
+        }
     }
 
     /// A name holding values in both `shep.toml` and `dogs.toml` makes the
@@ -467,7 +472,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let paths = ShepPaths::resolve(&|_| None, dir.path());
         ShepToml::edit(&paths.daemon_config, |cfg| {
-            cfg.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"))
+            cfg.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"), false)
                 .unwrap();
         })
         .unwrap();
@@ -491,7 +496,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let paths = ShepPaths::resolve(&|_| None, dir.path());
         ShepToml::edit(&paths.daemon_config, |cfg| {
-            cfg.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"))
+            cfg.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"), false)
                 .unwrap();
         })
         .unwrap();

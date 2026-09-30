@@ -15,7 +15,7 @@ use crate::exit::ExitCode;
 use crate::output::{DogActionRow, Streams, emit, write_outcome};
 
 use super::vet::{
-    DogSchema, fail_adopt, report_dog_version, vet_binary, warn_group_writable,
+    DogSchema, fail_adopt, report_channel_ask, report_dog_version, vet_binary, warn_group_writable,
     warn_unreadable_schema,
 };
 use super::{NO_SHEPHERD_ENABLE_STATUS, connect_or_absent, fail_config};
@@ -51,19 +51,25 @@ pub async fn adopt(streams: &mut Streams<'_>, paths: &ShepPaths, args: &AdoptArg
     if let Some(answer) = &vetted.answer {
         report_dog_version(streams, &name, answer);
     }
+    let channel = vetted.answer.as_ref().is_some_and(|answer| answer.channel);
+    if channel {
+        report_channel_ask(streams, &name);
+    }
     // The schema is stored by nothing and asked fresh where it is needed,
     // so the only thing to report is the one answer that is a bug.
     if vetted.schema == DogSchema::Unreadable {
         warn_unreadable_schema(streams, &name);
     }
-    if let Err(err) = ShepToml::try_edit(&paths.daemon_config, |cfg| cfg.adopt_dog(&name, &path)) {
+    if let Err(err) = ShepToml::try_edit(&paths.daemon_config, |cfg| {
+        cfg.adopt_dog(&name, &path, channel)
+    }) {
         return fail_config(streams, &err);
     }
     let client = match connect_or_absent(paths, streams).await {
         Ok(client) => client,
         Err(code) => return code,
     };
-    adopt_after_config(streams, &name, &path, client.as_ref()).await
+    adopt_after_config(streams, &name, &path, channel, client.as_ref()).await
 }
 
 /// Resolves `raw`, `shep adopt`'s own path argument, before it reaches
@@ -217,16 +223,17 @@ fn fail_adopt_name_collision(streams: &mut Streams<'_>, name: &str) -> ExitCode 
 }
 
 /// `adopt`'s daemon half; see enable_after_config for the split and for
-/// what `client: None` means.
+/// what `client: None` means. `channel` is the binary's own ask.
 async fn adopt_after_config(
     streams: &mut Streams<'_>,
     name: &str,
     path: &Path,
+    channel: bool,
     client: Option<&Client>,
 ) -> ExitCode {
     let source = DogSource::Adopted {
         path: path.display().to_string(),
-        channel: false,
+        channel,
     };
     let Some(client) = client else {
         let row = DogActionRow::new(name, source, NO_SHEPHERD_ENABLE_STATUS, false);
@@ -300,31 +307,83 @@ mod tests {
 
     #[tokio::test]
     async fn adopt_asks_the_shepherd_to_start_that_dog_with_its_adopted_source() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = shep_client::testing::control_address(dir.path());
-        let (client, mut envelopes) = fake_client_capturing_envelopes(&path).await;
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let binary = PathBuf::from("/usr/local/bin/shep-otel");
-        let _ = adopt_after_config(
-            &mut streams(&mut out, &mut err),
-            "otel",
-            &binary,
-            Some(&client),
-        )
-        .await;
+        for channel in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = shep_client::testing::control_address(dir.path());
+            let (client, mut envelopes) = fake_client_capturing_envelopes(&path).await;
+            let mut out = Vec::new();
+            let mut err = Vec::new();
+            let binary = PathBuf::from("/usr/local/bin/shep-otel");
+            let _ = adopt_after_config(
+                &mut streams(&mut out, &mut err),
+                "otel",
+                &binary,
+                channel,
+                Some(&client),
+            )
+            .await;
 
-        let sent = envelopes.recv().await.unwrap();
-        assert_eq!(
-            sent.body,
-            Request::EnableDog {
-                name: "otel".to_string(),
-                source: DogSource::Adopted {
-                    path: "/usr/local/bin/shep-otel".to_string(),
-                    channel: false,
-                },
-            }
-        );
+            let sent = envelopes.recv().await.unwrap();
+            assert_eq!(
+                sent.body,
+                Request::EnableDog {
+                    name: "otel".to_string(),
+                    source: DogSource::Adopted {
+                        path: "/usr/local/bin/shep-otel".to_string(),
+                        channel,
+                    },
+                }
+            );
+        }
+    }
+
+    /// Writes an executable `/bin/sh` dog that answers `--version` with
+    /// `answer` and exits 0 on any other run.
+    fn write_dog(dir: &Path, answer: &str) -> PathBuf {
+        let binary = dir.join("shep-otel");
+        let script =
+            format!("#!/bin/sh\nif [ \"$1\" = --version ]; then printf '{answer}'; fi\nexit 0\n");
+        std::fs::write(&binary, script).unwrap();
+        let mut mode = std::fs::metadata(&binary).unwrap().permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut mode, 0o755);
+        std::fs::set_permissions(&binary, mode).unwrap();
+        binary
+    }
+
+    /// Through `adopt` itself, so the ask travels from a real probe answer
+    /// to `shep.toml`. A dog that does not ask is the control.
+    #[tokio::test]
+    async fn adopt_records_a_channel_ask_only_when_the_dog_makes_one() {
+        for (answer, asked) in [
+            (r"shep-otel 0.1.0\nshep-channel: true\n", true),
+            (r"shep-otel 0.1.0\n", false),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let paths = ShepPaths::resolve(&|_| None, dir.path());
+            let args = AdoptArgs {
+                name: Some("otel".to_string()),
+                path: write_dog(dir.path(), answer),
+            };
+            let mut out = Vec::new();
+            let mut err = Vec::new();
+
+            let code = adopt(&mut streams(&mut out, &mut err), &paths, &args).await;
+
+            assert_eq!(code, ExitCode::Success);
+            let written = std::fs::read_to_string(&paths.daemon_config).unwrap();
+            let cfg = shep_core::config::DaemonConfig::load(Some(&written), &|_| None).unwrap();
+            assert_eq!(
+                cfg.daemon.channel_dogs.contains(&"otel".to_string()),
+                asked,
+                "{written}"
+            );
+            let notices = String::from_utf8(err).unwrap();
+            assert_eq!(
+                notices.contains("asked for the shepherd channel"),
+                asked,
+                "the operator hears what the dog asked for: {notices}"
+            );
+        }
     }
 
     /// `shepherd_acted` separates "only the config changed" from "a shepherd
@@ -347,7 +406,7 @@ mod tests {
             let mut streams = streams(&mut out, &mut err);
             streams.fmt = Format::Json;
 
-            let code = adopt_after_config(&mut streams, "otel", &binary, client).await;
+            let code = adopt_after_config(&mut streams, "otel", &binary, false, client).await;
 
             assert_eq!(code, ExitCode::Success);
             let json: serde_json::Value = serde_json::from_slice(&out).unwrap();

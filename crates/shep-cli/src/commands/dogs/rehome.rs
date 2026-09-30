@@ -11,7 +11,9 @@ use crate::commands::shep_toml::ShepToml;
 use crate::exit::ExitCode;
 use crate::output::{DogActionRow, Streams, emit, write_outcome};
 
-use super::{DISABLED_STATUS, NO_SHEPHERD_DISABLE_STATUS, connect_or_absent, fail_config};
+use super::{
+    DISABLED_STATUS, NO_SHEPHERD_DISABLE_STATUS, adopted_source, connect_or_absent, fail_config,
+};
 
 /// `shep rehome <name>`: stops an adopted dog and forgets where its binary
 /// lived, leaving the settings an operator wrote for it.
@@ -25,10 +27,7 @@ pub async fn rehome(streams: &mut Streams<'_>, paths: &ShepPaths, name: &str) ->
     let source = match ShepToml::edit(&paths.daemon_config, |cfg| {
         // Read before `rehome_dog` erases it. `None` is legitimate: a name
         // never adopted, or a built-in dog's own.
-        let source = cfg.adopted_dog_path(name).map(|path| DogSource::Adopted {
-            path: path.display().to_string(),
-            channel: false,
-        });
+        let source = adopted_source(cfg, name);
         cfg.rehome_dog(name);
         source
     }) {
@@ -128,7 +127,7 @@ mod tests {
         // carries one, and that section is the operator's too.
         std::fs::write(&paths.daemon_config, "[dog.otel]\ndebounce = \"30s\"\n").unwrap();
         ShepToml::edit(&paths.daemon_config, |seed| {
-            seed.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"))
+            seed.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"), false)
                 .unwrap();
         })
         .unwrap();
@@ -180,7 +179,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let paths = ShepPaths::resolve(&|_| None, dir.path());
         ShepToml::edit(&paths.daemon_config, |seed| {
-            seed.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"))
+            seed.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"), false)
                 .unwrap();
         })
         .unwrap();
@@ -265,7 +264,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let paths = ShepPaths::resolve(&|_| None, dir.path());
         ShepToml::edit(&paths.daemon_config, |seed| {
-            seed.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"))
+            seed.adopt_dog("otel", Path::new("/usr/local/bin/shep-otel"), false)
                 .unwrap();
         })
         .unwrap();
