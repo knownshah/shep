@@ -349,6 +349,7 @@ mod tests {
                 name: "otel".to_string(),
                 source: DogSource::Adopted {
                     path: "/usr/local/bin/shep-otel".to_string(),
+                    channel: false,
                 },
             }
         );

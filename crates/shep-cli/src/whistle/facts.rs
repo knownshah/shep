@@ -146,6 +146,9 @@ pub enum DogSourceRow {
     Adopted {
         /// The path, as the operator gave it to `shep adopt`.
         path: String,
+        /// Whether the binary asked for the shepherd channel at adopt.
+        #[serde(skip_serializing_if = "core::ops::Not::not")]
+        channel: bool,
     },
     /// A source kind this whistle predates.
     ///
@@ -226,7 +229,10 @@ impl From<&DogSource> for DogSourceRow {
     fn from(source: &DogSource) -> Self {
         match source {
             DogSource::BuiltIn => Self::BuiltIn,
-            DogSource::Adopted { path } => Self::Adopted { path: path.clone() },
+            DogSource::Adopted { path, channel } => Self::Adopted {
+                path: path.clone(),
+                channel: *channel,
+            },
             _ => Self::Unknown,
         }
     }
@@ -387,6 +393,7 @@ mod tests {
             .cpu_ms(Some(5_678))
             .dog(Some(DogSource::Adopted {
                 path: "/usr/local/bin/dog".to_string(),
+                channel: false,
             }))
             .lambs(Some(vec![
                 Lamb::new(4243, "node"),
@@ -432,6 +439,7 @@ mod tests {
             .memory_bytes(Some(1024 * 1024))
             .dog(Some(DogSource::Adopted {
                 path: "/usr/local/bin/dog".to_string(),
+                channel: false,
             }))
             .lambs(Some(vec![Lamb::new(4243, "node")]))
             .pending(Some(vec!["env".to_string()]))

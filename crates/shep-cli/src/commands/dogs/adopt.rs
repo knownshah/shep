@@ -226,6 +226,7 @@ async fn adopt_after_config(
 ) -> ExitCode {
     let source = DogSource::Adopted {
         path: path.display().to_string(),
+        channel: false,
     };
     let Some(client) = client else {
         let row = DogActionRow::new(name, source, NO_SHEPHERD_ENABLE_STATUS, false);
@@ -320,6 +321,7 @@ mod tests {
                 name: "otel".to_string(),
                 source: DogSource::Adopted {
                     path: "/usr/local/bin/shep-otel".to_string(),
+                    channel: false,
                 },
             }
         );

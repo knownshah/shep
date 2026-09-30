@@ -27,6 +27,7 @@ pub async fn rehome(streams: &mut Streams<'_>, paths: &ShepPaths, name: &str) ->
         // never adopted, or a built-in dog's own.
         let source = cfg.adopted_dog_path(name).map(|path| DogSource::Adopted {
             path: path.display().to_string(),
+            channel: false,
         });
         cfg.rehome_dog(name);
         source
@@ -244,6 +245,7 @@ mod tests {
             "otel",
             Some(DogSource::Adopted {
                 path: "/usr/local/bin/shep-otel".to_string(),
+                channel: false,
             }),
             Some(&client),
         )

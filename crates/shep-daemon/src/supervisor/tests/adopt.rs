@@ -111,6 +111,7 @@ async fn an_adopted_dog_keeps_its_marker_and_stays_out_of_a_wildcard() {
                 |entry| {
                     entry.dog = Some(DogSource::Adopted {
                         path: "/opt/bin/shep-log-rotate".to_string(),
+                        channel: false,
                     });
                 },
             ))],
@@ -124,6 +125,7 @@ async fn an_adopted_dog_keeps_its_marker_and_stays_out_of_a_wildcard() {
         info[0].dog,
         Some(DogSource::Adopted {
             path: "/opt/bin/shep-log-rotate".to_string(),
+            channel: false,
         }),
         "a dog adopted as an ordinary sheep is one `shep dogs` has lost"
     );

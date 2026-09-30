@@ -102,6 +102,7 @@ fn a_flock_with_a_dog() -> Vec<shep_core::protocol::ProcessInfo> {
         ProcessInfo::builder(3, "log-rotate", ProcStatus::Online)
             .dog(Some(DogSource::Adopted {
                 path: "/usr/local/bin/shep-log-rotate".to_string(),
+                channel: false,
             }))
             .build(),
     ]

@@ -458,6 +458,7 @@ mod tests {
                     name: "otel".to_string(),
                     dog: Some(DogSource::Adopted {
                         path: "/usr/local/bin/shep-otel".to_string(),
+                        channel: false,
                     }),
                     ..sample_info()
                 }])),
@@ -683,6 +684,7 @@ mod tests {
                         .pid(Some(208_341))
                         .dog(Some(DogSource::Adopted {
                             path: "/usr/local/bin/shep-log-rotate".to_string(),
+                            channel: false,
                         }))
                         .handshook(Some(false))
                         .dog_stale(Some(false))
@@ -696,6 +698,7 @@ mod tests {
                         .pid(Some(208_341))
                         .dog(Some(DogSource::Adopted {
                             path: "/usr/local/bin/shep-log-rotate".to_string(),
+                            channel: false,
                         }))
                         .handshook(Some(false))
                         .dog_stale(Some(true))

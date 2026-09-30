@@ -21,6 +21,12 @@ pub enum DogSource {
     Adopted {
         /// The binary's path, exactly as the operator gave it to `adopt`.
         path: String,
+        /// Whether the binary asked for the shepherd channel when it was
+        /// adopted, with a `shep-channel: true` line in its `--version`
+        /// answer. Such a dog is spawned with `channel` and
+        /// `shutdown_with_message` set. Absent on the wire when `false`.
+        #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+        channel: bool,
     },
 }
 
@@ -58,8 +64,22 @@ mod tests {
         );
         let adopted = DogSource::Adopted {
             path: "/usr/local/bin/shep-otel".to_string(),
+            channel: false,
         };
         let wire = r#"{"kind":"adopted","path":"/usr/local/bin/shep-otel"}"#;
+        assert_eq!(serde_json::to_string(&adopted).unwrap(), wire);
+        assert_eq!(serde_json::from_str::<DogSource>(wire).unwrap(), adopted);
+    }
+
+    /// The row above is also the shape every peer before `channel` wrote,
+    /// so it pins that an older peer's row still reads as no channel.
+    #[test]
+    fn an_adopted_dog_that_asked_for_the_channel_says_so_on_the_wire() {
+        let adopted = DogSource::Adopted {
+            path: "/usr/local/bin/shep-otel".to_string(),
+            channel: true,
+        };
+        let wire = r#"{"kind":"adopted","path":"/usr/local/bin/shep-otel","channel":true}"#;
         assert_eq!(serde_json::to_string(&adopted).unwrap(), wire);
         assert_eq!(serde_json::from_str::<DogSource>(wire).unwrap(), adopted);
     }

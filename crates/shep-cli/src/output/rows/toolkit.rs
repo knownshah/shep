@@ -702,14 +702,16 @@ mod tests {
         assert_eq!(source_role(&DogSource::BuiltIn), Role::Ink3);
         assert_eq!(
             source_role(&DogSource::Adopted {
-                path: "/usr/local/bin/shep-log-rotate".to_string()
+                path: "/usr/local/bin/shep-log-rotate".to_string(),
+                channel: false,
             }),
             Role::Butter
         );
         assert_ne!(
             source_role(&DogSource::BuiltIn),
             source_role(&DogSource::Adopted {
-                path: "/x".to_string()
+                path: "/x".to_string(),
+                channel: false,
             }),
             "shep's own code and a third-party binary must not look the same"
         );

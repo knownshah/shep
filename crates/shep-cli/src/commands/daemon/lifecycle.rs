@@ -245,6 +245,7 @@ pub fn boot_options(
                 let source = match config.daemon.adopted_dogs.get(name) {
                     Some(path) => DogSource::Adopted {
                         path: path.display().to_string(),
+                        channel: false,
                     },
                     None => DogSource::BuiltIn,
                 };
@@ -415,7 +416,8 @@ otel = "/usr/local/bin/shep-otel"
                 DogSpec {
                     name: "otel".into(),
                     source: DogSource::Adopted {
-                        path: "/usr/local/bin/shep-otel".into()
+                        path: "/usr/local/bin/shep-otel".into(),
+                        channel: false,
                     }
                 },
             ]

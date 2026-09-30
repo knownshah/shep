@@ -89,6 +89,7 @@ fn dog_source(cfg: &ShepToml, name: &str) -> DogSource {
     cfg.adopted_dog_path(name)
         .map_or(DogSource::BuiltIn, |path| DogSource::Adopted {
             path: path.display().to_string(),
+            channel: false,
         })
 }
 

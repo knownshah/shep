@@ -119,7 +119,7 @@ pub fn dog_app(spec: &DogSpec, paths: &ShepPaths) -> Result<ResolvedApp, DogErro
         ),
         // No arguments: an adopted dog is somebody else's binary, and an argv
         // shep invented for it is one more thing it has to agree with.
-        DogSource::Adopted { path } => (path.clone(), Vec::new()),
+        DogSource::Adopted { path, .. } => (path.clone(), Vec::new()),
         source => return Err(DogError::UnsupportedSource(format!("{source:?}"))),
     };
 
@@ -277,6 +277,7 @@ mod tests {
                 name: "otel".to_string(),
                 source: DogSource::Adopted {
                     path: "/usr/local/bin/shep-otel".to_string(),
+                    channel: false,
                 },
             },
             &paths,
@@ -322,6 +323,7 @@ mod tests {
                 name: "telemetry".to_string(),
                 source: DogSource::Adopted {
                     path: "/usr/local/bin/shep-otel".to_string(),
+                    channel: false,
                 },
             },
             &paths,

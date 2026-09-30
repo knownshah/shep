@@ -585,6 +585,7 @@ mod tests {
                 "log-rotate",
                 Some(DogSource::Adopted {
                     path: "/opt/bin/shep-log-rotate".to_string(),
+                    channel: false,
                 }),
             ),
         ];
