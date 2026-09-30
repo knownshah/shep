@@ -277,7 +277,9 @@ jobs:
   # at 120 kB/s: the `mingw-w64` metapackage, 277 MB of i686 and x86_64 gcc
   # and g++, then outlasted the ten-minute timeout. This installs only
   # the x86_64 C compiler `ring` calls, about 62 MB, and caches its .debs so
-  # a warm run never downloads from the mirror.
+  # a warm run never downloads from the mirror. The mirror is slow in
+  # bursts: one run fetched these packages at 12 MB/s and, six seconds
+  # later, the same files at 80 kB/s.
   windows-gnu:
     needs: changes
     if: ${{ !cancelled() && (needs.changes.outputs.rust == 'true' || needs.changes.result != 'success' || github.event_name == 'workflow_dispatch') }}
@@ -307,12 +309,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends --download-only -o Dir::Cache::Archives="$RUNNER_TEMP/apt" gcc-mingw-w64-x86-64-win32
           cp "$RUNNER_TEMP"/apt/*.deb ~/mingw-debs/
-      # Installing from files still runs each package's postinst, which is
+      # `dpkg -i`, not `apt-get install ./*.deb`: apt fetches a local file's
+      # version from the mirror again whenever its lists carry the same one.
+      # dpkg never touches the network and still runs each postinst, which is
       # what creates the unversioned `x86_64-w64-mingw32-gcc` that `cc` looks
       # for. `--version` fails here, rather than a warm rust-cache with `ring`
       # already built hiding a missing compiler until the cache next rotates.
       - run: |
-          sudo apt-get install -y --no-install-recommends ~/mingw-debs/*.deb
+          sudo dpkg -i ~/mingw-debs/*.deb
           x86_64-w64-mingw32-gcc --version
       # Saved as soon as the install works, so a failing `cargo check` below
       # does not throw the download away.
