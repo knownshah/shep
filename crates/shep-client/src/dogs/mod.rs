@@ -20,6 +20,11 @@
 //! answers the version flag, and the schema flag exits without printing,
 //! which shep reads as a dog with no schema and refuses nothing for.
 //!
+//! A dog that wants `shep trigger` answers through a [`Probe`] with
+//! [`Probe::ask_for_channel`] instead. shep then opens the shepherd channel
+//! for it and stops it with a message, which the dog serves with
+//! `shep_channel::serve`, handing `on_shutdown` a [`StopRequest`].
+//!
 //! [`parse_sheep_settings`] answers a different question: a dog that acts
 //! per sheep reads its `[app.dogs.<dog>]` table off
 //! `Request::DogSheepSettings` and parses one sheep's table at a time, so a
@@ -108,7 +113,7 @@ mod stop;
 
 pub use error::ShepherdError;
 pub use identity::DogIdentity;
-pub use probes::{probe, probe_with_sheep};
+pub use probes::{Probe, probe, probe_with_sheep};
 pub use runtime::DogRuntime;
 pub use section::{SectionError, parse_section};
 use serde::de::DeserializeOwned;
