@@ -222,20 +222,31 @@ impl ShepToml {
     /// holds `daemon` or `enabled_dogs` as something other than a table and
     /// an array.
     pub fn enable_dog(&mut self, name: &str) -> Result<(), ShepTomlError> {
+        self.push_daemon_name("enabled_dogs", name)
+    }
+
+    /// Adds `name` to the `[daemon]` array under `key`, idempotently,
+    /// creating the array when this document has none.
+    ///
+    /// # Errors
+    ///
+    /// [`ShepTomlError::WrongShape`] when `daemon` is not a table or `key`
+    /// is not an array.
+    fn push_daemon_name(&mut self, key: &'static str, name: &str) -> Result<(), ShepTomlError> {
         let path = self.path.clone();
         let item = self
             .daemon_table_mut()?
-            .entry("enabled_dogs")
+            .entry(key)
             .or_insert_with(|| Item::Value(Value::Array(Array::new())));
         let found = item.type_name();
-        let enabled_dogs = item.as_array_mut().ok_or(ShepTomlError::WrongShape {
+        let names = item.as_array_mut().ok_or(ShepTomlError::WrongShape {
             path,
-            key: "enabled_dogs",
+            key,
             expected: "an array",
             found,
         })?;
-        if !enabled_dogs.iter().any(|v| v.as_str() == Some(name)) {
-            enabled_dogs.push(name);
+        if !names.iter().any(|v| v.as_str() == Some(name)) {
+            names.push(name);
         }
         Ok(())
     }
@@ -294,31 +305,11 @@ impl ShepToml {
             Item::Value(exec.to_string_lossy().into_owned().into()),
         );
         if channel {
-            self.add_channel_dog(name)?;
+            self.push_daemon_name("channel_dogs", name)?;
         } else {
             self.forget_channel_dog(name);
         }
         self.enable_dog(name)
-    }
-
-    /// Adds `name` to `[daemon] channel_dogs`, idempotently.
-    fn add_channel_dog(&mut self, name: &str) -> Result<(), ShepTomlError> {
-        let path = self.path.clone();
-        let item = self
-            .daemon_table_mut()?
-            .entry("channel_dogs")
-            .or_insert_with(|| Item::Value(Value::Array(Array::new())));
-        let found = item.type_name();
-        let channel_dogs = item.as_array_mut().ok_or(ShepTomlError::WrongShape {
-            path,
-            key: "channel_dogs",
-            expected: "an array",
-            found,
-        })?;
-        if !channel_dogs.iter().any(|v| v.as_str() == Some(name)) {
-            channel_dogs.push(name);
-        }
-        Ok(())
     }
 
     /// Takes `name` out of `[daemon] channel_dogs`, and the key with it once
