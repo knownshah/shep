@@ -276,7 +276,7 @@ jobs:
   # The cross toolchain comes from Azure's Ubuntu mirror, which has served it
   # at 120 kB/s: the `mingw-w64` metapackage, 277 MB of i686 and x86_64 gcc
   # and g++, then outlasted the ten-minute timeout. This installs only
-  # the x86_64 C compiler `ring` calls, about 62 MB, and caches its .debs so
+  # the x86_64 C compiler `ring` calls, 65 MB, and caches its .debs so
   # a warm run never downloads from the mirror. The mirror is slow in
   # bursts: one run fetched these packages at 12 MB/s and, six seconds
   # later, the same files at 80 kB/s.
