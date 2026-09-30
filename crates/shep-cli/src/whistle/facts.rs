@@ -411,6 +411,23 @@ mod tests {
         );
     }
 
+    /// `channel` is skipped when `false` on both sides, so each value needs
+    /// its own comparison: one fixture can only ever pin one of them.
+    #[test]
+    fn every_dog_source_shape_serializes_exactly_as_dog_source_does() {
+        let adopted = |channel| DogSource::Adopted {
+            path: "/usr/local/bin/dog".to_string(),
+            channel,
+        };
+        for source in [DogSource::BuiltIn, adopted(false), adopted(true)] {
+            assert_eq!(
+                serde_json::to_value(DogSourceRow::from(&source)).unwrap(),
+                serde_json::to_value(&source).unwrap(),
+                "{source:?}"
+            );
+        }
+    }
+
     /// A stopped sheep has `None` in six places; catches a twin that
     /// renders `null` for a different reason than `ProcessInfo` does.
     #[test]
