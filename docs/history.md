@@ -454,5 +454,14 @@ or read-only, and Enter on a set or unset one opens a pane over it, a
 nested table flattened into dotted rows and a secret drawn `<set>`. No
 wire change: `PROTOCOL_VERSION` stays at 10.
 
+**A dog can ask for the shepherd channel.** A `shep-channel: true` line in
+a dog's `--version` answer, or `dogs::Probe::ask_for_channel` in a dog
+built on `shep-client`, is recorded by `shep adopt` in `[daemon]
+channel_dogs`. The dog is then started with `channel` and
+`shutdown_with_message`, answers `shep trigger`, and is stopped by the
+shutdown message. A dog that did not ask answers a trigger with
+`dog_no_channel`. `PROTOCOL_VERSION` stays at 11: the new `DogSource` key
+and outcome are additive.
+
 Project memory (cross-session state) tracks decisions; docs above are the
 source of truth.

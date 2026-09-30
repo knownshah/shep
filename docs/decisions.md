@@ -2384,3 +2384,13 @@ A sheep's Flockfile entry carries `[app.dogs.<name>]`, stored as `AppConfig::dog
 **Why:** Dotted rows need a schema that says what each leaf is and whether it is secret. The dog config pane writes by patching its section's TOML text, so dotted rows there would change how it writes too, which is #628's own change. `dogs` locks rather than taking a widget because it is a map of tables, the same shape an array already gets no widget for, and the field's previous rendering, compact JSON, drew whatever the table held, secrets included: the bug this pane exists to fix.
 
 `verified crates/shep-cli/src/lookout/field/flatten.rs, crates/shep-cli/src/lookout/pane/sheep_dog.rs, crates/shep-cli/src/lookout/pane/dogs.rs, crates/shep-cli/src/lookout/pane/config.rs (lock, value), crates/shep-cli/src/lookout/view/pane/dogs.rs`
+
+## A dog's shepherd channel
+
+### A dog asks for the shepherd channel in its `--version` answer, and the ask is recorded in `shep.toml` and carried on `DogSource`
+
+A dog whose `--version` answer carries `shep-channel: true` is started with `channel` and `shutdown_with_message` set. `shep adopt` records the ask in `[daemon] channel_dogs` in `shep.toml`, and every start builds it into `DogSource::Adopted { channel }`, which `dog_app` reads. A trigger against a dog spawned without the channel answers `ActionOutcome::DogNoChannel` rather than `NoChannel`.
+
+**Why:** The dog knows whether it serves the channel and the operator does not, so there is no flag. `shep.toml` and not `dogs.toml`, though #656 named `dogs.toml`: that file's `[<name>]` table is the dog's own opaque config, the reason `adopted_dogs` and `boot_first_dogs` already live under `[daemon]`. Unlike the protocol the ask is written down, because boot and `shep enable` start a dog without probing it; a re-adopt reads it again, and an emptied key is removed so an older shep still loads the file. It rides on the source rather than on a new `EnableDog` field because adopt, enable, lookout's toggle and boot already build that source from `shep.toml`, so all four carry the ask with no new plumbing. `DogNoChannel` exists because `no_channel`'s advice names Flockfile keys a dog does not have; `ActionOutcome` has no catch-all, so a CLI older than the daemon fails to decode that one reply.
+
+`verified crates/shep-core/src/dogs.rs, crates/shep-core/src/protocol/request/dog_source.rs, crates/shep-core/src/config/daemon/sections.rs, crates/shep-daemon/src/dogs/spec.rs (dog_app), crates/shep-daemon/src/supervisor/actor_actions.rs (begin_action), crates/shep-cli/src/commands/shep_toml/mod.rs (adopt_dog), crates/shep-cli/src/commands/dogs/mod.rs (adopted_source)`

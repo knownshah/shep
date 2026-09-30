@@ -301,8 +301,11 @@ ID  NAME  OUTCOME     DETAIL
     <p class="fine">
       A reload drainee (the old instance mid-swap-out) gets{" "}
       <code>skipped</code> instead of a wait, because an answer from a
-      process on its way out would be worse than none. Neither of these
-      costs the operator a timeout; both are refused immediately.
+      process on its way out would be worse than none. A dog with no
+      channel gets <code>dog_no_channel</code>: it has no Flockfile, and{" "}
+      <a href="/docs/writing-a-dog#asking-for-the-channel">only the dog can
+      ask</a>. None of these costs the operator a timeout; all are refused
+      immediately.
     </p>
 
     <h2 id="naming-your-lambs">Naming your lambs</h2>

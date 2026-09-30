@@ -476,6 +476,7 @@ and they answer different questions:
 |---|---|---|
 | the version on line 1 | which build of the dog this is | reported |
 | `shep-protocol` | whether this dog can handshake with this shepherd at all | below the floor, it cannot connect; above it, shep accepts it |
+| `shep-channel` | optional: `true` asks for the shepherd channel (below) | anything else is no ask |
 
 The format is line-oriented text:
 
@@ -533,11 +534,11 @@ process group is killed either way, so a dog that ignores both flags and
 runs costs that time and is adopted with an unknown protocol. It cannot
 hang the `adopt` that is vetting it.
 
-None of the answer is written down. `[daemon] adopted_dogs` records the
-path and nothing else, and a protocol stored at adopt time would be a copy
-of a number that can change on disk with nothing watching. That is G12's
-row 5, the one case where the stored copy would be wrong exactly when it
-mattered, so the binary is asked again rather than remembered.
+Only a channel ask is written down (see below). A protocol stored at
+adopt time would be a copy of a number that can change on disk with
+nothing watching. That is G12's row 5, the one case where the stored copy
+would be wrong exactly when it mattered, so the binary is asked again
+rather than remembered.
 
 A dog written against `shep-client` answers this probe and the schema one
 below with a single call, as the first line of `main`:
@@ -566,6 +567,51 @@ than shep does, and because a stranger writing a dog in a language shep
 has never seen gets two `printf` calls right on the first try. Hand
 written JSON is where the quoting and the trailing comma go wrong, and
 nothing here nests.
+
+### Asking for the shepherd channel
+
+shep starts a dog from a config it writes itself, so a dog has no
+shepherd channel unless it asks for one. A dog that wants
+`shep trigger <dog> <action>`, or to be stopped by a message rather than
+a signal, adds one line to its `--version` answer:
+
+```
+shep-otel 0.2.0
+shep-protocol: 11
+shep-channel: true
+```
+
+`shep adopt` reads it, says so in a `dog_channel` notice, and records the
+name in `[daemon] channel_dogs` in `shep.toml`. From then on every start
+of that dog (the adopt itself, `shep enable`, lookout's toggle, the next
+shepherd's boot) sets `channel` and `shutdown_with_message`, so the dog
+gets fd 3 (a named pipe on Windows) exactly as a sheep with those keys
+would. Only the exact value `true` asks.
+
+The dog asks, not the operator: there is no flag for it, and a built-in
+dog written into `channel_dogs` by hand is ignored. Unlike the protocol,
+the ask is written down, because shep needs it at every start and not only
+at the adopt. A build that adds or drops the line takes effect at the next
+`shep adopt`, which re-reads it and takes a dog that stopped asking back
+out. `shep rehome` forgets it with the rest of the adoption.
+
+A dog written against `shep-client` asks through a `Probe`:
+
+```rust
+shep_client::dogs::Probe::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+    .ask_for_channel()
+    .answer::<MyDogConfig>();
+```
+
+It then serves the channel with `shep-channel`, as a sheep does:
+`on_action` for each trigger, and `on_shutdown` for the stop, typically
+handing it a `shep_client::dogs::StopRequest`. A stop is the `shutdown`
+message with no signal behind it, so a dog that asked and ignores the
+message is killed once `kill_timeout` runs out.
+
+`shep trigger` against a dog that did not ask answers `dog_no_channel`
+rather than `no_channel`, whose advice names Flockfile keys a dog does not
+have.
 
 ### What `shep restart <dog>` does with the answer
 

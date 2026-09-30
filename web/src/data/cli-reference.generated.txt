@@ -1059,6 +1059,10 @@ Options:
 Vet a binary shep has never seen and register it as a dog: writes `[daemon] adopted_dogs` and
 `[daemon] enabled_dogs` in `shep.toml`, and starts it now if a shepherd is running.
 
+A binary whose `--version` answer carries `shep-channel: true` is also written to `[daemon]
+channel_dogs`, and runs with the shepherd channel: `shep trigger` reaches it, and a stop is a
+message rather than a signal. The dog asks; there is no flag for it.
+
 The path can be given as-is, with a leading `~/`, or as a bare name already on `$PATH` (`cargo
 install` puts one there). Refuses, before touching the config at all, a path that resolves to
 nothing that exists, is not a file, has no execute bit set, or that this kernel will not exec — and
@@ -1123,7 +1127,7 @@ Options:
           Print version
 @@VERB:rehome@@
 Forget where an adopted dog's binary lived: stops it if a shepherd is running, and removes it from
-`[daemon] enabled_dogs` and `[daemon] adopted_dogs`.
+`[daemon] enabled_dogs`, `[daemon] adopted_dogs` and `[daemon] channel_dogs`.
 
 Its `[<name>]` table in `dogs.toml` stays, as it does through a `shep disable`: those settings are
 the operator's, so adopting the same dog again finds them waiting. Delete that table by hand to be
