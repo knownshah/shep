@@ -376,8 +376,9 @@ mod tests {
     /// Deep equality of the serialized values, not a key-set check: a field
     /// that keeps its name but changes shape fails here too.
     ///
-    /// Most `Option` fields are `Some` here, so a mismatched `Some`
-    /// conversion fails; the all-`None` case is the next test's job.
+    /// Most `Option` fields are `Some` here, and the dog's `channel` is
+    /// `true`, so a mismatched conversion fails; the all-`None` case is the
+    /// next test's job.
     #[test]
     fn a_sheep_row_serializes_exactly_as_process_info_does() {
         let info = ProcessInfo::builder(7, "api", ProcStatus::WaitingRestart)
@@ -393,7 +394,7 @@ mod tests {
             .cpu_ms(Some(5_678))
             .dog(Some(DogSource::Adopted {
                 path: "/usr/local/bin/dog".to_string(),
-                channel: false,
+                channel: true,
             }))
             .lambs(Some(vec![
                 Lamb::new(4243, "node"),
