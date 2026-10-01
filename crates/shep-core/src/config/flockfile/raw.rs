@@ -67,15 +67,54 @@ pub(super) struct RawFlockfile {
     /// accepted `dog = 5` and `dog = ["a"]` as happily as a table. Not reading
     /// what a dog wrote is the point; not caring whether it wrote a table at
     /// all is a different thing, and it would have made the one key this file
-    /// adds the one key where a typo does not fail loudly.
-    #[serde(default)]
+    /// adds the one key where a typo does not fail loudly. A defaulted map
+    /// rather than `Option`, for the same reason: `None` and `null` would
+    /// otherwise deserialize identically, and `null` is no more a table than
+    /// `5` or `["a"]` is. `deserialize_with` is the custom function below,
+    /// needed because the derived map deserializer lets `null` back through
+    /// for one YAML backend; see that function's own comment.
+    #[serde(default, deserialize_with = "deserialize_dog_table")]
     #[cfg_attr(
         feature = "schema",
-        schemars(with = "Option<BTreeMap<String, serde_json::Value>>")
+        schemars(with = "BTreeMap<String, serde_json::Value>")
     )]
-    pub(super) dog: Option<BTreeMap<String, serde::de::IgnoredAny>>,
+    pub(super) dog: BTreeMap<String, serde::de::IgnoredAny>,
     #[serde(default, rename = "app")]
     pub(super) apps: Vec<AppConfig>,
+}
+
+// `deserialize_any`, not the derived `BTreeMap` deserializer: at least
+// one YAML backend folds a null scalar into an empty map before
+// `deserialize_map` ever reaches a visitor. `deserialize_any` reaches
+// that null as `visit_unit`, which errors by default.
+fn deserialize_dog_table<'de, D>(
+    deserializer: D,
+) -> Result<BTreeMap<String, serde::de::IgnoredAny>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct DogTableVisitor;
+
+    impl<'de> serde::de::Visitor<'de> for DogTableVisitor {
+        type Value = BTreeMap<String, serde::de::IgnoredAny>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("a table")
+        }
+
+        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::MapAccess<'de>,
+        {
+            let mut out = BTreeMap::new();
+            while let Some((key, value)) = map.next_entry()? {
+                out.insert(key, value);
+            }
+            Ok(out)
+        }
+    }
+
+    deserializer.deserialize_any(DogTableVisitor)
 }
 
 impl RawFlockfile {
@@ -154,6 +193,40 @@ script = "./srv"
                 "`dog = {value}` is not a table and must be refused"
             );
         }
+    }
+
+    /// fails if `dog: null` is accepted in JSON. TOML has no null literal,
+    /// so only JSON, YAML and JSON5 need this case, one test each.
+    #[test]
+    fn a_dog_that_is_null_is_refused_in_json() {
+        let json = r#"{ "dog": null, "app": [{ "name": "web", "script": "./srv" }] }"#;
+        assert!(
+            Flockfile::parse(json, FlockFormat::Json).is_err(),
+            "`dog: null` is not a table and must be refused in JSON"
+        );
+    }
+
+    /// fails if `dog: null` is accepted in YAML. A YAML backend may treat a
+    /// null scalar requested as a map as an empty map rather than a type
+    /// error; `dog`'s own `deserialize_with` exists to close exactly that.
+    #[test]
+    fn a_dog_that_is_null_is_refused_in_yaml() {
+        let yaml = "dog: null\napp:\n  - name: web\n    script: ./srv\n";
+        assert!(
+            Flockfile::parse(yaml, FlockFormat::Yaml).is_err(),
+            "`dog: null` is not a table and must be refused in YAML"
+        );
+    }
+
+    /// fails if `dog: null` is accepted in JSON5. JSON5 is parsed by its own
+    /// crate, so this is not redundant with the JSON case above.
+    #[test]
+    fn a_dog_that_is_null_is_refused_in_json5() {
+        let json5 = "{ dog: null, app: [{ name: 'web', script: './srv' }] }";
+        assert!(
+            Flockfile::parse(json5, FlockFormat::Json5).is_err(),
+            "`dog: null` is not a table and must be refused in JSON5"
+        );
     }
 
     /// fails if a typo anywhere else stops failing loudly.
