@@ -190,10 +190,11 @@ impl App {
             | KeyPress::TabPrev
             | KeyPress::TabNext
             | KeyPress::SecretDelete => Effect::None,
-            // `NextGroup`/`Group`/`Undo`/`Continue` belong to the config
+            // `NextGroup`/`PrevGroup`/`Group`/`Undo`/`Continue` belong to the config
             // pane: no other screen has groups to walk, a filed edit set
             // to undo, or a close dialog to answer.
             | KeyPress::NextGroup
+            | KeyPress::PrevGroup
             | KeyPress::Group(_)
             | KeyPress::Undo
             | KeyPress::Continue => Effect::None,

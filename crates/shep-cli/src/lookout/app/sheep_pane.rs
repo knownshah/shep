@@ -273,6 +273,7 @@ impl App {
             // This pane lists a sheep's fields read-only, so it has no
             // group to switch to and nothing filed to take back.
             | KeyPress::NextGroup
+            | KeyPress::PrevGroup
             | KeyPress::Group(_)
             | KeyPress::Undo
             | KeyPress::Continue => Effect::None,
