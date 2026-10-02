@@ -434,7 +434,7 @@ pub struct AppConfig {
     /// takes effect the moment it lands.
     #[cfg_attr(feature = "schema", schemars(extend("init" = {
         "example": { "jobs": { "concurrency": 2 } },
-        "group": "inputs",
+        "group": "dogs",
         "blurb": "Settings for one dog on this sheep alone, opaque to shep",
         "accepts": ["a table of dog name to a table of settings",
                     "a dog name shep does not know about yet"],

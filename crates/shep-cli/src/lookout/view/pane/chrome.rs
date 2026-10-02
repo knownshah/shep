@@ -95,7 +95,7 @@ pub(super) fn tab_row_line(pane: &ConfigPane, palette: Palette, width: u16) -> L
         .map(|group| chip(group))
         .collect::<Vec<_>>()
         .join(" ");
-    let full = format!("{chips}    tab next group   1\u{2026}8 jump");
+    let full = format!("{chips}    tab next group   1\u{2026}9 jump");
     let text = fit(&full, body_width(width));
     let marker = chip(active);
     let mut spans = vec![Span::raw("  ")];
@@ -248,7 +248,7 @@ mod tests {
         assert!(text.contains("<set> -> <set>"), "{text}");
     }
 
-    /// Eight groups, in `GROUP_ORDER`, and every one of them reachable.
+    /// Nine groups, in `GROUP_ORDER`, and every one of them reachable.
     /// This is the test that would have caught a filter axis nothing
     /// could set.
     ///
@@ -277,7 +277,7 @@ mod tests {
         assert_eq!(seen, GROUP_ORDER.to_vec());
     }
 
-    /// All eight group names are listed every render, so the only thing
+    /// All nine group names are listed every render, so the only thing
     /// that changes as `next_group` walks is which one carries the
     /// paper-2 ground: the chip. Checked in colour, since [`fixtures::plain`]
     /// makes [`super::super::super::theme::Palette::ground`] a no-op and
@@ -313,7 +313,7 @@ mod tests {
         assert_eq!(app.config_pane().unwrap().group(), GROUP_ORDER[0]);
     }
 
-    /// The digits reach the same eight groups `tab` does. A key that
+    /// The digits reach the same nine groups `tab` does. A key that
     /// reaches nothing is exactly the shape this plan exists to avoid.
     #[test]
     fn the_digits_reach_the_same_groups_tab_does() {

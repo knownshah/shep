@@ -413,7 +413,7 @@ impl ConfigPane {
         self.view.set_rows(rows, len);
     }
 
-    /// The active group's name, one of the eight in [`GROUP_ORDER`],
+    /// The active group's name, one of the nine in [`GROUP_ORDER`],
     /// defaulting to the first.
     ///
     /// Meaningless for a dog pane in the sense that nothing filters on it:
@@ -432,9 +432,9 @@ impl ConfigPane {
         self.group = (self.group + 1) % GROUP_ORDER.len();
     }
 
-    /// Jumps to the `digit`th group, one-based, the way `1`..`8` name them
+    /// Jumps to the `digit`th group, one-based, the way `1`..`9` name them
     /// on the tab row. A digit past [`GROUP_ORDER`]'s length is ignored, so
-    /// a ninth group added later needs a key of its own before it is
+    /// a tenth group added later needs a key of its own before it is
     /// reachable.
     pub fn set_group(&mut self, digit: u8) {
         let Some(index) = usize::from(digit).checked_sub(1) else {
@@ -450,7 +450,7 @@ impl ConfigPane {
     /// group at all (every field on a dog pane, whose schema declares
     /// none) is visible regardless of which group is active, which is
     /// what keeps a dog's flat list undisturbed by a control meant for a
-    /// sheep's eight.
+    /// sheep's nine.
     ///
     /// The `env` field itself is left out of the field portion for a
     /// sheep: its own [`PaneRow::Env`] rows are what replaced the sub-screen
@@ -595,7 +595,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_sheep_pane_has_forty_four_fields_in_eight_groups() {
+    fn a_sheep_pane_has_forty_four_fields_in_nine_groups() {
         let pane = ConfigPane::sheep(web());
         assert_eq!(pane.fields().len(), 44);
         let mut groups: Vec<&str> = Vec::new();
@@ -615,7 +615,8 @@ mod tests {
                 "readiness",
                 "shutdown",
                 "watch",
-                "cron"
+                "cron",
+                "dogs"
             ]
         );
     }
