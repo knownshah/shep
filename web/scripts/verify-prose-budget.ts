@@ -61,7 +61,10 @@ export const BUDGETS: Record<string, number> = {
   // Raised from 3240 on 2026-09-27 for "A sheep's dogs row": the sub-screen
   // and the per-sheep table pane are new operator-facing surface, not
   // prose to trim back out.
-  "lookout-config": 3290, // 3261
+  //
+  // Raised from 3290 on 2026-10-01 for the dogs tab: a ninth group with its
+  // own key is new operator-facing surface, not prose to trim back out.
+  "lookout-config": 3310, // 3301
   // Raised from 2930 on 2026-09-14 for the host line, which `shep flock`
   // began printing on a one-shot listing and not only under `--follow`. It
   // shows above every table on this page, so four transcripts gained a line

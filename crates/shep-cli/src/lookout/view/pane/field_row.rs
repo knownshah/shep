@@ -302,7 +302,7 @@ mod tests {
         );
     }
 
-    /// Every field row over all eight groups, walked with `next_group`,
+    /// Every field row over all nine groups, walked with `next_group`,
     /// styled by `palette`. What a test that used to find any field at
     /// one width in one shot now needs, since the active group is the
     /// only one a single render draws.

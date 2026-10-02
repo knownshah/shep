@@ -107,7 +107,7 @@ const fn binding(press: &KeyPress) -> Binding {
             row("\u{2190}/\u{2192}", Group::Moving, "environment tab")
         }
         KeyPress::NextGroup => row("tab", Group::Moving, "next config group"),
-        KeyPress::Group(_) => row("1-8", Group::Moving, "jump to a group"),
+        KeyPress::Group(_) => row("1-9", Group::Moving, "jump to a group"),
         KeyPress::MatchNext | KeyPress::MatchPrev => row("n/N", Group::Moving, "next / prev match"),
         KeyPress::Confirm => row("\u{21b5}", Group::Moving, "open selection"),
         KeyPress::Escape => row("esc", Group::Moving, "back one level"),
@@ -155,7 +155,7 @@ const fn binding(press: &KeyPress) -> Binding {
 /// Every key the overlay claims, as `map_key` would see it.
 ///
 /// One entry per row rather than one per key: `Char('a')` stands for every
-/// letter the text-mode row covers and `Char('1')` for the eight group
+/// letter the text-mode row covers and `Char('1')` for the nine group
 /// digits. `every_key_map_key_binds_is_in_the_probe` sweeps the whole
 /// keyboard against this, so a key missing here is a test failure rather
 /// than a row missing from the box.

@@ -278,7 +278,7 @@ pub fn select_field(app: &mut App, key: &str) {
             .iter()
             .position(|known| *known == group)
     {
-        let digit = u8::try_from(position + 1).expect("eight groups fit a u8");
+        let digit = u8::try_from(position + 1).expect("nine groups fit a u8");
         app.update(Msg::Key(KeyPress::Group(digit)));
     }
     let pane = app.config_pane().expect("the pane is open");

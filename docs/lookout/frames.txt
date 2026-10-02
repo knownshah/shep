@@ -1329,12 +1329,12 @@ cwd                         (unset)                                         │o
 esc flock   e edit   J/K next sheep   x stop   R restart   L reload   b full log   / filter                                                      control enabled
 
 === edit_pane  (160x48) ===
-The redrawn editing pane on api, fresh: no edits filed, at 160x48. The tab row names all eight groups with only the active one chipped, the header reads FIELD / VALUE / LANDS, the explanation panel sits beside the field list naming the field under the cursor, and every env value reads (set) rather than the value itself.
+The redrawn editing pane on api, fresh: no edits filed, at 160x48. The tab row names all nine groups with only the active one chipped, the header reads FIELD / VALUE / LANDS, the explanation panel sits beside the field list naming the field under the cursor, and every env value reads (set) rather than the value itself.
 
 shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
                                                                                                                                                                 
  ██ api  (sheep config)                                                                                                                                         
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab next group   1…8 jump                                                     
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs     tab next group   1…9 jump                                              
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                           LANDS                                                                             
 >  cwd                        (unset)                                         respawn    FOCUSED  cwd  text                                                     
@@ -1386,7 +1386,7 @@ The same pane with two edits filed: cwd, which needs a respawn, and max_memory, 
 shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
                                                                                                                                                                 
  ██ api  (sheep config)  2 edits                                                                                                                                
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab next group   1…8 jump                                                     
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs     tab next group   1…9 jump                                              
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                           LANDS                                                                             
    autorestart                true                                            now        FOCUSED  max_memory  memory size                                       
@@ -1438,7 +1438,7 @@ The same fresh pane at 120 columns: narrow enough that LANDS gives way to the ex
 shep lookout   /home/ada/.shep                                                                            6 in the flock
                                                                                                                         
  ██ api  (sheep config)                                                                                                 
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab next group   1…8 jump             
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs     tab next group   1…9 jump      
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                                                                     
 >  cwd                        (unset)                              FOCUSED  cwd  text                                   
@@ -1490,7 +1490,7 @@ The same fresh pane at 88 columns: narrow enough that the explanation panel is g
 shep lookout   /home/ada/.shep                                            6 in the flock
                                                                                         
  ██ api  (sheep config)                                                                 
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab n…
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs   …
   ──────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                           LANDS     
   Where the process runs. Without it, the daemon's own directory                        
@@ -1542,19 +1542,19 @@ api's editing pane, cursor on its dogs row: jobs, legacy names the tables the sh
 shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
                                                                                                                                                                 
  ██ api  (sheep config)                                                                                                                                         
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab next group   1…8 jump                                                     
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs     tab next group   1…9 jump                                              
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                           LANDS                                                                             
-   args                       ["--port","8080"]                               respawn    FOCUSED  dogs  opaque                                                  
-   channel                    false                                           respawn     Settings for one dog on this sheep alone, opaque to shep              
->› dogs                       jobs, legacy                                    now                                                                               
-   environment                (unset)                                         respawn     now     jobs, legacy                                                  
-   stdin                      false                                           respawn     default {}                                                            
-                                                                                          example (none)                                                        
+>› dogs                       jobs, legacy                                    now        FOCUSED  dogs  opaque                                                  
+                                                                                          Settings for one dog on this sheep alone, opaque to shep              
   env                                                                                                                                                           
-   DATABASE_URL               (set)                                                       ● now  the running sheep picks it up without stopping                 
-   NODE_ENV                   (set)                                                                                      pick the timing when you close the pane
-   + add a key                                                                                                                                                  
+   DATABASE_URL               (set)                                                       now     jobs, legacy                                                  
+   NODE_ENV                   (set)                                                       default {}                                                            
+   + add a key                                                                            example (none)                                                        
+                                                                                                                                                                
+                                                                                          ● now  the running sheep picks it up without stopping                 
+                                                                                                                         pick the timing when you close the pane
+                                                                                                                                                                
                                                                                           ──────────────────────────────────────────────────────────────────────
                                                                                           VALIDATION                                                            
                                                                                           █ a table of dog name to a table of settings                          
@@ -1750,7 +1750,7 @@ esc pressed with cwd and err_file edited and listen_timeout already parked from 
 shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
                                                                                                                                                                 
  ██ api  (sheep config)  2 edits                                                                                                                                
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab next group   1…8 jump                                                     
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs     tab next group   1…9 jump                                              
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                           LANDS                                                                             
 >  err_file                   (unset) -> /var/log/api/err.log                 respawn    FOCUSED  err_file  text                                                
@@ -1802,7 +1802,7 @@ The same dialog at 90 columns, exactly the floor its border needs: 86 interior c
 shep lookout   /home/ada/.shep                                              6 in the flock
                                                                                           
  ██ api  (sheep config)  2 edits                                                          
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab nex…
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs     …
   ────────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                                       
 >  err_file                   (unset) -… FOCUSED  err_file  text                          
@@ -1854,7 +1854,7 @@ The same dialog one column under the floor, at 89: the border is dropped and the
 shep lookout   /home/ada/.shep                                             6 in the flock
                                                                                          
  ██ api  (sheep config)  2 edits                                                         
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab ne…
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs    …
   ───────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                            LANDS     
   Where stderr goes. Written out, the default is                                         
@@ -1906,7 +1906,7 @@ esc pressed with no edit of the operator's own, only listen_timeout already park
 shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
                                                                                                                                                                 
  ██ api  (sheep config)                                                                                                                                         
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab next group   1…8 jump                                                     
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs     tab next group   1…9 jump                                              
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                           LANDS                                                                             
 >  cwd                        (unset)                                         respawn    FOCUSED  cwd  text                                                     
@@ -1977,7 +1977,7 @@ host  load  ██░░░░░░░░ 2.31 4.10 3.88 / 10 cores     host me
                 ▐ctrl-d/u     page the feed      z            collapse a fold    space        cycle a value                                    ▌                
                 ▐←/→          environment tab    o            out / err / both   d            restore default      ▟█████▙                     ▌                
                 ▐tab          next config group  m            minimum level      u            undo the edit       ▟███████▙                    ▌                
-                ▐1-8          jump to a group    f            follow the tail    s            shepherd settings   ▜██▀ ▀██▛                    ▌                
+                ▐1-9          jump to a group    f            follow the tail    s            shepherd settings   ▜██▀ ▀██▛                    ▌                
                 ▐n/N          next / prev match  w            wrap long lines    S            secrets               ▀▘ ▀▘                      ▌                
                 ▐↵            open selection     /            filter, or match   D            delete a secret                                  ▌                
                 ▐esc          back one level     r            refresh now        c            leave it running                                 ▌                
@@ -2029,7 +2029,7 @@ host  load  ██░░░░░░░░ 2.31 4.10 3.88 / 10 cores     host me
  ▐ctrl-d/u     page the feed      z            collapse a fold    space        cycle a value                                    ▌ 
  ▐←/→          environment tab    o            out / err / both   d            restore default      ▟█████▙                     ▌ 
  ▐tab          next config group  m            minimum level      u            undo the edit       ▟███████▙                    ▌ 
- ▐1-8          jump to a group    f            follow the tail    s            shepherd settings   ▜██▀ ▀██▛                    ▌ 
+ ▐1-9          jump to a group    f            follow the tail    s            shepherd settings   ▜██▀ ▀██▛                    ▌ 
  ▐n/N          next / prev match  w            wrap long lines    S            secrets               ▀▘ ▀▘                      ▌ 
  ▐↵            open selection     /            filter, or match   D            delete a secret                                  ▌ 
  ▐esc          back one level     r            refresh now        c            leave it running                                 ▌ 
@@ -2066,7 +2066,7 @@ J/K          next / prev sheep  F            gather by fold     e            the
 ctrl-d/u     page the feed      z            collapse a fold    space        cycle a value                                       
 ←/→          environment tab    o            out / err / both   d            restore default                                     
 tab          next config group  m            minimum level      u            undo the edit                                       
-1-8          jump to a group    f            follow the tail    s            shepherd settings                                   
+1-9          jump to a group    f            follow the tail    s            shepherd settings                                   
 n/N          next / prev match  w            wrap long lines    S            secrets                                             
 ↵            open selection     /            filter, or match   D            delete a secret                                     
 esc          back one level     r            refresh now        c            leave it running                                    
@@ -2118,7 +2118,7 @@ J/K          next / prev sheep  F            gather by fold     e            the
 ctrl-d/u     page the feed      z            collapse a fold    space        cycle a value          
 ←/→          environment tab    o            out / err / both   d            restore default        
 tab          next config group  m            minimum level      u            undo the edit          
-1-8          jump to a group    f            follow the tail    s            shepherd settings      
+1-9          jump to a group    f            follow the tail    s            shepherd settings      
 n/N          next / prev match  w            wrap long lines    S            secrets                
 ↵            open selection     /            filter, or match   D            delete a secret        
 esc          back one level     r            refresh now        c            leave it running       
@@ -2170,7 +2170,7 @@ J/K          next / prev sheep  F            gather by fold
 ctrl-d/u     page the feed      z            collapse a fold          
 ←/→          environment tab    o            out / err / both         
 tab          next config group  m            minimum level            
-1-8          jump to a group    f            follow the tail          
+1-9          jump to a group    f            follow the tail          
 n/N          next / prev match  w            wrap long lines          
 ↵            open selection     /            filter, or match         
 esc          back one level     r            refresh now              
@@ -2237,7 +2237,7 @@ host  load  ██░░░░░░░░ 2.31 4.10 3.88 / 10 cores     host me
                 ▐ctrl-d/u     page the feed      z            collapse a fold    space        cycle a value                                    ▌                
                 ▐←/→          environment tab    o            out / err / both   d            restore default      ▟█████▙                     ▌                
                 ▐tab          next config group  m            minimum level      u            undo the edit       ▟███████▙                    ▌                
-                ▐1-8          jump to a group    f            follow the tail    s            shepherd settings   ▜██▀ ▀██▛                    ▌                
+                ▐1-9          jump to a group    f            follow the tail    s            shepherd settings   ▜██▀ ▀██▛                    ▌                
                 ▐n/N          next / prev match  w            wrap long lines    S            secrets               ▀▘ ▀▘                      ▌                
                 ▐↵            open selection     /            filter, or match   D            delete a secret                                  ▌                
                 ▐esc          back one level     r            refresh now        c            leave it running                                 ▌                
@@ -2289,7 +2289,7 @@ host  load  ██░░░░░░░░ 2.31 4.10 3.88 / 10 cores     host me
                 ▐ctrl-d/u     page the feed      z            collapse a fold    space        cycle a value                                    ▌                
                 ▐←/→          environment tab    o            out / err / both   d            restore default      ▟█████▙                     ▌                
                 ▐tab          next config group  m            minimum level      u            undo the edit       ▟███████▙                    ▌                
-                ▐1-8          jump to a group    f            follow the tail    s            shepherd settings   ▜██▀ ▀██▛                    ▌                
+                ▐1-9          jump to a group    f            follow the tail    s            shepherd settings   ▜██▀ ▀██▛                    ▌                
                 ▐n/N          next / prev match  w            wrap long lines    S            secrets               ▀▘ ▀▘                      ▌                
                 ▐↵            open selection     /            filter, or match   D            delete a secret                                  ▌                
                 ▐esc          back one level     r            refresh now        c            leave it running                                 ▌                
@@ -2326,7 +2326,7 @@ J/K          next / prev sheep  F            gather by fold     e            the
 ctrl-d/u     page the feed      z            collapse a fold    space        cycle a value                                                                      
 ←/→          environment tab    o            out / err / both   d            restore default                                                                    
 tab          next config group  m            minimum level      u            undo the edit                                                                      
-1-8          jump to a group    f            follow the tail    s            shepherd settings                                                                  
+1-9          jump to a group    f            follow the tail    s            shepherd settings                                                                  
 n/N          next / prev match  w            wrap long lines    S            secrets                                                                            
 ↵            open selection     /            filter, or match   D            delete a secret                                                                    
 esc          back one level     r            refresh now        c            leave it running                                                                   

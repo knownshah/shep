@@ -215,7 +215,7 @@
                 "concurrency": 2
               }
             },
-            "group": "inputs",
+            "group": "dogs",
             "refuses": [
               "a value that is not a table",
               "an empty dog name"

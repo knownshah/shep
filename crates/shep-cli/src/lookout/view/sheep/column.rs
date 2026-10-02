@@ -40,7 +40,7 @@ pub(super) fn column_top_row(height: u16) -> u16 {
     }
 }
 
-/// The eight Flockfile groups' fields, plus the env keys, as the column
+/// The nine Flockfile groups' fields, plus the env keys, as the column
 /// scrolls through them: one entry per rendered row, and every group label
 /// this pass actually emitted, in the order it emitted them.
 ///
@@ -417,7 +417,7 @@ mod tests {
     /// The group labels [`crate::lookout::pane::ConfigPane`]'s own field set
     /// carries for `web_view`'s config, in schema order, deduplicated
     /// consecutively the same way [`column_body`]'s own walk dedupes. The
-    /// source of truth [`the_groups_are_the_schemas_eight_in_its_own_order`]
+    /// source of truth [`the_groups_are_the_schemas_nine_in_its_own_order`]
     /// checks the column against, instead of a copy of the order typed by
     /// hand: `column_body` layers its own `env`-skipping logic on top of the
     /// same [`pane::sheep_fields`] this reads, so a real cross-check is what
@@ -435,12 +435,12 @@ mod tests {
         labels
     }
 
-    /// Eight groups, in the schema's own order, the same order
+    /// Nine groups, in the schema's own order, the same order
     /// [`ConfigPane`](crate::lookout::pane::ConfigPane)'s own field set gives
     /// for the same config. The frame lists seven and puts `restart` second;
     /// `cron` is missing from it entirely.
     #[test]
-    fn the_groups_are_the_schemas_eight_in_its_own_order() {
+    fn the_groups_are_the_schemas_nine_in_its_own_order() {
         let view = web_view();
         assert_eq!(group_labels_of(&view), config_pane_group_labels(&view));
     }

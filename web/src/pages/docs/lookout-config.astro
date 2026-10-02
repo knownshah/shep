@@ -102,19 +102,16 @@ esc/S close   ←/→ tab   z collapse   v reveal for 10s   ↵ set a value   D 
 const sheepDogsRow = `shep lookout   /home/ada/.shep                                                                                                                    6 in the flock
 
  ██ api  (sheep config)
-   process   logging   inputs   restart   readiness   shutdown   watch   cron     tab next group   1…8 jump
+   process   logging   inputs   restart   readiness   shutdown   watch   cron   dogs     tab next group   1…9 jump
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   FIELD                       VALUE                                           LANDS
-   args                       ["--port","8080"]                               respawn    FOCUSED  dogs  opaque
-   channel                    false                                           respawn     Settings for one dog on this sheep alone, opaque to shep
->› dogs                       jobs, legacy                                    now
-   environment                (unset)                                         respawn     now     jobs, legacy
-   stdin                      false                                           respawn     default {}
-                                                                                          example (none)
-  env
+>› dogs                       jobs, legacy                                    now        FOCUSED  dogs  opaque
+  env                                                                                    Settings for one dog on this sheep alone, opaque to shep
    DATABASE_URL               (set)                                                       ● now  the running sheep picks it up without stopping
    NODE_ENV                   (set)                                                                                      pick the timing when you close the pane
    + add a key
+                                                                                          default {}
+                                                                                          example (none)
                                                                                           ──────────────────────────────────────────────────────────────────────
                                                                                           VALIDATION
                                                                                           █ a table of dog name to a table of settings
@@ -355,8 +352,8 @@ esc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d b
     <p>
       <code>e</code> on a selected sheep opens its config over the dashboard:
       every Flockfile field, the value in force, and what changing it would
-      cost. Fields sit under eight groups: process, logging, inputs,
-      restart, readiness, shutdown, watch, cron. It writes as well, behind
+      cost. Fields sit under nine groups: process, logging, inputs,
+      restart, readiness, shutdown, watch, cron, dogs. It writes as well, behind
       the same gate. Under{" "}
       <code>--read-only</code> the first key that would file an edit refuses
       the same way <code>x</code> does; the pane stays open and unchanged. A
@@ -454,10 +451,10 @@ esc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d b
       of it.
     </p>
     <p>
-      A tab row above the fields names all eight groups. <code>Tab</code>{" "}
-      walks to the next one, and <code>1</code> through <code>8</code> jump
-      straight to a group by its position in that row. Either resets the
-      cursor to the group's first field.
+      A tab row above the fields names all nine groups, <code>dogs</code>{" "}
+      last. <code>Tab</code> walks to the next one, and <code>1</code>{" "}
+      through <code>9</code> jump straight to a group by its position in
+      that row. Either resets the cursor to the group's first field.
     </p>
     <p>
       A panel to the right of a wide enough pane explains whichever field
@@ -572,9 +569,10 @@ esc close   j/k select   g/G first/last   r refresh   space cycle   e edit   d b
 
     <h2 id="a-sheeps-dogs-row">A sheep's dogs row</h2>
     <p>
-      <code>dogs</code> names its dogs, <code>jobs, legacy</code>, or{" "}
-      <code>none</code>, never a value. Enter or <code>e</code> probes
-      every adopted dog and opens a sub-screen.
+      <code>dogs</code> has a tab of its own, last in the row, reached with{" "}
+      <code>9</code> or <code>Tab</code>. It names its dogs,{" "}
+      <code>jobs, legacy</code>, or <code>none</code>, never a value. Enter
+      or <code>e</code> probes every adopted dog and opens a sub-screen.
     </p>
     <CodeBlock label="160×48, cursor on the dogs row">{sheepDogsRow}</CodeBlock>
     <p>

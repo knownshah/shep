@@ -60,7 +60,7 @@ pub fn map_key(event: &Event, mode: InputMode) -> Option<KeyPress> {
         KeyCode::Esc => Some(KeyPress::Escape),
         KeyCode::Char('/') => Some(KeyPress::FilterStart),
         KeyCode::Tab => Some(KeyPress::NextGroup),
-        KeyCode::Char(digit @ '1'..='8') => Some(KeyPress::Group(digit as u8 - b'0')),
+        KeyCode::Char(digit @ '1'..='9') => Some(KeyPress::Group(digit as u8 - b'0')),
         KeyCode::Char('u') => Some(KeyPress::Undo),
         KeyCode::Char('c') => Some(KeyPress::Continue),
         KeyCode::Char('j') | KeyCode::Down => Some(KeyPress::SelectDown),
@@ -505,7 +505,7 @@ mod tests {
     }
 
     #[test]
-    fn the_digits_one_through_eight_jump_to_a_group() {
+    fn the_digits_one_through_nine_jump_to_a_group() {
         for (typed, wanted) in [
             ('1', 1_u8),
             ('2', 2),
@@ -515,15 +515,15 @@ mod tests {
             ('6', 6),
             ('7', 7),
             ('8', 8),
+            ('9', 9),
         ] {
             assert_eq!(press(KeyCode::Char(typed)), Some(KeyPress::Group(wanted)));
         }
     }
 
-    /// Eight groups, so nine and zero are not group keys and stay free.
+    /// Nine groups, so zero is not a group key and stays free.
     #[test]
-    fn nine_and_zero_are_unbound() {
-        assert_eq!(press(KeyCode::Char('9')), None);
+    fn zero_is_unbound() {
         assert_eq!(press(KeyCode::Char('0')), None);
     }
 
